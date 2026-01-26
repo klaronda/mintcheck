@@ -1,6 +1,6 @@
 # MintCheck - Marketing Website
 
-A single-page marketing website for MintCheck, an iOS app that helps people make smarter decisions about used cars through OBD-II scanner diagnostics.
+A marketing website for [MintCheck](https://mintcheckapp.com), an iOS app that helps people make smarter decisions about used cars with OBD-II scans.
 
 ## 📚 Documentation
 
@@ -49,16 +49,10 @@ VITE_SUPABASE_URL=https://iawkgqbrxoctatfrjpli.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 ```
 
-## 🚀 Deployment to Vercel
+## 🚀 Deployment (GitHub + Vercel)
 
-1. Push your code to GitHub
-2. Import the project in Vercel
-3. Add environment variables in Vercel dashboard:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-4. Deploy!
-
-The `vercel.json` file is already configured for SPA routing.
+- **Repo:** [github.com/klaronda/mintcheck](https://github.com/klaronda/mintcheck)
+- **Deploy:** See **[VERCEL_SETUP.md](./VERCEL_SETUP.md)** for connecting the repo to Vercel, env vars, and custom domain. The `vercel.json` file is already configured for SPA routing, headers, and caching.
 
 ## 🎨 Design System
 
