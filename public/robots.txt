@@ -1,0 +1,29 @@
+# Robots.txt for MintCheck
+# https://mintcheckapp.com
+
+# Allow all search engines
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /admin
+Disallow: /admin/login
+Disallow: /admin/dashboard
+
+# Disallow shared report pages (noindex; private links)
+Disallow: /report
+
+# Allow public pages
+Allow: /
+Allow: /download
+Allow: /contact
+Allow: /blog
+Allow: /support
+Allow: /privacy
+Allow: /terms
+
+# Sitemap location
+Sitemap: https://mintcheckapp.com/sitemap.xml
+
+# Crawl delay (optional - adjust if needed)
+# Crawl-delay: 1
