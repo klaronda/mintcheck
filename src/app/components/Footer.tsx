@@ -50,9 +50,6 @@ export default function Footer() {
             <Link to="/blog" className="hover:text-white transition-colors">
               Blog
             </Link>
-            <Link to="/contact" className="hover:text-white transition-colors">
-              Contact
-            </Link>
             <Link to="/privacy" className="hover:text-white transition-colors">
               Privacy Policy
             </Link>

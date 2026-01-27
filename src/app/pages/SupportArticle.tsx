@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import { useAdmin } from '@/app/contexts/AdminContext';
-import { getOrganizationSchema, getArticleSchema, getBreadcrumbSchema } from '@/app/utils/structuredData';
 
 export default function SupportArticle() {
   const { slug } = useParams<{ slug: string }>();
@@ -30,45 +29,7 @@ export default function SupportArticle() {
     <div className="min-h-screen bg-white">
       <Helmet>
         <title>{article.title} | Support | MintCheck</title>
-        <meta name="description" content={article.summary || article.cardDescription} />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href={`https://mintcheckapp.com/support/${article.slug}`} />
-        
-        {/* Open Graph */}
-        <meta property="og:title" content={`${article.title} | MintCheck Support`} />
-        <meta property="og:description" content={article.summary || article.cardDescription} />
-        <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://mintcheckapp.com/support/${article.slug}`} />
-        <meta property="og:image" content={article.heroImage} />
-        <meta property="og:site_name" content="MintCheck" />
-        
-        {/* Twitter Card */}
-        <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content={article.title} />
-        <meta name="twitter:description" content={article.summary || article.cardDescription} />
-        
-        {/* Structured Data */}
-        <script type="application/ld+json">
-          {JSON.stringify(getOrganizationSchema())}
-        </script>
-        <script type="application/ld+json">
-          {JSON.stringify(getArticleSchema({
-            title: article.title,
-            summary: article.summary || article.cardDescription,
-            slug: article.slug,
-            type: article.type,
-            createdAt: article.createdAt,
-            updatedAt: article.updatedAt,
-            heroImage: article.heroImage,
-          }))}
-        </script>
-        <script type="application/ld+json">
-          {JSON.stringify(getBreadcrumbSchema([
-            { name: 'Home', url: 'https://mintcheckapp.com' },
-            { name: 'Support', url: 'https://mintcheckapp.com/support' },
-            { name: article.title, url: `https://mintcheckapp.com/support/${article.slug}` },
-          ]))}
-        </script>
+        <meta name="description" content={article.summary} />
       </Helmet>
 
       <Navbar />
@@ -79,10 +40,6 @@ export default function SupportArticle() {
           src={article.heroImage}
           alt={article.title}
           className="w-full h-full object-cover"
-          fetchPriority="high"
-          width="1200"
-          height="400"
-          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       </div>
@@ -122,17 +79,11 @@ export default function SupportArticle() {
           <p className="text-sm text-muted-foreground mb-4">
             Was this article helpful?
           </p>
-          <div className="flex gap-4" role="group" aria-label="Article feedback">
-            <button 
-              className="px-6 py-2 border border-border rounded-lg hover:bg-gray-50 transition-colors"
-              aria-label="Mark article as helpful"
-            >
+          <div className="flex gap-4">
+            <button className="px-6 py-2 border border-border rounded-lg hover:bg-gray-50 transition-colors">
               Yes
             </button>
-            <button 
-              className="px-6 py-2 border border-border rounded-lg hover:bg-gray-50 transition-colors"
-              aria-label="Mark article as not helpful"
-            >
+            <button className="px-6 py-2 border border-border rounded-lg hover:bg-gray-50 transition-colors">
               No
             </button>
           </div>

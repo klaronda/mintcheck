@@ -4,7 +4,6 @@ import { Calendar } from 'lucide-react';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import { useAdmin } from '@/app/contexts/AdminContext';
-import { getOrganizationSchema } from '@/app/utils/structuredData';
 
 export default function Blog() {
   const { getBlogArticles } = useAdmin();
@@ -19,27 +18,7 @@ export default function Blog() {
     <div className="min-h-screen bg-white">
       <Helmet>
         <title>Blog | MintCheck</title>
-        <meta name="description" content="Read the latest articles about car health, vehicle maintenance, and getting the most out of your OBD-II scanner." />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://mintcheckapp.com/blog" />
-        
-        {/* Open Graph */}
-        <meta property="og:title" content="Blog | MintCheck" />
-        <meta property="og:description" content="Read the latest articles about car health, vehicle maintenance, and getting the most out of your OBD-II scanner." />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://mintcheckapp.com/blog" />
-        <meta property="og:image" content="https://mintcheckapp.com/og-image.jpg" />
-        <meta property="og:site_name" content="MintCheck" />
-        
-        {/* Twitter Card */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Blog | MintCheck" />
-        <meta name="twitter:description" content="Read the latest articles about car health and vehicle maintenance." />
-        
-        {/* Structured Data */}
-        <script type="application/ld+json">
-          {JSON.stringify(getOrganizationSchema())}
-        </script>
+        <meta name="description" content="Read the latest articles about car diagnostics, vehicle maintenance, and getting the most out of your OBD-II scanner." />
       </Helmet>
 
       <Navbar />
@@ -51,7 +30,7 @@ export default function Blog() {
             MintCheck Blog
           </h1>
           <p className="text-xl text-white/90">
-            Tips, insights, and news about car health and vehicle maintenance
+            Tips, insights, and news about car diagnostics and vehicle health
           </p>
         </div>
       </div>
@@ -68,10 +47,6 @@ export default function Blog() {
                     src={articles[0].heroImage}
                     alt={articles[0].title}
                     className="w-full h-96 object-cover rounded-lg mb-6 group-hover:opacity-90 transition-opacity"
-                    loading="lazy"
-                    width="1200"
-                    height="400"
-                    decoding="async"
                   />
                   
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
@@ -111,10 +86,6 @@ export default function Blog() {
                         src={article.heroImage}
                         alt={article.title}
                         className="w-full h-48 object-cover group-hover:opacity-90 transition-opacity"
-                        loading="lazy"
-                        width="400"
-                        height="200"
-                        decoding="async"
                       />
                       <div className="p-4">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">

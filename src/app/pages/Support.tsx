@@ -4,7 +4,6 @@ import { HelpCircle, Smartphone, Car } from 'lucide-react';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import { useAdmin } from '@/app/contexts/AdminContext';
-import { getOrganizationSchema } from '@/app/utils/structuredData';
 
 export default function Support() {
   const { getArticlesByCategory } = useAdmin();
@@ -25,7 +24,7 @@ export default function Support() {
     {
       name: 'Vehicle Support',
       icon: Car,
-      description: 'Vehicle compatibility, trouble codes, and car-specific help',
+      description: 'Vehicle compatibility, diagnostic codes, and car-specific help',
       articles: getArticlesByCategory('Vehicle Support'),
     },
   ];
@@ -34,27 +33,7 @@ export default function Support() {
     <div className="min-h-screen bg-white">
       <Helmet>
         <title>Support | MintCheck</title>
-        <meta name="description" content="Get help with MintCheck. Find answers about device setup, using the app, and understanding your scans." />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://mintcheckapp.com/support" />
-        
-        {/* Open Graph */}
-        <meta property="og:title" content="Support | MintCheck" />
-        <meta property="og:description" content="Get help with MintCheck. Find answers about device setup, using the app, and understanding your scans." />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://mintcheckapp.com/support" />
-        <meta property="og:image" content="https://mintcheckapp.com/og-image.jpg" />
-        <meta property="og:site_name" content="MintCheck" />
-        
-        {/* Twitter Card */}
-        <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="Support | MintCheck" />
-        <meta name="twitter:description" content="Get help with MintCheck. Find answers about device setup and using the app." />
-        
-        {/* Structured Data */}
-        <script type="application/ld+json">
-          {JSON.stringify(getOrganizationSchema())}
-        </script>
+        <meta name="description" content="Get help with MintCheck. Find answers about device setup, using the app, and understanding your vehicle's diagnostics." />
       </Helmet>
 
       <Navbar />
@@ -116,7 +95,7 @@ export default function Support() {
             Still need help?
           </h2>
           <p className="text-muted-foreground mb-6">
-            Can’t find what you’re looking for? Get in touch with our support team.
+            Can't find what you're looking for? Get in touch with our support team.
           </p>
           <a
             href="mailto:support@mintcheckapp.com"

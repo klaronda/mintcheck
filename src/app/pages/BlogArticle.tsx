@@ -4,7 +4,6 @@ import { ArrowLeft, Calendar } from 'lucide-react';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import { useAdmin } from '@/app/contexts/AdminContext';
-import { getOrganizationSchema, getArticleSchema, getBreadcrumbSchema } from '@/app/utils/structuredData';
 
 export default function BlogArticle() {
   const { slug } = useParams<{ slug: string }>();
@@ -35,48 +34,7 @@ export default function BlogArticle() {
     <div className="min-h-screen bg-white">
       <Helmet>
         <title>{article.title} | Blog | MintCheck</title>
-        <meta name="description" content={article.summary || article.cardDescription} />
-        <meta name="robots" content="index, follow" />
-        <link rel="canonical" href={`https://mintcheckapp.com/blog/${article.slug}`} />
-        
-        {/* Open Graph */}
-        <meta property="og:title" content={`${article.title} | MintCheck Blog`} />
-        <meta property="og:description" content={article.summary || article.cardDescription} />
-        <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://mintcheckapp.com/blog/${article.slug}`} />
-        <meta property="og:image" content={article.heroImage} />
-        <meta property="og:site_name" content="MintCheck" />
-        <meta property="article:published_time" content={article.createdAt} />
-        {article.updatedAt && <meta property="article:modified_time" content={article.updatedAt} />}
-        
-        {/* Twitter Card */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={article.title} />
-        <meta name="twitter:description" content={article.summary || article.cardDescription} />
-        <meta name="twitter:image" content={article.heroImage} />
-        
-        {/* Structured Data */}
-        <script type="application/ld+json">
-          {JSON.stringify(getOrganizationSchema())}
-        </script>
-        <script type="application/ld+json">
-          {JSON.stringify(getArticleSchema({
-            title: article.title,
-            summary: article.summary || article.cardDescription,
-            slug: article.slug,
-            type: article.type,
-            createdAt: article.createdAt,
-            updatedAt: article.updatedAt,
-            heroImage: article.heroImage,
-          }))}
-        </script>
-        <script type="application/ld+json">
-          {JSON.stringify(getBreadcrumbSchema([
-            { name: 'Home', url: 'https://mintcheckapp.com' },
-            { name: 'Blog', url: 'https://mintcheckapp.com/blog' },
-            { name: article.title, url: `https://mintcheckapp.com/blog/${article.slug}` },
-          ]))}
-        </script>
+        <meta name="description" content={article.summary} />
       </Helmet>
 
       <Navbar />
@@ -87,10 +45,6 @@ export default function BlogArticle() {
           src={article.heroImage}
           alt={article.title}
           className="w-full h-full object-cover"
-          fetchPriority="high"
-          width="1200"
-          height="400"
-          decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       </div>

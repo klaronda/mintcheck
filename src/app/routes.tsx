@@ -1,94 +1,33 @@
 import { createBrowserRouter } from 'react-router';
-import { lazy, Suspense } from 'react';
 import Layout from './components/Layout';
-
-// Lazy load components for code splitting
-const Home = lazy(() => import('./pages/Home'));
-const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
-const TermsOfUse = lazy(() => import('./pages/TermsOfUse'));
-const Support = lazy(() => import('./pages/Support'));
-const SupportArticle = lazy(() => import('./pages/SupportArticle'));
-const Blog = lazy(() => import('./pages/Blog'));
-const BlogArticle = lazy(() => import('./pages/BlogArticle'));
-const AdminLogin = lazy(() => import('./pages/AdminLogin'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-const Download = lazy(() => import('./pages/Download'));
-const Contact = lazy(() => import('./pages/Contact'));
-const ReportPage = lazy(() => import('./pages/ReportPage'));
-
-// Loading fallback component
-const LoadingFallback = () => (
-  <div className="min-h-screen bg-white flex items-center justify-center">
-    <div className="text-center">
-      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-      <p className="text-muted-foreground">Loading...</p>
-    </div>
-  </div>
-);
-
-// Wrapper component for Suspense
-const LazyComponent = ({ Component }: { Component: React.LazyExoticComponent<() => JSX.Element> }) => (
-  <Suspense fallback={<LoadingFallback />}>
-    <Component />
-  </Suspense>
-);
+import Home from './pages/Home';
+import Support from './pages/Support';
+import SupportArticle from './pages/SupportArticle';
+import Blog from './pages/Blog';
+import BlogArticle from './pages/BlogArticle';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfUse from './pages/TermsOfUse';
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
+import ReportPage from './pages/ReportPage';
+import Download from './pages/Download';
 
 export const router = createBrowserRouter([
   {
-    Component: Layout,
+    path: '/',
+    element: <Layout />,
     children: [
-      {
-        path: '/',
-        element: <LazyComponent Component={Home} />,
-      },
-      {
-        path: '/download',
-        element: <LazyComponent Component={Download} />,
-      },
-      {
-        path: '/contact',
-        element: <LazyComponent Component={Contact} />,
-      },
-      {
-        path: '/report/:shareCode',
-        element: <LazyComponent Component={ReportPage} />,
-      },
-      {
-        path: '/privacy',
-        element: <LazyComponent Component={PrivacyPolicy} />,
-      },
-      {
-        path: '/terms',
-        element: <LazyComponent Component={TermsOfUse} />,
-      },
-      {
-        path: '/support',
-        element: <LazyComponent Component={Support} />,
-      },
-      {
-        path: '/support/:slug',
-        element: <LazyComponent Component={SupportArticle} />,
-      },
-      {
-        path: '/blog',
-        element: <LazyComponent Component={Blog} />,
-      },
-      {
-        path: '/blog/:slug',
-        element: <LazyComponent Component={BlogArticle} />,
-      },
-      {
-        path: '/admin/login',
-        element: <LazyComponent Component={AdminLogin} />,
-      },
-      {
-        path: '/admin',
-        element: <LazyComponent Component={AdminDashboard} />,
-      },
-      {
-        path: '/admin/dashboard',
-        element: <LazyComponent Component={AdminDashboard} />,
-      },
+      { index: true, element: <Home /> },
+      { path: 'download', element: <Download /> },
+      { path: 'support', element: <Support /> },
+      { path: 'support/:slug', element: <SupportArticle /> },
+      { path: 'blog', element: <Blog /> },
+      { path: 'blog/:slug', element: <BlogArticle /> },
+      { path: 'privacy', element: <PrivacyPolicy /> },
+      { path: 'terms', element: <TermsOfUse /> },
+      { path: 'admin/login', element: <AdminLogin /> },
+      { path: 'admin/dashboard', element: <AdminDashboard /> },
+      { path: 'report/:shareCode', element: <ReportPage /> },
     ],
   },
 ]);

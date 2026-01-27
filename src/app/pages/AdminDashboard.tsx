@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet-async';
 import { Plus, Edit, Trash2, Eye, EyeOff, LogOut, ExternalLink, Upload } from 'lucide-react';
-import { useAdmin, Article } from '@/app/contexts/AdminContext';
-import { adminAuthApi, isAdminUser } from '@/lib/supabase';
+import { useAdmin, Article, AUTH_KEY } from '@/app/contexts/AdminContext';
 import RichTextEditor from '@/app/components/RichTextEditor';
 
 export default function AdminDashboard() {
@@ -27,21 +26,16 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      const session = await adminAuthApi.getSession();
-      if (!mounted) return;
-      if (!session?.user || !isAdminUser(session.user)) {
-        navigate('/admin/login');
-        return;
-      }
+    const auth = localStorage.getItem(AUTH_KEY);
+    if (auth !== 'true') {
+      navigate('/admin/login');
+    } else {
       setIsAuthenticated(true);
-    })();
-    return () => { mounted = false; };
+    }
   }, [navigate]);
 
-  const handleLogout = async () => {
-    await adminAuthApi.signOut();
+  const handleLogout = () => {
+    localStorage.removeItem(AUTH_KEY);
     navigate('/admin/login');
   };
 

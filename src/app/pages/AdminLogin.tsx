@@ -1,31 +1,26 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet-async';
-import { adminAuthApi } from '@/lib/supabase';
+import { AUTH_KEY, CREDENTIALS_KEY } from '@/app/contexts/AdminContext';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const result = await adminAuthApi.signIn(email, password);
-      if (result.success) {
+    
+    const stored = localStorage.getItem(CREDENTIALS_KEY);
+    if (stored) {
+      const credentials = JSON.parse(stored);
+      if (email === credentials.email && password === credentials.password) {
+        localStorage.setItem(AUTH_KEY, 'true');
         navigate('/admin/dashboard');
-        return;
+      } else {
+        setError('Invalid email or password');
       }
-      setError(result.error || 'Invalid email or password');
-    } catch {
-      setError('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -57,7 +52,6 @@ export default function AdminLogin() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3EB489]"
                 required
-                autoComplete="email"
               />
             </div>
 
@@ -72,7 +66,6 @@ export default function AdminLogin() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3EB489]"
                 required
-                autoComplete="current-password"
               />
             </div>
 
@@ -84,16 +77,16 @@ export default function AdminLogin() {
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-[#3EB489] text-white py-3 rounded-lg hover:bg-[#359e7a] transition-colors disabled:opacity-50"
+              className="w-full bg-[#3EB489] text-white py-3 rounded-lg hover:bg-[#359e7a] transition-colors"
               style={{ fontWeight: 600 }}
             >
-              {loading ? 'Signing in…' : 'Sign In'}
+              Sign In
             </button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-border text-center text-sm text-muted-foreground">
-            <p>Sign in with your MintCheck admin account.</p>
+            <p>Default credentials:</p>
+            <p className="mt-1">admin@mintcheckapp.com / mintcheck2024</p>
           </div>
         </div>
       </div>
