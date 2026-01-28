@@ -86,6 +86,15 @@ export default function Home() {
               <p className="text-muted-foreground leading-relaxed">
                 Plug a WiFi OBD-II scanner into the car’s OBD port. Turn the ignition on, connect your phone, and you’re ready.
               </p>
+              <a
+                href="https://www.amazon.com/dp/B0BRKJ38ZQ?ref=ppx_yo2ov_dt_b_fed_asin_title"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
+              >
+                Buy a scanner now on Amazon
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
             </div>
             <div className="space-y-4">
               <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center">
