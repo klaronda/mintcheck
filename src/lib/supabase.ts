@@ -32,6 +32,7 @@ export interface SharedReport {
   share_code: string;
   vin?: string | null;
   report_data: ReportData;
+  summary?: string | null;  // AI-generated summary (dedicated column)
   created_at: string;
 }
 

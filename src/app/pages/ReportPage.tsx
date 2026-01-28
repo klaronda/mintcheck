@@ -277,6 +277,9 @@ function ReportContent({ report }: { report: SharedReport }) {
   // Generate system details
   const systemDetails = generateSystemDetails(rd);
 
+  // Get summary from dedicated column, fallback to report_data.summary
+  const summary = report.summary || rd.summary;
+
   const findings =
     rd.findings && rd.findings.length > 0
       ? rd.findings
@@ -334,9 +337,9 @@ function ReportContent({ report }: { report: SharedReport }) {
               <h2 className="m-0 mb-2" style={{ fontSize: '1.5rem', fontWeight: 700, color: recoStyle.text }}>
                 {recoStyle.headline}
               </h2>
-              {rd.summary && (
+              {summary && (
                 <p className="m-0 leading-relaxed" style={{ fontSize: '0.9375rem', color: '#666666' }}>
-                  {rd.summary}
+                  {summary}
                 </p>
               )}
             </div>
