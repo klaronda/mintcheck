@@ -9,6 +9,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminFeedback from './pages/AdminFeedback';
 import ReportPage from './pages/ReportPage';
 import Download from './pages/Download';
 import AuthConfirm from './pages/AuthConfirm';
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: 'terms', element: <TermsOfUse /> },
       { path: 'admin/login', element: <AdminLogin /> },
       { path: 'admin/dashboard', element: <AdminDashboard /> },
+      { path: 'admin/feedback', element: <AdminFeedback /> },
       { path: 'report/:shareCode', element: <ReportPage /> },
     ],
   },
