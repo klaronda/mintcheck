@@ -333,17 +333,18 @@ function ReportContent({ report }: { report: SharedReport }) {
             <div className="flex-shrink-0 mt-1">
               <RecommendationIcon recommendation={rd.recommendation} />
             </div>
-            <div>
-              <h2 className="m-0 mb-2" style={{ fontSize: '1.5rem', fontWeight: 700, color: recoStyle.text }}>
-                {recoStyle.headline}
-              </h2>
-              {summary && (
-                <p className="m-0 leading-relaxed" style={{ fontSize: '0.9375rem', color: '#666666' }}>
-                  {summary}
-                </p>
-              )}
-            </div>
+            <h2 className="m-0 flex-1" style={{ fontSize: '1.5rem', fontWeight: 700, color: recoStyle.text }}>
+              {recoStyle.headline}
+            </h2>
           </div>
+          {summary && (
+            <p
+              className="m-0 mt-3 leading-relaxed"
+              style={{ fontSize: '0.9375rem', color: '#666666' }}
+            >
+              {summary}
+            </p>
+          )}
         </div>
 
         {/* Key findings */}
