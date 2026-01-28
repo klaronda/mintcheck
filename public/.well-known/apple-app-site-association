@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "H4XTMGZ8C6.com.mintcheckapp.MintCheck",
+        "paths": [
+          "/auth/confirm*",
+          "/auth/reset*"
+        ]
+      }
+    ]
+  }
+}

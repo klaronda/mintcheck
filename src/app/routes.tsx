@@ -11,8 +11,13 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import ReportPage from './pages/ReportPage';
 import Download from './pages/Download';
+import AuthConfirm from './pages/AuthConfirm';
+import AuthReset from './pages/AuthReset';
 
 export const router = createBrowserRouter([
+  // Minimal auth deep-link fallbacks (no Layout)
+  { path: '/auth/confirm', element: <AuthConfirm /> },
+  { path: '/auth/reset', element: <AuthReset /> },
   {
     path: '/',
     element: <Layout />,
