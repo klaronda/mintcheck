@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet-async';
 import { LogOut, ChevronDown, ChevronUp } from 'lucide-react';
 import { AUTH_KEY } from '@/app/contexts/AdminContext';
+import { supabase } from '@/lib/supabase';
 
 interface FeedbackRow {
   id: string;
@@ -64,7 +65,8 @@ export default function AdminFeedback() {
       .finally(() => setLoading(false));
   }, [isAuthenticated]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem(AUTH_KEY);
     navigate('/admin/login');
   };

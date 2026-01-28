@@ -1,26 +1,40 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet-async';
-import { AUTH_KEY, CREDENTIALS_KEY } from '@/app/contexts/AdminContext';
+import { AUTH_KEY } from '@/app/contexts/AdminContext';
+import { supabase } from '@/lib/supabase';
+
+const ALLOWED_ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL ?? 'contact@mintcheckapp.com';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const stored = localStorage.getItem(CREDENTIALS_KEY);
-    if (stored) {
-      const credentials = JSON.parse(stored);
-      if (email === credentials.email && password === credentials.password) {
-        localStorage.setItem(AUTH_KEY, 'true');
-        navigate('/admin/dashboard');
-      } else {
-        setError('Invalid email or password');
+    setError('');
+    setLoading(true);
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        setError(signInError.message ?? 'Invalid email or password');
+        return;
       }
+      const allowed = (data.user?.email ?? '').toLowerCase() === ALLOWED_ADMIN_EMAIL.toLowerCase();
+      if (!allowed) {
+        await supabase.auth.signOut();
+        setError('Access restricted to authorized admin.');
+        return;
+      }
+      localStorage.setItem(AUTH_KEY, 'true');
+      navigate('/admin/dashboard');
+    } catch {
+      setError('Invalid email or password');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,17 +91,14 @@ export default function AdminLogin() {
 
             <button
               type="submit"
-              className="w-full bg-[#3EB489] text-white py-3 rounded-lg hover:bg-[#359e7a] transition-colors"
+              disabled={loading}
+              className="w-full bg-[#3EB489] text-white py-3 rounded-lg hover:bg-[#359e7a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ fontWeight: 600 }}
             >
-              Sign In
+              {loading ? 'Signing in…' : 'Sign In'}
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-border text-center text-sm text-muted-foreground">
-            <p>Default credentials:</p>
-            <p className="mt-1">admin@mintcheckapp.com / mintcheck2024</p>
-          </div>
         </div>
       </div>
     </div>

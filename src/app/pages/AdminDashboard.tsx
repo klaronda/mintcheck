@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet-async';
 import { Plus, Edit, Trash2, Eye, EyeOff, LogOut, ExternalLink, Upload } from 'lucide-react';
 import { useAdmin, Article, AUTH_KEY } from '@/app/contexts/AdminContext';
+import { supabase } from '@/lib/supabase';
 import RichTextEditor from '@/app/components/RichTextEditor';
 
 export default function AdminDashboard() {
@@ -34,7 +35,8 @@ export default function AdminDashboard() {
     }
   }, [navigate]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem(AUTH_KEY);
     navigate('/admin/login');
   };
@@ -128,6 +130,12 @@ export default function AdminDashboard() {
             MintCheck Admin
           </h1>
           <div className="flex items-center gap-4">
+            <a
+              href="/admin/feedback"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Feedback
+            </a>
             <a
               href="/"
               target="_blank"

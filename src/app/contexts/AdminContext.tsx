@@ -30,18 +30,6 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'mintcheck_articles';
 const AUTH_KEY = 'mintcheck_admin_auth';
-const CREDENTIALS_KEY = 'mintcheck_admin_credentials';
-
-// Initialize default credentials
-const initializeCredentials = () => {
-  const stored = localStorage.getItem(CREDENTIALS_KEY);
-  if (!stored) {
-    localStorage.setItem(CREDENTIALS_KEY, JSON.stringify({
-      email: 'admin@mintcheckapp.com',
-      password: 'mintcheck2024'
-    }));
-  }
-};
 
 // Initialize with some default articles
 const getInitialArticles = (): Article[] => {
@@ -144,10 +132,6 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [articles, setArticles] = useState<Article[]>(getInitialArticles);
 
   useEffect(() => {
-    initializeCredentials();
-  }, []);
-
-  useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(articles));
   }, [articles]);
 
@@ -220,4 +204,4 @@ export function useAdmin() {
   }
   return context;
 }
-export { AUTH_KEY, CREDENTIALS_KEY };
+export { AUTH_KEY };
