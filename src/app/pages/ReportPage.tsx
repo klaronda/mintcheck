@@ -2,35 +2,44 @@ import { useParams, Link } from 'react-router';
 import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { sharedReportsApi } from '@/lib/supabase';
-import type { SharedReport, ReportData } from '@/lib/supabase';
+import type { SharedReport, ReportData, NHTSAData } from '@/lib/supabase';
 import {
   getScanFreshness,
   formatReportDateLong,
   getRecommendationStyle,
   getFreshnessBadgeStyle,
 } from '@/app/utils/reportUtils';
-import { CheckCircle, AlertCircle, XCircle, ChevronDown, ChevronUp, Mail } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, ChevronDown, ChevronUp, FileSearch, Star } from 'lucide-react';
+import Footer from '@/app/components/Footer';
 
 const LOGO_SRC =
   'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo-text/lockup-mint.svg';
 const APPLE_LOGO_SRC =
   'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/3P-content/logos/Apple_logo_black.svg';
 
-// Recommendation icon component
+// Recommendation icon (white icon on colored square, 8px radius)
 function RecommendationIcon({ recommendation }: { recommendation: 'safe' | 'caution' | 'not-recommended' }) {
   const recoStyle = getRecommendationStyle(recommendation);
-  const iconProps = { size: 32, strokeWidth: 2.5, color: recoStyle.text };
+  const iconProps = { size: 20, strokeWidth: 2.5, color: recoStyle.icon };
   
-  switch (recommendation) {
-    case 'safe':
-      return <CheckCircle {...iconProps} />;
-    case 'caution':
-      return <AlertCircle {...iconProps} />;
-    case 'not-recommended':
-      return <XCircle {...iconProps} />;
-    default:
-      return null;
-  }
+  let Icon = CheckCircle;
+  if (recommendation === 'caution') Icon = AlertCircle;
+  else if (recommendation === 'not-recommended') Icon = XCircle;
+
+  return (
+    <div
+      className="flex items-center justify-center flex-shrink-0"
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        backgroundColor: recoStyle.border,
+        border: `2px solid ${recoStyle.border}`,
+      }}
+    >
+      <Icon {...iconProps} />
+    </div>
+  );
 }
 
 // System detail type
@@ -232,37 +241,133 @@ function SystemDetailsAccordion({ systems }: { systems: SystemDetailData[] }) {
   );
 }
 
-// Report Footer Component
-function ReportFooter() {
+// Star rating display (filled + outline stars)
+function StarRating({ rating, max = 5, size = 14 }: { rating: number; max?: number; size?: number }) {
   return (
-    <footer className="mt-12 py-8 px-6 text-center" style={{ backgroundColor: '#3EB489' }}>
-      <div className="max-w-[600px] mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-white/90">
-          <div className="flex items-center gap-2">
-            <span style={{ fontWeight: 600 }} className="text-white">MintCheck</span>
-            <span>© 2026</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-            <Link to="/support" className="hover:text-white transition-colors">
-              Support
-            </Link>
-            <Link to="/contact" className="hover:text-white transition-colors">
-              Contact
-            </Link>
-            <Link to="/privacy" className="hover:text-white transition-colors">
-              Privacy Policy
-            </Link>
-            <Link to="/terms" className="hover:text-white transition-colors">
-              Terms of Use
-            </Link>
-            <a href="mailto:support@mintcheckapp.com" className="flex items-center gap-2 hover:text-white transition-colors">
-              <Mail className="w-4 h-4" />
-              <span className="hidden sm:inline">support@mintcheckapp.com</span>
-            </a>
-          </div>
+    <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of ${max} stars`}>
+      {Array.from({ length: max }, (_, i) => (
+        <Star
+          key={i}
+          size={size}
+          style={{
+            color: i < rating ? '#2D7A5E' : '#B8DDCD',
+            fill: i < rating ? '#2D7A5E' : 'transparent',
+          }}
+          strokeWidth={1.5}
+        />
+      ))}
+    </span>
+  );
+}
+
+// NHTSA More Model Details (only when nhtsaData exists)
+function NHTSAMoreModelDetails({ nhtsaData }: { nhtsaData: NHTSAData }) {
+  const [expanded, setExpanded] = useState(false);
+  const recalls = nhtsaData.recalls ?? [];
+  const safety = nhtsaData.safetyRatings;
+  const recallCount = recalls.length;
+  const overallStars = safety?.overallRating != null ? Number(safety.overallRating) : null;
+
+  return (
+    <div className="rounded-lg border bg-white mb-6" style={{ borderColor: '#E5E5E5' }}>
+      <div className="p-5 border-b" style={{ borderColor: '#E5E5E5' }}>
+        <div className="flex items-center gap-3">
+          <FileSearch size={20} style={{ color: '#3EB489' }} />
+          <h3 className="m-0" style={{ fontSize: '1.125rem', fontWeight: 600, color: '#1A1A1A' }}>
+            More Model Details
+          </h3>
+        </div>
+        <div className="flex flex-wrap gap-3 mt-3">
+          <span
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+            style={{
+              backgroundColor: recallCount > 0 ? '#FFE6E5' : '#E6F4EE',
+              color: recallCount > 0 ? '#C94B4B' : '#2D7A5E',
+            }}
+          >
+            {recallCount} Recall{recallCount !== 1 ? 's' : ''}
+          </span>
+          {overallStars != null && (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+              style={{ backgroundColor: '#E6F4EE', color: '#2D7A5E' }}
+            >
+              {overallStars}/5 Safety
+            </span>
+          )}
         </div>
       </div>
-    </footer>
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors hover:bg-gray-50"
+        style={{ color: '#3EB489' }}
+      >
+        {expanded ? 'Show Less' : 'Show Details'}
+        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+      </button>
+      {expanded && (
+        <div className="px-5 pb-5 pt-2 border-t" style={{ borderColor: '#E5E5E5', backgroundColor: '#FCFCFB' }}>
+          {recallCount > 0 ? (
+            <div className="mb-4">
+              <p className="mb-2" style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#C94B4B' }}>
+                Open Recalls
+              </p>
+              <ul className="m-0 pl-5 space-y-2" style={{ fontSize: '0.875rem', color: '#1A1A1A', lineHeight: 1.6 }}>
+                {recalls.slice(0, 5).map((r, i) => (
+                  <li key={i}>
+                    {r.component ?? 'Unknown'}{r.summary ? ` — ${r.summary}` : ''}
+                  </li>
+                ))}
+                {recallCount > 5 && (
+                  <li style={{ color: '#666666' }}>+{recallCount - 5} more</li>
+                )}
+              </ul>
+            </div>
+          ) : (
+            <p className="mb-4" style={{ fontSize: '0.9375rem', color: '#2D7A5E' }}>
+              No open recalls found
+            </p>
+          )}
+          {safety && (
+            <div className="mb-4">
+              <p className="mb-2" style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#1A1A1A' }}>
+                NHTSA Safety Ratings
+              </p>
+              <ul className="m-0 pl-5 space-y-1.5 list-none" style={{ fontSize: '0.875rem', color: '#666666', lineHeight: 1.6 }}>
+                {safety.overallRating != null && (
+                  <li className="flex items-center gap-2">
+                    <span style={{ color: '#1A1A1A', minWidth: '6rem' }}>Overall:</span>
+                    <StarRating rating={Math.min(5, Math.max(0, Math.round(Number(safety.overallRating))))} size={14} />
+                  </li>
+                )}
+                {safety.frontalCrashRating != null && (
+                  <li className="flex items-center gap-2">
+                    <span style={{ color: '#1A1A1A', minWidth: '6rem' }}>Frontal crash:</span>
+                    <StarRating rating={Math.min(5, Math.max(0, Math.round(Number(safety.frontalCrashRating))))} size={14} />
+                  </li>
+                )}
+                {safety.sideCrashRating != null && (
+                  <li className="flex items-center gap-2">
+                    <span style={{ color: '#1A1A1A', minWidth: '6rem' }}>Side crash:</span>
+                    <StarRating rating={Math.min(5, Math.max(0, Math.round(Number(safety.sideCrashRating))))} size={14} />
+                  </li>
+                )}
+                {safety.rolloverRating != null && (
+                  <li className="flex items-center gap-2">
+                    <span style={{ color: '#1A1A1A', minWidth: '6rem' }}>Rollover:</span>
+                    <StarRating rating={Math.min(5, Math.max(0, Math.round(Number(safety.rolloverRating))))} size={14} />
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+          <p className="m-0 text-sm italic" style={{ color: '#666666', lineHeight: 1.5 }}>
+            Data from NHTSA (National Highway Traffic Safety Administration)
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -280,12 +385,37 @@ function ReportContent({ report }: { report: SharedReport }) {
   // Get summary from dedicated column, fallback to report_data.summary
   const summary = report.summary || rd.summary;
 
-  const findings =
-    rd.findings && rd.findings.length > 0
-      ? rd.findings
-      : rd.recommendation === 'safe'
-        ? ['No trouble codes detected']
-        : null;
+  // Calculate total repair costs from dtcAnalyses
+  const totalRepairCost =
+    rd.dtcAnalyses && rd.dtcAnalyses.length > 0
+      ? rd.dtcAnalyses.reduce(
+          (acc, dtc) => ({
+            low: acc.low + (dtc.repairCostLow || 0),
+            high: acc.high + (dtc.repairCostHigh || 0),
+          }),
+          { low: 0, high: 0 }
+        )
+      : null;
+
+  // Build findings array with repair cost if available
+  let findings: string[] | null = null;
+  if (rd.findings && rd.findings.length > 0) {
+    findings = [...rd.findings];
+  } else if (rd.recommendation === 'safe') {
+    findings = ['No trouble codes detected'];
+  }
+
+  if (totalRepairCost && totalRepairCost.low > 0) {
+    const costText =
+      totalRepairCost.low === totalRepairCost.high
+        ? `Estimated repair cost: $${totalRepairCost.low.toLocaleString()}`
+        : `Estimated repair cost: $${totalRepairCost.low.toLocaleString()} - $${totalRepairCost.high.toLocaleString()}`;
+    if (findings) {
+      findings.push(costText);
+    } else {
+      findings = [costText];
+    }
+  }
 
   return (
     <>
@@ -329,10 +459,8 @@ function ReportContent({ report }: { report: SharedReport }) {
             borderColor: recoStyle.border,
           }}
         >
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 mt-1">
-              <RecommendationIcon recommendation={rd.recommendation} />
-            </div>
+          <div className="flex items-center gap-4">
+            <RecommendationIcon recommendation={rd.recommendation} />
             <h2 className="m-0 flex-1" style={{ fontSize: '1.5rem', fontWeight: 700, color: recoStyle.text }}>
               {recoStyle.headline}
             </h2>
@@ -340,7 +468,7 @@ function ReportContent({ report }: { report: SharedReport }) {
           {summary && (
             <p
               className="m-0 mt-3 leading-relaxed"
-              style={{ fontSize: '0.9375rem', color: '#666666' }}
+              style={{ fontSize: '0.9375rem', color: recoStyle.support }}
             >
               {summary}
             </p>
@@ -363,6 +491,9 @@ function ReportContent({ report }: { report: SharedReport }) {
 
         {/* System Details Accordion */}
         <SystemDetailsAccordion systems={systemDetails} />
+
+        {/* More Model Details (NHTSA) – only when available */}
+        {rd.nhtsaData && <NHTSAMoreModelDetails nhtsaData={rd.nhtsaData} />}
 
         {/* Disclaimer */}
         <div
@@ -405,8 +536,6 @@ function ReportContent({ report }: { report: SharedReport }) {
           manage your shared links from the Settings tab.
         </p>
       </main>
-      
-      <ReportFooter />
     </>
   );
 }
@@ -460,6 +589,7 @@ export default function ReportPage() {
       </Helmet>
       <ReportHeader />
       <ReportContent report={report} />
+      <Footer />
     </div>
   );
 }

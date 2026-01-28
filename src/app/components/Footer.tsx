@@ -43,7 +43,7 @@ export default function Footer() {
               © 2026
             </button>
           </div>
-          <div className="flex items-center gap-8">
+          <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 md:gap-8">
             <Link to="/support" className="hover:text-white transition-colors">
               Support
             </Link>
@@ -57,7 +57,7 @@ export default function Footer() {
               Terms of Use
             </Link>
             <a href="mailto:support@mintcheckapp.com" className="flex items-center gap-2 hover:text-white transition-colors">
-              <Mail className="w-4 h-4" />
+              <Mail className="w-4 h-4 shrink-0" />
               support@mintcheckapp.com
             </a>
           </div>

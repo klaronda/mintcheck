@@ -9,6 +9,27 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+/** NHTSA data stored in report_data (matches app VehicleHistoryService.NHTSADataJSON) */
+export interface NHTSAData {
+  recalls?: Array<{
+    campaignNumber?: string;
+    component?: string;
+    summary?: string;
+    consequence?: string;
+    remedy?: string;
+    manufacturer?: string;
+    reportDate?: string;
+  }>;
+  safetyRatings?: {
+    overallRating?: string;
+    frontalCrashRating?: string;
+    sideCrashRating?: string;
+    rolloverRating?: string;
+    sidePoleCrashRating?: string;
+    vehicleDescription?: string;
+  };
+}
+
 export interface ReportData {
   vehicleYear: string;
   vehicleMake: string;
@@ -22,7 +43,15 @@ export interface ReportData {
   valuationHigh?: number;
   odometerReading?: number;
   askingPrice?: number;
-  dtcAnalyses?: { code: string; name: string }[];
+  dtcAnalyses?: Array<{
+    code: string;
+    name: string;
+    description?: string;
+    repairCostLow?: number;
+    repairCostHigh?: number;
+    urgency?: string;
+  }>;
+  nhtsaData?: NHTSAData;
 }
 
 export interface SharedReport {
