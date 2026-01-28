@@ -62,9 +62,9 @@ export default function Home() {
             </div>
             <div className="flex justify-center md:justify-end">
               <img 
-                src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/hero.avif" 
+                src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Hero_525x525.avif" 
                 alt="MintCheck iOS App" 
-                className="max-w-[605px] w-full rounded-lg shadow-lg"
+                className="max-w-[605px] w-full rounded-lg shadow-lg border-2 border-gray-100"
               />
             </div>
           </div>
