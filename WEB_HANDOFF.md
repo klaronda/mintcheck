@@ -143,6 +143,7 @@ Layout wraps children with `ScrollToTop` and `<Outlet />` (no nav in Layout; nav
 | `/admin/dashboard` | `AdminDashboard` | Admin dashboard |
 | `/admin/feedback` | `AdminFeedback` | Feedback inbox (uses `VITE_ADMIN_FEEDBACK_SECRET`) |
 | `/report/:shareCode` | `ReportPage` | Public shared scan report |
+| `/deep-check/report/:code` | `DeepCheckReportPage` | Deep Check Carfax report (post-purchase); “Open Report” from app (§11) |
 
 ---
 
@@ -184,33 +185,40 @@ One-time purchase for **Deep Vehicle Check**. Stripe Checkout is used; the websi
 3. User pays on **Stripe Checkout** (hosted by Stripe).
 4. Stripe redirects to **`https://mintcheckapp.com/deep-check/success`** (or cancel → `https://mintcheckapp.com`).
 5. **`/deep-check/success`** page shows “Payment successful”, “Opening MintCheck…”, and an **“Open in app”** button linking to `mintcheck://deep-check/success`. The path is in AASA (`/deep-check/success*`) for Universal Links.
-6. **`stripe-webhook`** receives `checkout.session.completed`, updates `deep_check_purchases` to `status: paid` by `stripe_session_id`.
-7. App uses **`get-my-deep-check`** to poll `vin`, `status`, `report_url`.
+6. **`stripe-webhook`** receives `checkout.session.completed`, updates `deep_check_purchases` to `status: paid`, then invokes **`generate-deep-check-report`** with `purchase_id` from metadata (fire-and-forget).
+7. **`generate-deep-check-report`** (JWT off) fetches Carfax HTML from CheapCARFAX API, stores it in `deep_check_reports`, sets `report_url` and `status = report_ready` (or `report_failed` on error).
+8. App uses **`get-my-deep-check`** to poll `vin`, `status`, `report_url`, `report_error`. When `report_ready`, **`report_url`** points to the website: `https://mintcheckapp.com/deep-check/report/{code}`.
+9. User taps “Open Report” in app → opens that URL in browser → **website** fetches report HTML from **`get-deep-check-report`** (GET `?code=...`, JWT off) and renders it in an iframe.
 
 ### Website scope
 
 - **Route:** `/deep-check/success` → `DeepCheckSuccess` (no Layout). Stripe success URL points here.
 - **Page:** “Payment successful”, “Open in app” (`mintcheck://deep-check/success`). No Stripe SDK or env vars on the site.
+- **Route:** `/deep-check/report/:code` → `DeepCheckReportPage`. Public (no auth). Fetches report by `code` from Edge Function `get-deep-check-report`, shows MintCheck header + Carfax HTML in sandboxed iframe. Used when user opens “Open Report” from the app after purchase.
 - **AASA:** `/deep-check/success*` must stay in `apple-app-site-association` for Universal Links back into the app.
 
 ### Backend (Supabase)
 
 | Component | Role |
 |-----------|------|
-| **`create-deep-check-session`** | Auth via JWT, insert `deep_check_purchases`, create Stripe Checkout session, return `{ url }`. Success/cancel URLs hardcoded to `mintcheckapp.com`. |
-| **`stripe-webhook`** | Verify `Stripe-Signature` with `STRIPE_WEBHOOK_SECRET`, handle `checkout.session.completed`, set `status = 'paid'` on `deep_check_purchases` by `stripe_session_id`. |
-| **`get-my-deep-check`** | GET, JWT. Returns latest `deep_check_purchases` row for user (`vin`, `status`, `report_url`). |
-| **`deep_check_purchases`** | `id`, `user_id`, `vin`, `stripe_session_id`, `status` (`pending` \| `paid` \| `report_ready`), `report_url`, `created_at`. RLS: users select/insert own rows; webhook uses service role to update. |
+| **`create-deep-check-session`** | Auth via JWT, insert `deep_check_purchases`, create Stripe Checkout session, return `{ url }`. VIN must be 17 chars. Success/cancel URLs hardcoded to `mintcheckapp.com`. |
+| **`stripe-webhook`** | Verify `Stripe-Signature`, set `status = 'paid'`, then invoke **`generate-deep-check-report`** with `metadata.purchase_id` (JWT off). |
+| **`generate-deep-check-report`** | JWT off. POST body `{ purchase_id }`. Calls CheapCARFAX Carfax API, stores HTML in `deep_check_reports`, sets `report_url` + `status = report_ready` or `report_failed`. |
+| **`get-deep-check-report`** | JWT off. GET `?code=...`. Returns `{ html, yearMakeModel }` for that report code. Used by `/deep-check/report/:code`. |
+| **`get-my-deep-check`** | GET, JWT. Returns latest `deep_check_purchases` row: `vin`, `status`, `report_url`, `report_error`. |
+| **`deep_check_purchases`** | `status` can be `pending` \| `paid` \| `report_ready` \| `report_failed`; optional `report_error`. |
+| **`deep_check_reports`** | Stores Carfax HTML by `report_code`; served via `get-deep-check-report`. |
 
 ### Edge Function secrets (Supabase)
 
-Set for `create-deep-check-session` and `stripe-webhook`:
+Set for `create-deep-check-session`, `stripe-webhook`, and **`generate-deep-check-report`**:
 
 | Secret | Required | Description |
 |--------|----------|-------------|
 | `STRIPE_SECRET_KEY` | Yes | Stripe secret key (e.g. `sk_live_...` or `sk_test_...`). |
 | `STRIPE_DEEP_CHECK_PRICE_ID` | Yes (create-deep-check-session) | Stripe Price ID for the Deep Check one-time product. |
 | `STRIPE_WEBHOOK_SECRET` | Yes (stripe-webhook) | Webhook signing secret (`whsec_...`) from Stripe Dashboard → Developers → Webhooks. |
+| `CHEAPCARFAX_API_KEY` | Yes (generate-deep-check-report) | API key for CheapCARFAX Carfax HTML endpoint. |
 
 ### Stripe Dashboard (webhook)
 
@@ -241,4 +249,4 @@ Use **test** keys and a **test** webhook endpoint for local/staging; **live** ke
 1. Clone repo, `cd website`, `npm install`, copy `.env.example` to `.env` (or create `.env` from §5) and fill in values.
 2. Run `npm run dev`, open `http://localhost:5173`.
 3. Confirm Supabase and (if used) admin feedback secret in Vercel env match §5.
-4. After deploy, test `/report/:shareCode`, `/auth/confirm`, `/deep-check/success` and that AASA is reachable at `https://<domain>/.well-known/apple-app-site-association`. For Stripe, ensure webhook and Edge Function secrets are set (§11).
+4. After deploy, test `/report/:shareCode`, `/auth/confirm`, `/deep-check/success`, **`/deep-check/report/:code`** (use a valid report code from a completed Deep Check), and that AASA is reachable at `https://<domain>/.well-known/apple-app-site-association`. For Stripe/Deep Check, ensure webhook, `CHEAPCARFAX_API_KEY`, and Edge Function secrets are set (§11).

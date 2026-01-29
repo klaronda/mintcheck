@@ -14,11 +14,14 @@ import ReportPage from './pages/ReportPage';
 import Download from './pages/Download';
 import AuthConfirm from './pages/AuthConfirm';
 import AuthReset from './pages/AuthReset';
+import DeepCheckSuccess from './pages/DeepCheckSuccess';
+import DeepCheckReportPage from './pages/DeepCheckReportPage';
 
 export const router = createBrowserRouter([
   // Minimal auth deep-link fallbacks (no Layout)
   { path: '/auth/confirm', element: <AuthConfirm /> },
   { path: '/auth/reset', element: <AuthReset /> },
+  { path: '/deep-check/success', element: <DeepCheckSuccess /> },
   {
     path: '/',
     element: <Layout />,
@@ -35,6 +38,7 @@ export const router = createBrowserRouter([
       { path: 'admin/dashboard', element: <AdminDashboard /> },
       { path: 'admin/feedback', element: <AdminFeedback /> },
       { path: 'report/:shareCode', element: <ReportPage /> },
+      { path: 'deep-check/report/:code', element: <DeepCheckReportPage /> },
     ],
   },
 ]);
