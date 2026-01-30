@@ -1,6 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 
-const DEEP_CHECK_SUCCESS_DEEPLINK = 'mintcheck://deep-check/success';
+// Use Universal Link so one tap opens the app (query ensures navigation triggers Universal Link)
+const OPEN_IN_APP_URL = 'https://mintcheckapp.com/deep-check/success?open=1';
 
 export default function DeepCheckSuccess() {
   return (
@@ -16,14 +17,20 @@ export default function DeepCheckSuccess() {
           Payment successful
         </h1>
         <p className="text-gray-600 mb-6">
-          Opening MintCheck…
+          Your Deep Vehicle Check report will be ready in about a minute. Open MintCheck to see status or view your report when it’s ready.
         </p>
         <a
-          href={DEEP_CHECK_SUCCESS_DEEPLINK}
-          className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+          href={OPEN_IN_APP_URL}
+          className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 mb-3 w-full"
         >
-          Open in app
+          Open MintCheck
         </a>
+        <p className="text-gray-500 text-sm">
+          Don’t have the app?{' '}
+          <a href="https://apps.apple.com/app/mintcheck" className="text-primary font-medium hover:underline">
+            Get MintCheck on the App Store
+          </a>
+        </p>
       </div>
     </div>
   );

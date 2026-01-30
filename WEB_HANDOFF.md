@@ -184,7 +184,7 @@ One-time purchase for **Deep Vehicle Check**. Stripe Checkout is used; the websi
 2. App calls **`create-deep-check-session`** Edge Function (POST, JWT). Function inserts a `deep_check_purchases` row (`status: pending`), creates a Stripe Checkout session, stores `stripe_session_id`, returns checkout URL.
 3. User pays on **Stripe Checkout** (hosted by Stripe).
 4. Stripe redirects to **`https://mintcheckapp.com/deep-check/success`** (or cancel → `https://mintcheckapp.com`).
-5. **`/deep-check/success`** page shows “Payment successful”, “Opening MintCheck…”, and an **“Open in app”** button linking to `mintcheck://deep-check/success`. The path is in AASA (`/deep-check/success*`) for Universal Links.
+5. **`/deep-check/success`** page shows “Payment successful” and an **“Open MintCheck”** button. The button uses a **Universal Link** (`https://mintcheckapp.com/deep-check/success?open=1`), not `mintcheck://`, to avoid Safari’s “repeatedly trying to open another application” / “couldn’t be opened” errors. Path is in AASA (`/deep-check/success*`). No auto-open on load; user must tap the button.
 6. **`stripe-webhook`** receives `checkout.session.completed`, updates `deep_check_purchases` to `status: paid`, then invokes **`generate-deep-check-report`** with `purchase_id` from metadata (fire-and-forget).
 7. **`generate-deep-check-report`** (JWT off) fetches Carfax HTML from CheapCARFAX API, stores it in `deep_check_reports`, sets `report_url` and `status = report_ready` (or `report_failed` on error).
 8. App uses **`get-my-deep-check`** to poll `vin`, `status`, `report_url`, `report_error`. When `report_ready`, **`report_url`** points to the website: `https://mintcheckapp.com/deep-check/report/{code}`.
@@ -193,7 +193,8 @@ One-time purchase for **Deep Vehicle Check**. Stripe Checkout is used; the websi
 ### Website scope
 
 - **Route:** `/deep-check/success` → `DeepCheckSuccess` (no Layout). Stripe success URL points here.
-- **Page:** “Payment successful”, “Open in app” (`mintcheck://deep-check/success`). No Stripe SDK or env vars on the site.
+- **Universal Link note:** The success page uses `https://mintcheckapp.com/deep-check/success?open=1` for “Open MintCheck”, not `mintcheck://`, to avoid Safari’s “repeatedly trying to open another application” and “application couldn’t be opened” errors.
+- **Page:** “Payment successful”, body text about report timing, primary “Open MintCheck” button (Universal Link `https://mintcheckapp.com/deep-check/success?open=1`—do not use `mintcheck://` here to avoid Safari errors), fallback “Get MintCheck on the App Store” link. No auto-open; user taps button only. No Stripe SDK or env vars on the site.
 - **Route:** `/deep-check/report/:code` → `DeepCheckReportPage`. Public (no auth). Fetches report by `code` from Edge Function `get-deep-check-report`, shows MintCheck header + Carfax HTML in sandboxed iframe. Used when user opens “Open Report” from the app after purchase.
 - **AASA:** `/deep-check/success*` must stay in `apple-app-site-association` for Universal Links back into the app.
 
@@ -232,7 +233,7 @@ Use **test** keys and a **test** webhook endpoint for local/staging; **live** ke
 ### iOS (out of scope for web)
 
 - **`DeepCheckService`** calls `create-deep-check-session` and `get-my-deep-check`.
-- **`DeepCheckSuccessView`** is shown when returning via `mintcheck://deep-check/success` or Universal Link.
+- **`DeepCheckSuccessView`** is shown when returning via Universal Link (`https://mintcheckapp.com/deep-check/success?open=1`) or `mintcheck://deep-check/success`.
 
 ---
 
