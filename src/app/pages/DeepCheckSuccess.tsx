@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 
-// Use Universal Link so one tap opens the app (query ensures navigation triggers Universal Link)
-const OPEN_IN_APP_URL = 'https://mintcheckapp.com/deep-check/success?open=1';
+// Custom URL scheme – app now correctly handles mintcheck://deep-check/success (host + path)
+const OPEN_IN_APP_URL = 'mintcheck://deep-check/success';
 
 export default function DeepCheckSuccess() {
   return (
