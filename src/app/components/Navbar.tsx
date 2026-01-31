@@ -30,14 +30,17 @@ export default function Navbar() {
             <Link to="/#scanners" className="text-muted-foreground hover:text-foreground transition-colors" style={{ fontWeight: 600 }}>
               Get a Scanner
             </Link>
-            <Link 
-              to="/download" 
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 rounded-lg transition-opacity hover:opacity-90"
-              style={{ fontWeight: 600 }}
-            >
-              <img src={LOGO_MINT} alt="" className="w-4 h-4 brightness-0 invert" aria-hidden />
-              Get the App
-            </Link>
+            <div className="flex flex-col items-end">
+              <span className="text-xs text-muted-foreground mb-1">Coming Spring 2026!</span>
+              <span 
+                className="inline-flex items-center gap-2 bg-primary/40 text-primary-foreground/70 px-6 py-2.5 rounded-lg cursor-not-allowed opacity-70"
+                style={{ fontWeight: 600 }}
+                aria-disabled
+              >
+                <img src={LOGO_MINT} alt="" className="w-4 h-4 brightness-0 invert opacity-70" aria-hidden />
+                Get the App
+              </span>
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
@@ -81,15 +84,17 @@ export default function Navbar() {
             >
               Get a Scanner
             </Link>
-            <Link 
-              to="/download" 
-              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg transition-opacity hover:opacity-90 mt-2"
-              style={{ fontWeight: 600 }}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <img src={LOGO_MINT} alt="" className="w-4 h-4 brightness-0 invert" aria-hidden />
-              Get the App
-            </Link>
+            <div className="mt-2">
+              <span className="text-xs text-muted-foreground block mb-1">Coming Spring 2026!</span>
+              <span 
+                className="inline-flex items-center justify-center gap-2 bg-primary/40 text-primary-foreground/70 px-6 py-3 rounded-lg cursor-not-allowed opacity-70 w-full"
+                style={{ fontWeight: 600 }}
+                aria-disabled
+              >
+                <img src={LOGO_MINT} alt="" className="w-4 h-4 brightness-0 invert opacity-70" aria-hidden />
+                Get the App
+              </span>
+            </div>
           </div>
         )}
       </div>

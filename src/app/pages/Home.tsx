@@ -1,5 +1,4 @@
 import { Plug, Scan, FileText, Check, X, ExternalLink } from 'lucide-react';
-import { Link } from 'react-router';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import { Helmet } from 'react-helmet-async';
@@ -42,19 +41,20 @@ export default function Home() {
                 MintCheck connects to a car’s OBD port and reads what the vehicle knows about itself. Get a clear health check, understand trouble codes in simple terms, and see if problems were recently hidden.
               </p>
               <div className="pt-2">
-                <Link 
-                  to="/download" 
-                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-lg transition-opacity hover:opacity-90"
+                <p className="text-sm text-muted-foreground mb-2">Coming Spring 2026!</p>
+                <span 
+                  className="inline-flex items-center gap-2 bg-primary/40 text-primary-foreground/70 px-8 py-4 rounded-lg cursor-not-allowed opacity-70"
                   style={{ fontWeight: 600 }}
+                  aria-disabled
                 >
                   <img 
                     src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/3P-content/logos/Apple_logo_black.svg" 
                     alt="" 
-                    className="w-5 h-5 brightness-0 invert" 
+                    className="w-5 h-5 brightness-0 invert opacity-70" 
                     aria-hidden 
                   />
                   Get the iOS App
-                </Link>
+                </span>
                 <p className="text-sm text-muted-foreground mt-6">
                   Real-time scans. Clear results. No car knowledge needed.
                 </p>
