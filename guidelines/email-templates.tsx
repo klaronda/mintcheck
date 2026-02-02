@@ -235,6 +235,93 @@ export const scanCompleteEmailTemplate = `
 </html>
 `;
 
+// 2b. Email Confirmation Template (signup / email change)
+export const emailConfirmationTemplate = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm your MintCheck email</title>
+  <style>
+    ${emailBaseStyles}
+  </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #F8F8F7;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse;">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #FFFFFF; padding: 32px 32px 24px 32px; border-radius: 4px 4px 0 0;">
+              <div style="color: #3EB489; font-size: 24px; font-weight: 600; margin-bottom: 8px;">MintCheck</div>
+              <h2 style="margin: 0; color: #1A1A1A; font-size: 24px; font-weight: 600;">Confirm your MintCheck email</h2>
+            </td>
+          </tr>
+          
+          <!-- Main Content -->
+          <tr>
+            <td style="background-color: #FFFFFF; padding: 0 32px 40px 32px;">
+              <p style="margin: 0 0 20px 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                Hi,
+              </p>
+              
+              <p style="margin: 0 0 20px 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                Please confirm your email address for your {{app_name}} account ({{user_email}}) by clicking the button below:
+              </p>
+              
+              <!-- CTA Button -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 32px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{action_url}}" style="display: inline-block; padding: 16px 40px; background-color: #3EB489; color: #FFFFFF; text-decoration: none; border-radius: 4px; font-size: 15px; font-weight: 600;">Confirm Email</a>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Security Info -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+                <tr>
+                  <td style="background-color: #FCFCFB; padding: 16px; border-radius: 4px; border: 1px solid #E5E5E5;">
+                    <p style="margin: 0 0 8px 0; color: #1A1A1A; font-size: 14px; font-weight: 600;">Security Notice</p>
+                    <p style="margin: 0; color: #666666; font-size: 14px; line-height: 1.6;">
+                      This link will expire in 24 hours. If you didn't request this, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="margin: 24px 0 0 0; color: #999999; font-size: 13px; line-height: 1.7;">
+                If the button doesn't work, copy and paste this link into your browser:<br>
+                <a href="{{action_url}}" style="color: #3EB489; text-decoration: none; word-break: break-all;">{{action_url}}</a>
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #F8F8F7; padding: 32px; text-align: center; border-radius: 0 0 4px 4px; border-top: 1px solid #E5E5E5;">
+              <p style="margin: 0 0 16px 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                © 2026 MintCheck. All rights reserved.
+              </p>
+              <p style="margin: 0 0 8px 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                <a href="{{helpCenterLink}}" style="color: #3EB489; text-decoration: none;">Help Center</a> •
+                <a href="{{privacyLink}}" style="color: #3EB489; text-decoration: none;">Privacy</a> •
+                <a href="{{termsLink}}" style="color: #3EB489; text-decoration: none;">Terms</a>
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
 // 3. Password Reset Email Template
 export const passwordResetEmailTemplate = `
 <!DOCTYPE html>
@@ -725,6 +812,7 @@ export const receiptEmailTemplate = `
 export default function EmailTemplates() {
   const templates = [
     { name: 'Welcome Email', template: welcomeEmailTemplate, description: 'Sent when a new user signs up for MintCheck' },
+    { name: 'Email Confirmation', template: emailConfirmationTemplate, description: 'Sent for signup or email change confirmation (deep link)' },
     { name: 'Scan Complete', template: scanCompleteEmailTemplate, description: 'Sent when a vehicle scan finishes processing' },
     { name: 'Password Reset', template: passwordResetEmailTemplate, description: 'Sent when user requests to reset their password' },
     { name: 'Issue Alert', template: issueAlertEmailTemplate, description: 'Sent when a critical vehicle issue is detected' },
@@ -922,6 +1010,7 @@ export default function EmailTemplates() {
 function getTemplateVariables(templateName: string): string {
   const variables: { [key: string]: string } = {
     'Welcome Email': `{{firstName}}, {{appDownloadLink}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}, {{unsubscribeLink}}`,
+    'Email Confirmation': `{{action_url}}, {{user_email}}, {{app_name}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}`,
     'Scan Complete': `{{firstName}}, {{vehicleYear}}, {{vehicleMake}}, {{vehicleModel}}, {{vin}}, {{statusBgColor}}, {{statusBorderColor}}, {{statusTextColor}}, {{statusText}}, {{issuesSummary}}, {{viewReportLink}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}, {{unsubscribeLink}}`,
     'Password Reset': `{{firstName}}, {{resetPasswordLink}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}, {{unsubscribeLink}}`,
     'Issue Alert': `{{firstName}}, {{vehicleYear}}, {{vehicleMake}}, {{vehicleModel}}, {{vin}}, {{issueTitle}}, {{issueDescription}}, {{severityLevel}}, {{recommendedAction}}, {{viewDetailsLink}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}, {{unsubscribeLink}}`,
