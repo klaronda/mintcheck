@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { stripBrandingAndApplyMintCheckStyle } from '@/app/utils/deepCheckReportHtml';
 
 const LOGO_SRC =
   'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo-text/lockup-mint.svg';
@@ -47,17 +48,20 @@ export default function DeepCheckReportPage() {
       .catch(() => setState('error'));
   }, [code]);
 
+  const styledHtml = useMemo(
+    () => (payload?.html ? stripBrandingAndApplyMintCheckStyle(payload.html) : ''),
+    [payload?.html]
+  );
+
   if (state === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8F8F7' }}>
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F8F7]">
         <Helmet>
           <title>Deep Vehicle Check – MintCheck</title>
         </Helmet>
         <div className="text-center">
-          <div
-            className="w-8 h-8 border-4 border-[#3EB489] border-t-transparent rounded-full animate-spin mx-auto mb-4"
-          />
-          <p className="text-[#666666]">Loading report…</p>
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading report…</p>
         </div>
       </div>
     );
@@ -65,29 +69,25 @@ export default function DeepCheckReportPage() {
 
   if (state === 'not_found' || state === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ backgroundColor: '#F8F8F7' }}>
+      <div className="min-h-screen flex items-center justify-center px-6 bg-[#F8F8F7]">
         <Helmet>
           <title>Report not found – MintCheck</title>
         </Helmet>
         <div className="max-w-md w-full text-center">
-          <h1 className="text-2xl mb-4" style={{ fontWeight: 600, color: '#1A1A1A' }}>
-            Report not found
-          </h1>
-          <p className="text-[#666666] mb-6 leading-relaxed">
+          <h1 className="text-2xl mb-4 font-semibold text-foreground">Report not found</h1>
+          <p className="text-muted-foreground mb-6 leading-relaxed">
             This link may be invalid or the report may no longer be available.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-white transition-opacity hover:opacity-90"
-              style={{ backgroundColor: '#3EB489', fontWeight: 600 }}
+              className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold transition-opacity hover:opacity-90"
             >
               Go to MintCheck
             </Link>
             <Link
               to="/download"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-lg border transition-colors hover:bg-gray-50"
-              style={{ borderColor: '#E5E5E5', color: '#1A1A1A', fontWeight: 600 }}
+              className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-border bg-background font-semibold transition-colors hover:bg-muted/50"
             >
               Download the app
             </Link>
@@ -98,28 +98,34 @@ export default function DeepCheckReportPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F8F8F7' }}>
+    <div className="min-h-screen flex flex-col bg-[#F8F8F7]">
       <Helmet>
         <title>
           {payload?.yearMakeModel ? `Deep Vehicle Check – ${payload.yearMakeModel}` : 'Deep Vehicle Check'} –
           MintCheck
         </title>
       </Helmet>
-      <header className="bg-white border-b flex-shrink-0" style={{ borderColor: '#E5E5E5' }}>
+      <header className="bg-white border-b border-border flex-shrink-0">
         <div className="max-w-[900px] mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" aria-label="MintCheck home">
             <img src={LOGO_SRC} alt="MintCheck" className="h-10" />
           </Link>
-          <h2 className="text-lg md:text-xl" style={{ fontWeight: 600, color: '#1A1A1A' }}>
-            Deep Vehicle Check
-          </h2>
+          <h2 className="text-lg md:text-xl font-semibold text-foreground">Deep Vehicle Check</h2>
         </div>
       </header>
-      <main className="flex-1 min-h-0 p-4">
-        <div className="max-w-[900px] mx-auto bg-white rounded-lg overflow-hidden border" style={{ borderColor: '#E5E5E5', minHeight: 480 }}>
+      <main className="flex-1 min-h-0 p-4 md:p-6">
+        {payload?.yearMakeModel && (
+          <p className="max-w-[900px] mx-auto mb-3 text-muted-foreground font-medium">
+            {payload.yearMakeModel}
+          </p>
+        )}
+        <div
+          className="max-w-[900px] mx-auto bg-white rounded-xl overflow-hidden border shadow-sm"
+          style={{ borderColor: 'var(--border)', minHeight: 480 }}
+        >
           <iframe
-            title="Carfax report"
-            srcDoc={payload?.html ?? ''}
+            title="Deep Vehicle Check report"
+            srcDoc={styledHtml}
             sandbox="allow-same-origin"
             className="w-full h-full min-h-[70vh] border-0"
           />
