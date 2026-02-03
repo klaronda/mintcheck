@@ -2,6 +2,8 @@ import { useParams, Link } from 'react-router';
 import { useEffect, useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { stripBrandingAndApplyMintCheckStyle } from '@/app/utils/deepCheckReportHtml';
+import { extractCarfaxVhrFromHtml } from '@/app/utils/extractCarfaxVhrFromHtml';
+import { VehicleHistoryReport } from '@/app/components/VehicleHistoryReport';
 
 const LOGO_SRC =
   'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo-text/lockup-mint.svg';
@@ -52,6 +54,19 @@ export default function DeepCheckReportPage() {
     () => (payload?.html ? stripBrandingAndApplyMintCheckStyle(payload.html) : ''),
     [payload?.html]
   );
+
+  const extractedVhr = useMemo(() => {
+    if (!payload?.html) return null;
+    const result = extractCarfaxVhrFromHtml(payload.html);
+    if (!result?.vhr || typeof result.vhr !== 'object') return null;
+    const vhr = result.vhr as Record<string, unknown>;
+    if (!vhr?.headerSection || typeof vhr.headerSection !== 'object') return null;
+    const header = vhr.headerSection as Record<string, unknown>;
+    if (!header?.vehicleInformationSection) return null;
+    return result;
+  }, [payload?.html]);
+
+  const useReactReport = extractedVhr != null;
 
   if (state === 'loading') {
     return (
@@ -114,22 +129,30 @@ export default function DeepCheckReportPage() {
         </div>
       </header>
       <main className="flex-1 min-h-0 p-4 md:p-6">
-        {payload?.yearMakeModel && (
-          <p className="max-w-[900px] mx-auto mb-3 text-muted-foreground font-medium">
-            {payload.yearMakeModel}
-          </p>
+        {useReactReport ? (
+          <div className="max-w-[1200px] mx-auto">
+            <VehicleHistoryReport carfaxData={{ vhr: extractedVhr.vhr }} />
+          </div>
+        ) : (
+          <>
+            {payload?.yearMakeModel && (
+              <p className="max-w-[900px] mx-auto mb-3 text-muted-foreground font-medium">
+                {payload.yearMakeModel}
+              </p>
+            )}
+            <div
+              className="max-w-[900px] mx-auto bg-white rounded-xl overflow-hidden border shadow-sm"
+              style={{ borderColor: 'var(--border)', minHeight: 480 }}
+            >
+              <iframe
+                title="Deep Vehicle Check report"
+                srcDoc={styledHtml}
+                sandbox="allow-same-origin"
+                className="w-full h-full min-h-[70vh] border-0"
+              />
+            </div>
+          </>
         )}
-        <div
-          className="max-w-[900px] mx-auto bg-white rounded-xl overflow-hidden border shadow-sm"
-          style={{ borderColor: 'var(--border)', minHeight: 480 }}
-        >
-          <iframe
-            title="Deep Vehicle Check report"
-            srcDoc={styledHtml}
-            sandbox="allow-same-origin"
-            className="w-full h-full min-h-[70vh] border-0"
-          />
-        </div>
       </main>
     </div>
   );
