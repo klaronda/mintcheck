@@ -13,12 +13,27 @@ type ReportState = 'loading' | 'found' | 'not_found' | 'error';
 interface ReportPayload {
   html: string;
   yearMakeModel?: string;
+  reportEmailedAt?: string; // ISO timestamp when report was emailed to purchaser
+}
+
+function formatEmailedAt(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+    return `Emailed to you on ${date} at ${time} ${tz}`;
+  } catch {
+    return '';
+  }
 }
 
 export default function DeepCheckReportPage() {
   const { code } = useParams<{ code: string }>();
   const [state, setState] = useState<ReportState>('loading');
   const [payload, setPayload] = useState<ReportPayload | null>(null);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -128,6 +143,42 @@ export default function DeepCheckReportPage() {
           <h2 className="text-lg md:text-xl font-semibold text-foreground">Deep Vehicle Check</h2>
         </div>
       </header>
+      {/* Emailed status or Email me report — above content, below header */}
+      {payload && (
+        <div className="max-w-[900px] mx-auto w-full px-4 md:px-6 py-3 flex items-center justify-center gap-3 border-b border-border/50 bg-white/80">
+          {payload.reportEmailedAt ? (
+            <span className="text-sm text-muted-foreground">
+              {formatEmailedAt(payload.reportEmailedAt)}
+            </span>
+          ) : emailSent ? (
+            <span className="text-sm text-primary font-medium">Report sent to your email.</span>
+          ) : (
+            <button
+              type="button"
+              disabled={emailSending}
+              onClick={async () => {
+                if (!code?.trim()) return;
+                setEmailSending(true);
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                try {
+                  const res = await fetch(`${supabaseUrl}/functions/v1/email-deep-check-report`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${anonKey}` },
+                    body: JSON.stringify({ code: code.trim() }),
+                  });
+                  if (res.ok) setEmailSent(true);
+                } finally {
+                  setEmailSending(false);
+                }
+              }}
+              className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-60"
+            >
+              {emailSending ? 'Sending…' : 'Email me report'}
+            </button>
+          )}
+        </div>
+      )}
       <main className="flex-1 min-h-0 p-4 md:p-6">
         {useReactReport ? (
           <div className="max-w-[1200px] mx-auto">
