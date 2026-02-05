@@ -21,7 +21,15 @@ export function VehicleHistoryReport({ carfaxData }: VehicleHistoryReportProps) 
 
   const headerSection = vhr.headerSection as Record<string, unknown> | undefined;
   const vehicleInfo = headerSection?.vehicleInformationSection as Record<string, unknown> | undefined;
-  if (!vehicleInfo) return null;
+  const hasAnyContent =
+    vehicleInfo ||
+    ((vhr.titleHistorySection as { rows?: unknown[] })?.rows?.length) ||
+    ((vhr.additionalHistorySection as { rows?: unknown[] })?.rows?.length) ||
+    ((vhr.ownershipHistorySection as { rows?: unknown[] })?.rows?.length) ||
+    ((vhr.accidentDamageSection as { accidentDamageRecords?: unknown[] })?.accidentDamageRecords?.length) ||
+    ((vhr.detailsSection as { ownerBlocks?: { ownerBlocks?: unknown[] } })?.ownerBlocks?.ownerBlocks?.length) ||
+    ((headerSection?.historyOverview as { rows?: unknown[] })?.rows?.length);
+  if (!hasAnyContent) return null;
 
   const historyOverview = (headerSection?.historyOverview as { rows?: unknown[] })?.rows ?? [];
   const titleHistory = ((vhr.titleHistorySection as { rows?: unknown[] })?.rows ?? []) as Record<string, unknown>[];
@@ -59,7 +67,7 @@ export function VehicleHistoryReport({ carfaxData }: VehicleHistoryReportProps) 
             MintCheck
           </h1>
           <p style={{ fontSize: '15px', color: '#FFFFFF', opacity: 0.9, margin: 0 }}>
-            Vehicle History Report via CARFAX
+            Vehicle History Report
           </p>
         </div>
 
@@ -71,14 +79,16 @@ export function VehicleHistoryReport({ carfaxData }: VehicleHistoryReportProps) 
           padding: '32px',
           marginBottom: '24px',
         }}>
-          <div style={{ marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>
-              {toMintCheckText(safeStr(vehicleInfo.yearMakeModel))}
-            </h2>
-            <p style={{ fontSize: '14px', color: '#666666', fontFamily: 'monospace', margin: 0 }}>
-              VIN: {toMintCheckText(safeStr(vehicleInfo.vin))}
-            </p>
-          </div>
+          {(vehicleInfo?.yearMakeModel != null || vehicleInfo?.vin != null) && (
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>
+                {toMintCheckText(safeStr(vehicleInfo?.yearMakeModel))}
+              </h2>
+              <p style={{ fontSize: '14px', color: '#666666', fontFamily: 'monospace', margin: 0 }}>
+                VIN: {toMintCheckText(safeStr(vehicleInfo?.vin))}
+              </p>
+            </div>
+          )}
 
           <div style={{
             backgroundColor: statusBg,

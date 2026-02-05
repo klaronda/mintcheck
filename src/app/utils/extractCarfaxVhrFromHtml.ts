@@ -2,19 +2,29 @@
  * Extract CARFAX structured data (vhr) from report HTML.
  * The CARFAX HTML embeds JSON in a script: window.__INITIAL__DATA__ = { "vhr": { ... } };
  * Returns { vhr } for use with VehicleHistoryReport, or null if extraction fails.
+ * Handles live HTML with different whitespace/formatting (e.g. split across lines).
  */
 export function extractCarfaxVhrFromHtml(html: string): { vhr: unknown } | null {
   if (!html?.trim()) return null;
 
-  const marker = 'window.__INITIAL__DATA__';
-  const idx = html.indexOf(marker);
-  if (idx === -1) return null;
+  // Try exact marker first, then regex that allows whitespace (live HTML may be minified or split)
+  const exactMarker = 'window.__INITIAL__DATA__';
+  let idx = html.indexOf(exactMarker);
+  let afterMarker: string;
+  let skipLength: number;
 
-  const afterMarker = html.slice(idx + marker.length);
-  const eqMatch = afterMarker.match(/^\s*=\s*/);
-  if (!eqMatch) return null;
+  if (idx !== -1) {
+    skipLength = exactMarker.length;
+    afterMarker = html.slice(idx + skipLength);
+  } else {
+    const flexibleMatch = html.match(/\bwindow\s*\.\s*__INITIAL__DATA__\s*=\s*/);
+    if (!flexibleMatch) return null;
+    idx = flexibleMatch.index!;
+    skipLength = flexibleMatch[0].length;
+    afterMarker = html.slice(idx + skipLength);
+  }
 
-  const jsonStartIdx = afterMarker.indexOf('{', eqMatch.length);
+  const jsonStartIdx = afterMarker.search(/\{/);
   if (jsonStartIdx === -1) return null;
 
   const jsonStart = jsonStartIdx;

@@ -57,12 +57,30 @@ export default function DeepCheckReportPage() {
 
   const extractedVhr = useMemo(() => {
     if (!payload?.html) return null;
+    // Only use React view when we have structured data (window.__INITIAL__DATA__).
+    // Reports without it (e.g. CheapCARFAX) show the full report in the styled iframe instead,
+    // so we match the ideal look (https://mintcheckapp.com/deep-check/report/Q7GNDZZrNdFn) when
+    // the source includes the script, and avoid an incomplete parsed view otherwise.
     const result = extractCarfaxVhrFromHtml(payload.html);
     if (!result?.vhr || typeof result.vhr !== 'object') return null;
     const vhr = result.vhr as Record<string, unknown>;
     if (!vhr?.headerSection || typeof vhr.headerSection !== 'object') return null;
     const header = vhr.headerSection as Record<string, unknown>;
-    if (!header?.vehicleInformationSection) return null;
+    const hasVehicleInfo = !!header?.vehicleInformationSection;
+    const titleRows = (vhr.titleHistorySection as { rows?: unknown[] })?.rows;
+    const additionalRows = (vhr.additionalHistorySection as { rows?: unknown[] })?.rows;
+    const ownershipRows = (vhr.ownershipHistorySection as { rows?: unknown[] })?.rows;
+    const accidentRecords = (vhr.accidentDamageSection as { accidentDamageRecords?: unknown[] })?.accidentDamageRecords;
+    const detailBlocks = (vhr.detailsSection as { ownerBlocks?: { ownerBlocks?: unknown[] } })?.ownerBlocks?.ownerBlocks;
+    const overviewRows = (header?.historyOverview as { rows?: unknown[] })?.rows;
+    const hasOtherSection =
+      (Array.isArray(titleRows) && titleRows.length > 0) ||
+      (Array.isArray(additionalRows) && additionalRows.length > 0) ||
+      (Array.isArray(ownershipRows) && ownershipRows.length > 0) ||
+      (Array.isArray(accidentRecords) && accidentRecords.length > 0) ||
+      (Array.isArray(detailBlocks) && detailBlocks.length > 0) ||
+      (Array.isArray(overviewRows) && overviewRows.length > 0);
+    if (!hasVehicleInfo && !hasOtherSection) return null;
     return result;
   }, [payload?.html]);
 
