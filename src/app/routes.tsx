@@ -15,6 +15,7 @@ import Download from './pages/Download';
 import AuthConfirm from './pages/AuthConfirm';
 import AuthReset from './pages/AuthReset';
 import DeepCheckSuccess from './pages/DeepCheckSuccess';
+import BuyerPassSuccess from './pages/BuyerPassSuccess';
 import DeepCheckReportPage from './pages/DeepCheckReportPage';
 
 export const router = createBrowserRouter([
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
   { path: '/auth/confirm', element: <AuthConfirm /> },
   { path: '/auth/reset', element: <AuthReset /> },
   { path: '/deep-check/success', element: <DeepCheckSuccess /> },
+  { path: '/buyer-pass/success', element: <BuyerPassSuccess /> },
   {
     path: '/',
     element: <Layout />,
