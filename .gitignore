@@ -1,0 +1,42 @@
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Secrets / Environment ===
+.env
+.env.*
+*.secret
+REDDIT_CREDENTIALS.md
+
+# === Node / Web ===
+node_modules/
+dist/
+.vite/
+*.log
+*.tsbuildinfo
+
+# === Xcode / iOS ===
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# === Swift Package Manager ===
+.build/
+.swiftpm/
+Package.resolved
+
+# === Python ===
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# === Misc ===
+*.tmp
+*.swp
+*~

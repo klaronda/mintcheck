@@ -1,0 +1,44 @@
+{
+  "articles": [
+    {
+      "id": "obd-port",
+      "title": "Finding your OBD-II port",
+      "content": "This article uses a custom SwiftUI view (OBDHelpSheet) in the iOS app. The content includes:\n\n- Image of OBD-II port\n- Where is the OBD-II Port? section\n- Common Locations list\n- Tips for Finding It\n- Info card with additional help",
+      "category": "Device Help",
+      "note": "This article uses a custom view component in iOS, not markdown content"
+    },
+    {
+      "id": "connect-scanner",
+      "title": "How to connect your OBD-II scanner",
+      "content": "Follow these steps to connect your OBD-II scanner and start a vehicle scan:\n\n**Step 1: Locate the OBD-II port**\nFind the port under the dashboard on the driver's side. See our \"Finding your OBD-II port\" article for detailed instructions.\n\n**Step 2: Plug in the scanner**\nInsert your OBD-II scanner firmly into the port. It should click into place.\n\n**Step 3: Turn on the ignition**\nTurn your vehicle's ignition to the \"ON\" position. The engine does not need to be running for most scans.\n\n**Step 4: Connect to the scanner**\n\nFor WiFi scanners:\n- Open your phone's Settings\n- Go to WiFi settings\n- Connect to the scanner's network (usually named \"OBDII\", \"WiFi_OBD\", or similar)\n- Return to MintCheck\n\nFor Bluetooth scanners:\n- Enable Bluetooth on your phone\n- Pair with the scanner in your phone's Bluetooth settings\n- Return to MintCheck\n\n**Step 5: Start the scan**\nTap \"Start Scan\" in MintCheck to begin the diagnostic check. The scan typically takes 30-60 seconds.\n\n**Troubleshooting:**\n- Make sure the scanner is fully inserted\n- Ensure the ignition is on (not just accessories)\n- Try reconnecting to the scanner's WiFi/Bluetooth\n- Restart the scanner by unplugging and re-plugging it",
+      "category": "Device Help"
+    },
+    {
+      "id": "understanding-results",
+      "title": "Understanding your scan results",
+      "content": "After scanning a vehicle, MintCheck provides a comprehensive health report. Here's how to interpret your results:\n\n**Overall Recommendation**\n\nSafe (Green): No significant issues detected. The vehicle's systems appear to be in good working order.\n\nCaution (Yellow): Some concerns were found that warrant attention. Review the details carefully before making a decision.\n\nWalk Away (Red): Significant issues detected. We recommend not purchasing this vehicle without a professional inspection or further investigation.\n\n**What We Found**\nThis section summarizes the key findings from the scan, including:\n- Diagnostic trouble codes (DTCs) if any\n- Whether codes were recently cleared\n- Estimated repair costs for any issues\n\n**System Details**\nDetailed information about each vehicle system:\n- Engine: RPM, load, temperatures\n- Fuel System: Fuel trims, fuel system status\n- Emissions: Readiness monitors, oxygen sensors\n- Electrical: Battery voltage, system status\n\n**Vehicle Details**\nInformation about the vehicle including:\n- Make, model, and year\n- VIN (if provided)\n- Fuel type and engine specifications\n\n**More Model Details**\nFree safety information from NHTSA including:\n- Active recalls for this vehicle\n- Crash test safety ratings",
+      "category": "Using the App"
+    },
+    {
+      "id": "trouble-codes",
+      "title": "What are trouble codes (DTCs)?",
+      "content": "Diagnostic Trouble Codes (DTCs) are standardized codes stored by your vehicle's computer when it detects a malfunction.\n\n**Understanding code prefixes:**\n\nP-codes (Powertrain): Engine, transmission, and drivetrain issues. These are the most common codes.\n\nB-codes (Body): Issues with body systems like airbags, seat belts, and interior electronics.\n\nC-codes (Chassis): Problems with ABS, traction control, and suspension systems.\n\nU-codes (Network): Communication issues between the vehicle's computer modules.\n\n**Code severity:**\n\nNot all codes are equally serious:\n- Some indicate minor issues that don't affect drivability\n- Others point to significant problems requiring immediate attention\n- Multiple related codes may indicate a single underlying issue\n\n**What MintCheck provides:**\n\nWhen we find trouble codes, we show:\n- The code number and description\n- Estimated repair cost range\n- Severity level (how urgent the repair is)\n\n**Important note:**\n\nA code indicates a system malfunction was detected, but doesn't always pinpoint the exact failed component. Professional diagnosis may be needed for complex issues.",
+      "category": "Vehicle Support"
+    },
+    {
+      "id": "recently-cleared",
+      "title": "Why does it say 'codes recently cleared'?",
+      "content": "When MintCheck detects that diagnostic codes were recently cleared, it means someone reset the vehicle's onboard computer memory.\n\n**Why this matters:**\n\nClearing codes erases the vehicle's diagnostic history, which could hide:\n- Previous warning lights or problems\n- Recurring issues that keep coming back\n- Problems the seller may not have disclosed\n\n**Legitimate reasons for clearing codes:**\n\n- After completing a repair (normal practice)\n- After disconnecting the battery\n- Following a recent service appointment\n\n**Potentially concerning reasons:**\n\n- Hiding problems before a sale\n- Temporarily turning off the check engine light\n- Avoiding disclosure of known issues\n\n**What to do:**\n\n1. Ask the seller directly why codes were cleared\n2. Request service records showing recent repairs\n3. Consider having the vehicle inspected by a mechanic\n4. Drive the vehicle for a few days if possible - problems often resurface\n\n**Our recommendation:**\n\nWe flag \"recently cleared codes\" as a caution because you can't see the full diagnostic history. It's not automatically a red flag, but it warrants additional questions before purchasing.",
+      "category": "Vehicle Support"
+    },
+    {
+      "id": "faq",
+      "title": "Frequently Asked Questions",
+      "content": "**Do I need a special scanner?**\nAny ELM327-compatible OBD-II scanner will work with MintCheck. We recommend WiFi scanners for the easiest connection experience. You can find compatible scanners for $15-30 online.\n\n**Will this work on any car?**\nMintCheck works with all vehicles from 1996 and newer sold in the United States. All these vehicles are required by law to have standardized OBD-II ports.\n\n**How accurate are the scan results?**\nThe diagnostic data comes directly from the vehicle's computer, so it's as accurate as what a mechanic would see. The information reflects the current state of the vehicle's systems.\n\n**Can I scan my own car?**\nAbsolutely! MintCheck is great for monitoring your own vehicle's health, not just for buying used cars. Regular scans can help you catch issues early.\n\n**How long does a scan take?**\nA typical scan takes 30-60 seconds. Some vehicles may take slightly longer depending on how many systems need to be checked.\n\n**What if the scan finds problems?**\nReview the details carefully. For minor issues, you may choose to proceed with the purchase and address them later. For significant problems, consider negotiating the price or walking away.\n\n**Do scans expire?**\nScan results are kept for 180 days. After that, they're automatically deleted. You can always run a new scan on a vehicle.\n\n**Can I share my scan results?**\nComing soon! We're working on the ability to export and share scan reports.",
+      "category": "Using the App"
+    }
+  ],
+  "exportDate": "2026-01-21",
+  "format": "markdown",
+  "notes": "All articles use markdown formatting. The 'obd-port' article uses a custom SwiftUI view in iOS but is included here for reference. Content can be imported into the website CMS."
+}

@@ -1,0 +1,19 @@
+{
+  "user_email": "klaronda@gmail.com",
+  "reports": [
+    {
+      "report_code": "q5PGSSuZ3SyS",
+      "year_make_model": "2017 NISSAN ROGUE S",
+      "vin": "KNMAT2MV7HP524570",
+      "status": "report_ready",
+      "note": "This is the Deep Check you were testing. HTML is stored (~974 KB) but does not contain the window.__INITIAL__DATA__ script, so structured vhr JSON cannot be extracted from this report's HTML."
+    },
+    {
+      "report_code": "vwNg2DEgkRRm",
+      "year_make_model": "1995 ACURA INTEGRA SPECIAL EDITION",
+      "vin": "JH4DC4360SS001610",
+      "status": "report_ready"
+    }
+  ],
+  "public_report_url_template": "https://mintcheckapp.com/deep-check/report/{report_code}"
+}

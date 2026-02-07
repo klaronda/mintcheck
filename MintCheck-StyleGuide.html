@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MintCheck Brand Style Guide</title>
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1A1A1A;
+            background: #FFFFFF;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        header {
+            background: #3EB489;
+            color: white;
+            padding: 48px 0;
+            margin-bottom: 64px;
+        }
+
+        header h1 {
+            font-size: 48px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        /* Navigation */
+        nav {
+            background: #F8F8F7;
+            padding: 24px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #E5E5E5;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        nav a {
+            color: #666666;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: #3EB489;
+        }
+
+        /* Sections */
+        section {
+            margin-bottom: 96px;
+        }
+
+        h2 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 32px;
+            color: #1A1A1A;
+        }
+
+        h3 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            margin-top: 32px;
+            color: #1A1A1A;
+        }
+
+        h4 {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1A1A1A;
+        }
+
+        p {
+            font-size: 15px;
+            color: #666666;
+            margin-bottom: 16px;
+            line-height: 1.7;
+        }
+
+        /* Color Swatches */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 24px;
+            margin-top: 32px;
+        }
+
+        .color-swatch {
+            border: 1px solid #E5E5E5;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .color-box {
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .color-info {
+            padding: 16px;
+            background: white;
+        }
+
+        .color-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: #1A1A1A;
+            margin-bottom: 4px;
+        }
+
+        .color-hex {
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 13px;
+            color: #666666;
+        }
+
+        .color-usage {
+            font-size: 13px;
+            color: #999999;
+            margin-top: 8px;
+        }
+
+        .color-swift {
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 12px;
+            color: #3EB489;
+            margin-top: 4px;
+        }
+
+        /* Typography Examples */
+        .type-sample {
+            padding: 24px;
+            background: white;
+            border: 1px solid #E5E5E5;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+
+        .type-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #E5E5E5;
+            font-size: 13px;
+            color: #666666;
+            flex-wrap: wrap;
+        }
+
+        .type-meta span {
+            font-family: 'SF Mono', 'Courier New', monospace;
+        }
+
+        .type-meta .swift-code {
+            color: #3EB489;
+        }
+
+        /* Component Examples */
+        .component-grid {
+            display: grid;
+            gap: 32px;
+            margin-top: 24px;
+        }
+
+        .component-example {
+            padding: 32px;
+            background: #F8F8F7;
+            border-radius: 4px;
+            border: 1px solid #E5E5E5;
+        }
+
+        .component-preview {
+            margin-bottom: 24px;
+        }
+
+        .component-code {
+            background: #1A1A1A;
+            color: #F8F8F7;
+            padding: 16px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: #3EB489;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2D9970;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1A1A1A;
+            border: 1px solid #E5E5E5;
+        }
+
+        .btn-secondary:hover {
+            background: #F8F8F7;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #3EB489;
+            border: 2px solid #3EB489;
+        }
+
+        .btn-outline:hover {
+            background: #3EB489;
+            color: white;
+        }
+
+        .btn-text {
+            background: transparent;
+            color: #666666;
+            padding: 8px 16px;
+        }
+
+        .btn-text:hover {
+            color: #1A1A1A;
+        }
+
+        .btn:disabled {
+            background: #E5E5E5;
+            color: #999999;
+            cursor: not-allowed;
+        }
+
+        .btn-large {
+            height: 48px;
+            padding: 0 32px;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border: 1px solid #E5E5E5;
+            border-radius: 4px;
+            padding: 24px;
+        }
+
+        .card-header {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1A1A1A;
+        }
+
+        .card-body {
+            font-size: 15px;
+            color: #666666;
+        }
+
+        .card-info {
+            background: #FCFCFB;
+            border: 1px solid #E5E5E5;
+            border-radius: 4px;
+            padding: 16px;
+        }
+
+        /* Status Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 2px solid;
+        }
+
+        .badge-success {
+            background: #E6F4EE;
+            border-color: #3EB489;
+            color: #3EB489;
+        }
+
+        .badge-warning {
+            background: #FFF9E6;
+            border-color: #E3B341;
+            color: #E3B341;
+        }
+
+        .badge-danger {
+            background: #FFE6E6;
+            border-color: #C94A4A;
+            color: #C94A4A;
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #E5E5E5;
+            border-radius: 4px;
+            font-size: 15px;
+            font-family: inherit;
+            color: #1A1A1A;
+            transition: border-color 0.2s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #3EB489;
+        }
+
+        /* Spacing Guide */
+        .spacing-grid {
+            display: grid;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .spacing-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .spacing-visual {
+            background: #3EB489;
+            height: 32px;
+            border-radius: 2px;
+        }
+
+        .spacing-label {
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 13px;
+            color: #666666;
+            min-width: 200px;
+        }
+
+        /* Logo Examples */
+        .logo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .logo-box {
+            padding: 48px 24px;
+            border-radius: 4px;
+            border: 1px solid #E5E5E5;
+            text-align: center;
+        }
+
+        .logo-box.dark {
+            background: #1A1A1A;
+        }
+
+        .logo-box.mint {
+            background: #3EB489;
+        }
+
+        .logo-box.light {
+            background: #F8F8F7;
+        }
+
+        .logo-placeholder {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .logo-placeholder.white {
+            color: white;
+        }
+
+        .logo-placeholder.mint {
+            color: #3EB489;
+        }
+
+        .logo-placeholder.black {
+            color: #1A1A1A;
+        }
+
+        .logo-img {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 16px;
+        }
+
+        .logo-icon-img {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            margin-bottom: 16px;
+        }
+
+        .icon-img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
+
+        .logo-caption {
+            font-size: 13px;
+            margin-top: 16px;
+        }
+
+        .logo-box.dark .logo-caption,
+        .logo-box.mint .logo-caption {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .logo-box.light .logo-caption {
+            color: #666666;
+        }
+
+        .logo-asset {
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .logo-box.dark .logo-asset,
+        .logo-box.mint .logo-asset {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .logo-box.light .logo-asset {
+            color: #999999;
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: #1A1A1A;
+            color: #F8F8F7;
+            padding: 24px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+
+        .code-block pre {
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .code-comment {
+            color: #999999;
+        }
+
+        .code-keyword {
+            color: #FF6B9D;
+        }
+
+        .code-string {
+            color: #C3E88D;
+        }
+
+        .code-property {
+            color: #82AAFF;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+        }
+
+        th {
+            background: #F8F8F7;
+            padding: 12px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1A1A1A;
+            border: 1px solid #E5E5E5;
+        }
+
+        td {
+            padding: 12px;
+            border: 1px solid #E5E5E5;
+            font-size: 14px;
+            color: #666666;
+        }
+
+        td code {
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 12px;
+            background: #F8F8F7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #3EB489;
+        }
+
+        /* Tone Section */
+        .tone-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .tone-card {
+            background: white;
+            border: 1px solid #E5E5E5;
+            border-radius: 4px;
+            padding: 24px;
+        }
+
+        .tone-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .tone-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin-bottom: 8px;
+        }
+
+        .tone-desc {
+            font-size: 14px;
+            color: #666666;
+        }
+
+        /* Do/Don't Grid */
+        .do-dont-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .do-dont-card {
+            border-radius: 4px;
+            padding: 24px;
+        }
+
+        .do-card {
+            background: #E6F4EE;
+            border: 1px solid #3EB489;
+        }
+
+        .dont-card {
+            background: #FFE6E6;
+            border: 1px solid #C94A4A;
+        }
+
+        .do-dont-header {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .do-card .do-dont-header {
+            color: #3EB489;
+        }
+
+        .dont-card .do-dont-header {
+            color: #C94A4A;
+        }
+
+        .do-dont-list {
+            list-style: none;
+        }
+
+        .do-dont-list li {
+            font-size: 15px;
+            color: #1A1A1A;
+            margin-bottom: 12px;
+            padding-left: 24px;
+            position: relative;
+        }
+
+        .do-dont-list li::before {
+            position: absolute;
+            left: 0;
+            font-weight: 600;
+        }
+
+        .do-card li::before {
+            content: "✓";
+            color: #3EB489;
+        }
+
+        .dont-card li::before {
+            content: "✗";
+            color: #C94A4A;
+        }
+
+        /* Icon Grid */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .icon-item {
+            text-align: center;
+            padding: 24px 16px;
+            background: white;
+            border: 1px solid #E5E5E5;
+            border-radius: 4px;
+        }
+
+        .icon-item .icon-preview {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .icon-item .icon-name {
+            font-size: 12px;
+            color: #666666;
+            font-family: 'SF Mono', 'Courier New', monospace;
+        }
+
+        @media (max-width: 768px) {
+            .do-dont-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/lockup-white.svg" alt="MintCheck" style="height: 48px; margin-bottom: 16px;">
+            <p>Brand Style Guide & Design System</p>
+            <div class="version-badge">Updated January 2026 — Based on iOS App v1.0</div>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#logo">Logo</a></li>
+                <li><a href="#colors">Colors</a></li>
+                <li><a href="#typography">Typography</a></li>
+                <li><a href="#components">Components</a></li>
+                <li><a href="#spacing">Spacing</a></li>
+                <li><a href="#icons">Icons</a></li>
+                <li><a href="#tone">Tone & Voice</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <!-- Overview -->
+        <section id="overview">
+            <h2>Brand Overview</h2>
+            <p>MintCheck is a mobile-first vehicle health diagnostic platform that empowers car buyers with transparent, professional-grade vehicle inspections. Our brand embodies trust, clarity, and confidence—helping users make informed decisions when purchasing used vehicles.</p>
+            
+            <h3>Brand Personality</h3>
+            <div class="tone-grid">
+                <div class="tone-card">
+                    <div class="tone-icon">🎯</div>
+                    <div class="tone-title">Clear & Direct</div>
+                    <div class="tone-desc">We communicate complex automotive data in simple, actionable terms.</div>
+                </div>
+                <div class="tone-card">
+                    <div class="tone-icon">🤝</div>
+                    <div class="tone-title">Trustworthy</div>
+                    <div class="tone-desc">We provide honest, unbiased information to build long-term user confidence.</div>
+                </div>
+                <div class="tone-card">
+                    <div class="tone-icon">✨</div>
+                    <div class="tone-title">Premium & Modern</div>
+                    <div class="tone-desc">Our design reflects quality and sophistication without being pretentious.</div>
+                </div>
+                <div class="tone-card">
+                    <div class="tone-icon">💚</div>
+                    <div class="tone-title">Approachable</div>
+                    <div class="tone-desc">We make vehicle diagnostics accessible to everyone, regardless of technical knowledge.</div>
+                </div>
+            </div>
+
+            <h3>Contact</h3>
+            <p><strong>Support Email:</strong> support@mintcheckapp.com</p>
+        </section>
+
+        <!-- Logo -->
+        <section id="logo">
+            <h2>Logo Usage</h2>
+            <p>The MintCheck logo system includes the full lockup (icon + wordmark), standalone icon, and standalone wordmark. Choose the appropriate version based on context and background color.</p>
+
+            <h3>Full Lockup</h3>
+            <div class="logo-grid">
+                <div class="logo-box mint">
+                    <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo-text/lockup-white.svg" alt="MintCheck White Lockup" class="logo-img">
+                    <div class="logo-caption">White Lockup — Use on mint backgrounds</div>
+                    <div class="logo-asset">lockup-white</div>
+                </div>
+                <div class="logo-box dark">
+                    <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo-text/lockup-white.svg" alt="MintCheck White Lockup" class="logo-img">
+                    <div class="logo-caption">White Lockup — Use on dark backgrounds</div>
+                    <div class="logo-asset">lockup-white</div>
+                </div>
+                <div class="logo-box light">
+                    <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo-text/lockup-mint.svg" alt="MintCheck Mint Lockup" class="logo-img">
+                    <div class="logo-caption">Mint Lockup — Use on light backgrounds</div>
+                    <div class="logo-asset">lockup-mint</div>
+                </div>
+            </div>
+
+            <h3>Standalone Logo Icon</h3>
+            <div class="logo-grid">
+                <div class="logo-box mint">
+                    <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo/logo-white.svg" alt="MintCheck White Icon" class="logo-icon-img">
+                    <div class="logo-caption">White Icon</div>
+                    <div class="logo-asset">logo-white</div>
+                </div>
+                <div class="logo-box light">
+                    <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo/logo-mint.svg" alt="MintCheck Mint Icon" class="logo-icon-img">
+                    <div class="logo-caption">Mint Icon</div>
+                    <div class="logo-asset">logo-mint</div>
+                </div>
+                <div class="logo-box dark">
+                    <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo/logo-white.svg" alt="MintCheck White Icon" class="logo-icon-img">
+                    <div class="logo-caption">White Icon</div>
+                    <div class="logo-asset">logo-white</div>
+                </div>
+            </div>
+
+            <h3>Wordmark Only</h3>
+            <div class="logo-grid">
+                <div class="logo-box light">
+                    <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/type-only/MintCheck_Type_black.svg" alt="MintCheck Black Type" class="logo-img">
+                    <div class="logo-caption">Black Type — Use on light backgrounds</div>
+                    <div class="logo-asset">type-black</div>
+                </div>
+                <div class="logo-box mint">
+                    <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/type-only/MintCheck_Type_white.svg" alt="MintCheck White Type" class="logo-img">
+                    <div class="logo-caption">White Type — Use on mint/dark backgrounds</div>
+                    <div class="logo-asset">type-white</div>
+                </div>
+                <div class="logo-box light" style="background: white;">
+                    <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/type-only/MintCheck_Type_mint.svg" alt="MintCheck Mint Type" class="logo-img">
+                    <div class="logo-caption">Mint Type — Use on white backgrounds</div>
+                    <div class="logo-asset">type-mint</div>
+                </div>
+            </div>
+
+            <h3>Asset Reference</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Asset Name</th>
+                        <th>Use Case</th>
+                        <th>Background</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>lockup-white</code></td>
+                        <td>Full logo on colored backgrounds</td>
+                        <td>Mint (#3EB489), Dark (#1A1A1A)</td>
+                    </tr>
+                    <tr>
+                        <td><code>lockup-mint</code></td>
+                        <td>Full logo on light backgrounds</td>
+                        <td>White, Light gray (#F8F8F7)</td>
+                    </tr>
+                    <tr>
+                        <td><code>lockup-black</code></td>
+                        <td>Full logo, high contrast</td>
+                        <td>White only</td>
+                    </tr>
+                    <tr>
+                        <td><code>logo-mint-text-black</code></td>
+                        <td>Dashboard header (mint icon + black text)</td>
+                        <td>White, Light backgrounds</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Logo Guidelines</h3>
+            <ul style="margin-top: 24px; padding-left: 24px;">
+                <li style="margin-bottom: 12px; font-size: 15px; color: #666666;">Maintain adequate clear space around the logo (minimum height of the logo on all sides)</li>
+                <li style="margin-bottom: 12px; font-size: 15px; color: #666666;">Do not stretch, distort, or alter the logo proportions</li>
+                <li style="margin-bottom: 12px; font-size: 15px; color: #666666;">Do not apply additional effects (shadows, gradients, outlines)</li>
+                <li style="margin-bottom: 12px; font-size: 15px; color: #666666;">Do not change the logo colors outside of approved combinations</li>
+                <li style="margin-bottom: 12px; font-size: 15px; color: #666666;">Minimum size: 100px width for digital, 0.75" for print</li>
+            </ul>
+        </section>
+
+        <!-- Colors -->
+        <section id="colors">
+            <h2>Color Palette</h2>
+            <p>Our color system is designed for clarity, accessibility, and visual hierarchy. All colors are defined in <code>Colors.swift</code> for iOS development.</p>
+
+            <h3>Primary Brand Color</h3>
+            <div class="color-grid">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #3EB489; color: white;">
+                        <span style="font-size: 24px; font-weight: 600;">Aa</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Mint Green</div>
+                        <div class="color-hex">#3EB489</div>
+                        <div class="color-swift">Color.mintGreen</div>
+                        <div class="color-usage">Primary brand color, CTAs, success states, app icon</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #2D9970; color: white;">
+                        <span style="font-size: 24px; font-weight: 600;">Aa</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Mint Green Hover</div>
+                        <div class="color-hex">#2D9970</div>
+                        <div class="color-swift">Color.mintGreenHover</div>
+                        <div class="color-usage">Hover/pressed state for primary buttons</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Background Colors</h3>
+            <div class="color-grid">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFFFFF; border: 1px solid #E5E5E5;">
+                        <span style="color: #1A1A1A; font-size: 24px; font-weight: 600;">Aa</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">White / Card Background</div>
+                        <div class="color-hex">#FFFFFF</div>
+                        <div class="color-swift">Color.cardBackground</div>
+                        <div class="color-usage">Cards, forms, primary content areas</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #F8F8F7;">
+                        <span style="color: #1A1A1A; font-size: 24px; font-weight: 600;">Aa</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Deep Background</div>
+                        <div class="color-hex">#F8F8F7</div>
+                        <div class="color-swift">Color.deepBackground</div>
+                        <div class="color-usage">Main screen backgrounds, subtle contrast</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FCFCFB; border: 1px solid #E5E5E5;">
+                        <span style="color: #1A1A1A; font-size: 24px; font-weight: 600;">Aa</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Soft Background</div>
+                        <div class="color-hex">#FCFCFB</div>
+                        <div class="color-swift">Color.softBackground</div>
+                        <div class="color-usage">Info cards, tips, subtle highlights</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #1A1A1A;">
+                        <span style="color: white; font-size: 24px; font-weight: 600;">Aa</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Dark Background</div>
+                        <div class="color-hex">#1A1A1A</div>
+                        <div class="color-swift">Color.darkBackground</div>
+                        <div class="color-usage">Dark mode, code blocks, overlays</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Text Colors</h3>
+            <div class="color-grid">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #1A1A1A;">
+                        <span style="color: white; font-size: 24px; font-weight: 600;">Aa</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Primary Text</div>
+                        <div class="color-hex">#1A1A1A</div>
+                        <div class="color-swift">Color.textPrimary</div>
+                        <div class="color-usage">Headings, primary content, labels</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #666666;">
+                        <span style="color: white; font-size: 24px; font-weight: 600;">Aa</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Secondary Text</div>
+                        <div class="color-hex">#666666</div>
+                        <div class="color-swift">Color.textSecondary</div>
+                        <div class="color-usage">Body text, descriptions, captions</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #999999;">
+                        <span style="color: white; font-size: 24px; font-weight: 600;">Aa</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Muted Text</div>
+                        <div class="color-hex">#999999</div>
+                        <div class="color-swift">Color.textMuted</div>
+                        <div class="color-usage">Disabled states, placeholder text, timestamps</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>UI Colors</h3>
+            <div class="color-grid">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #E5E5E5;">
+                        <span style="color: #1A1A1A; font-size: 24px; font-weight: 600;">—</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Border Color</div>
+                        <div class="color-hex">#E5E5E5</div>
+                        <div class="color-swift">Color.borderColor</div>
+                        <div class="color-usage">Borders, dividers, input outlines</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Status Colors</h3>
+            <p>Status colors communicate vehicle condition and system states. Each has a primary color and a background variant.</p>
+            <div class="color-grid">
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #3EB489; color: white;">
+                        <span style="font-size: 24px;">✓</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Safe / Success</div>
+                        <div class="color-hex">#3EB489</div>
+                        <div class="color-swift">Color.statusSafe</div>
+                        <div class="color-usage">"Safe to Buy" status</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #E6F4EE; border: 1px solid #3EB489;">
+                        <span style="color: #3EB489; font-size: 24px;">✓</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Safe Background</div>
+                        <div class="color-hex">#E6F4EE</div>
+                        <div class="color-swift">Color.statusSafeBg</div>
+                        <div class="color-usage">Background for success badges/cards</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #E3B341; color: white;">
+                        <span style="font-size: 24px;">⚠</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Caution / Warning</div>
+                        <div class="color-hex">#E3B341</div>
+                        <div class="color-swift">Color.statusCaution</div>
+                        <div class="color-usage">"Proceed with Caution" status</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFF9E6; border: 1px solid #E3B341;">
+                        <span style="color: #E3B341; font-size: 24px;">⚠</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Caution Background</div>
+                        <div class="color-hex">#FFF9E6</div>
+                        <div class="color-swift">Color.statusCautionBg</div>
+                        <div class="color-usage">Background for warning badges/cards</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #C94A4A; color: white;">
+                        <span style="font-size: 24px;">✗</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Danger / Not Recommended</div>
+                        <div class="color-hex">#C94A4A</div>
+                        <div class="color-swift">Color.statusDanger</div>
+                        <div class="color-usage">"Not Recommended" / "Walk Away" status</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #FFE6E6; border: 1px solid #C94A4A;">
+                        <span style="color: #C94A4A; font-size: 24px;">✗</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Danger Background</div>
+                        <div class="color-hex">#FFE6E6</div>
+                        <div class="color-swift">Color.statusDangerBg</div>
+                        <div class="color-usage">Background for danger badges/cards</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-box" style="background: #F59E0B; color: white;">
+                        <span style="font-size: 24px;">$</span>
+                    </div>
+                    <div class="color-info">
+                        <div class="color-name">Warning / Alert</div>
+                        <div class="color-hex">#F59E0B</div>
+                        <div class="color-swift">Color.statusWarning</div>
+                        <div class="color-usage">Repair estimates, price alerts</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Typography -->
+        <section id="typography">
+            <h2>Typography</h2>
+            <p>We use the system font stack for optimal performance and native feel. All sizes are defined in <code>Typography.swift</code> using the <code>FontSize</code> struct.</p>
+
+            <h3>Font Stack</h3>
+            <div class="code-block">
+                <pre><span class="code-comment">/* Web */</span>
+font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+             Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+<span class="code-comment">/* iOS (SwiftUI) */</span>
+.font(.system(size: fontSize, weight: .semibold))</pre>
+            </div>
+
+            <h3>Type Scale</h3>
+            
+            <div class="type-sample">
+                <h1 style="font-size: 26px; font-weight: 600; color: #1A1A1A; margin: 0;">Screen Titles & Large Headlines</h1>
+                <div class="type-meta">
+                    <span>26px</span>
+                    <span>Weight: 600 (semibold)</span>
+                    <span class="swift-code">FontSize.h1</span>
+                </div>
+            </div>
+
+            <div class="type-sample">
+                <h2 style="font-size: 22px; font-weight: 600; color: #1A1A1A; margin: 0;">Section Headings & Recommendation Titles</h2>
+                <div class="type-meta">
+                    <span>22px</span>
+                    <span>Weight: 600 (semibold)</span>
+                    <span class="swift-code">FontSize.h2</span>
+                </div>
+            </div>
+
+            <div class="type-sample">
+                <h3 style="font-size: 18px; font-weight: 600; color: #1A1A1A; margin: 0;">Card Headers & Subsections</h3>
+                <div class="type-meta">
+                    <span>18px</span>
+                    <span>Weight: 600 (semibold)</span>
+                    <span class="swift-code">FontSize.h3</span>
+                </div>
+            </div>
+
+            <div class="type-sample">
+                <h4 style="font-size: 17px; font-weight: 600; color: #1A1A1A; margin: 0;">List Item Headers</h4>
+                <div class="type-meta">
+                    <span>17px</span>
+                    <span>Weight: 600 (semibold)</span>
+                    <span class="swift-code">FontSize.h4</span>
+                </div>
+            </div>
+
+            <div class="type-sample">
+                <h5 style="font-size: 16px; font-weight: 600; color: #1A1A1A; margin: 0;">Smaller Headers & Button Text</h5>
+                <div class="type-meta">
+                    <span>16px</span>
+                    <span>Weight: 600 (semibold)</span>
+                    <span class="swift-code">FontSize.h5 / FontSize.button</span>
+                </div>
+            </div>
+
+            <div class="type-sample">
+                <p style="font-size: 15px; color: #1A1A1A; margin: 0; font-weight: 400;">Body Large — Main content, form labels, primary reading text. This is the standard size for most interface content.</p>
+                <div class="type-meta">
+                    <span>15px</span>
+                    <span>Weight: 400 (regular)</span>
+                    <span class="swift-code">FontSize.bodyLarge</span>
+                </div>
+            </div>
+
+            <div class="type-sample">
+                <p style="font-size: 14px; color: #666666; margin: 0; font-weight: 400;">Body Regular — Secondary text, descriptions, metadata. Used for supporting information.</p>
+                <div class="type-meta">
+                    <span>14px</span>
+                    <span>Weight: 400 (regular)</span>
+                    <span class="swift-code">FontSize.bodyRegular</span>
+                </div>
+            </div>
+
+            <div class="type-sample">
+                <p style="font-size: 13px; color: #666666; margin: 0; font-weight: 400;">Body Small — Fine print, disclaimers, helper text.</p>
+                <div class="type-meta">
+                    <span>13px</span>
+                    <span>Weight: 400 (regular)</span>
+                    <span class="swift-code">FontSize.bodySmall</span>
+                </div>
+            </div>
+
+            <div class="type-sample">
+                <p style="font-size: 11px; color: #999999; margin: 0; font-weight: 400; text-transform: uppercase; letter-spacing: 0.5px;">CAPTION — LABELS, TIMESTAMPS</p>
+                <div class="type-meta">
+                    <span>11px</span>
+                    <span>Weight: 400 (regular)</span>
+                    <span class="swift-code">FontSize.caption</span>
+                </div>
+            </div>
+
+            <h3>Quick Reference</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Size</th>
+                        <th>Weight</th>
+                        <th>Use Case</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>FontSize.h1</code></td>
+                        <td>26px</td>
+                        <td>Semibold (600)</td>
+                        <td>Screen titles</td>
+                    </tr>
+                    <tr>
+                        <td><code>FontSize.h2</code></td>
+                        <td>22px</td>
+                        <td>Semibold (600)</td>
+                        <td>Section headings, recommendations</td>
+                    </tr>
+                    <tr>
+                        <td><code>FontSize.h3</code></td>
+                        <td>18px</td>
+                        <td>Semibold (600)</td>
+                        <td>Card headers</td>
+                    </tr>
+                    <tr>
+                        <td><code>FontSize.h4</code></td>
+                        <td>17px</td>
+                        <td>Semibold (600)</td>
+                        <td>List items</td>
+                    </tr>
+                    <tr>
+                        <td><code>FontSize.h5</code></td>
+                        <td>16px</td>
+                        <td>Semibold (600)</td>
+                        <td>Small headers</td>
+                    </tr>
+                    <tr>
+                        <td><code>FontSize.button</code></td>
+                        <td>16px</td>
+                        <td>Semibold (600)</td>
+                        <td>Button text</td>
+                    </tr>
+                    <tr>
+                        <td><code>FontSize.bodyLarge</code></td>
+                        <td>15px</td>
+                        <td>Regular (400)</td>
+                        <td>Primary body text</td>
+                    </tr>
+                    <tr>
+                        <td><code>FontSize.bodyRegular</code></td>
+                        <td>14px</td>
+                        <td>Regular (400)</td>
+                        <td>Secondary text</td>
+                    </tr>
+                    <tr>
+                        <td><code>FontSize.bodySmall</code></td>
+                        <td>13px</td>
+                        <td>Regular (400)</td>
+                        <td>Fine print</td>
+                    </tr>
+                    <tr>
+                        <td><code>FontSize.caption</code></td>
+                        <td>11px</td>
+                        <td>Regular (400)</td>
+                        <td>Labels, timestamps</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Components -->
+        <section id="components">
+            <h2>Components</h2>
+            <p>Our component library provides consistent, reusable building blocks. Components are defined in <code>DesignSystem/Components/</code>.</p>
+
+            <h3>Primary Button</h3>
+            <div class="component-example">
+                <div class="component-preview">
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+                        <button class="btn btn-primary btn-large">Continue</button>
+                        <button class="btn btn-primary btn-large" disabled>Disabled</button>
+                    </div>
+                </div>
+                <h4>Specs</h4>
+                <ul style="margin-top: 16px; padding-left: 24px;">
+                    <li style="margin-bottom: 8px; font-size: 14px; color: #666666;">Height: 48px (<code>LayoutConstants.buttonHeight</code>)</li>
+                    <li style="margin-bottom: 8px; font-size: 14px; color: #666666;">Background: #3EB489 → #2D9970 on hover</li>
+                    <li style="margin-bottom: 8px; font-size: 14px; color: #666666;">Border radius: 4px</li>
+                    <li style="margin-bottom: 8px; font-size: 14px; color: #666666;">Font: 16px semibold, white</li>
+                    <li style="margin-bottom: 8px; font-size: 14px; color: #666666;">Disabled: #E5E5E5 background, #999999 text</li>
+                </ul>
+            </div>
+
+            <h3>Secondary Buttons</h3>
+            <div class="component-example">
+                <div class="component-preview">
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+                        <button class="btn btn-secondary btn-large">Secondary</button>
+                        <button class="btn btn-outline btn-large">Outline</button>
+                        <button class="btn btn-text">Text Button</button>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Status Badges</h3>
+            <div class="component-example">
+                <div class="component-preview">
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;">
+                        <div class="badge badge-success">
+                            <span class="badge-dot"></span>
+                            Safe
+                        </div>
+                        <div class="badge badge-warning">
+                            <span class="badge-dot"></span>
+                            Caution
+                        </div>
+                        <div class="badge badge-danger">
+                            <span class="badge-dot"></span>
+                            Walk Away
+                        </div>
+                    </div>
+                </div>
+                <h4>Badge Text Reference</h4>
+                <table style="margin-top: 16px;">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Full Title (Results Page)</th>
+                            <th>Short Badge (Dashboard)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="color: #3EB489; font-weight: 600;">Safe</td>
+                            <td>Safe to Buy</td>
+                            <td>Safe</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #E3B341; font-weight: 600;">Caution</td>
+                            <td>Proceed with Caution</td>
+                            <td>Caution</td>
+                        </tr>
+                        <tr>
+                            <td style="color: #C94A4A; font-weight: 600;">Not Recommended</td>
+                            <td>Not Recommended</td>
+                            <td>Walk Away</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Recommendation Card</h3>
+            <div class="component-example">
+                <div class="component-preview">
+                    <div class="card" style="background: #E6F4EE; border: 2px solid #3EB489;">
+                        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+                            <div style="width: 48px; height: 48px; background: #3EB489; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                <span style="color: white; font-size: 24px;">✓</span>
+                            </div>
+                            <div style="font-size: 22px; font-weight: 600; color: #3EB489;">Safe to Buy</div>
+                        </div>
+                        <div style="font-size: 15px; color: #1A1A1A; line-height: 1.6;">Based on the scan, this vehicle's engine and core systems appear to be in good condition. No major concerns were found.</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Form Elements</h3>
+            <div class="component-example">
+                <div class="component-preview">
+                    <div class="form-group">
+                        <label for="example-input">Label Text</label>
+                        <input type="text" id="example-input" placeholder="Enter text here">
+                    </div>
+                </div>
+                <h4>Input Specs</h4>
+                <ul style="margin-top: 16px; padding-left: 24px;">
+                    <li style="margin-bottom: 8px; font-size: 14px; color: #666666;">Padding: 12px</li>
+                    <li style="margin-bottom: 8px; font-size: 14px; color: #666666;">Border: 1px solid #E5E5E5 → #3EB489 on focus</li>
+                    <li style="margin-bottom: 8px; font-size: 14px; color: #666666;">Border radius: 4px</li>
+                    <li style="margin-bottom: 8px; font-size: 14px; color: #666666;">Font: 15px</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Spacing -->
+        <section id="spacing">
+            <h2>Spacing System</h2>
+            <p>Consistent spacing creates visual rhythm. All values are defined in <code>LayoutConstants</code>.</p>
+
+            <h3>Spacing Scale</h3>
+            <div class="spacing-grid">
+                <div class="spacing-box">
+                    <div class="spacing-label">4px — spacingXS</div>
+                    <div class="spacing-visual" style="width: 4px;"></div>
+                </div>
+                <div class="spacing-box">
+                    <div class="spacing-label">8px — spacingSM / padding2</div>
+                    <div class="spacing-visual" style="width: 8px;"></div>
+                </div>
+                <div class="spacing-box">
+                    <div class="spacing-label">12px — padding3</div>
+                    <div class="spacing-visual" style="width: 12px;"></div>
+                </div>
+                <div class="spacing-box">
+                    <div class="spacing-label">16px — spacingMD / padding4</div>
+                    <div class="spacing-visual" style="width: 16px;"></div>
+                </div>
+                <div class="spacing-box">
+                    <div class="spacing-label">20px — padding5</div>
+                    <div class="spacing-visual" style="width: 20px;"></div>
+                </div>
+                <div class="spacing-box">
+                    <div class="spacing-label">24px — spacingLG / padding6</div>
+                    <div class="spacing-visual" style="width: 24px;"></div>
+                </div>
+                <div class="spacing-box">
+                    <div class="spacing-label">32px — spacingXL / padding8</div>
+                    <div class="spacing-visual" style="width: 32px;"></div>
+                </div>
+            </div>
+
+            <h3>Border Radius</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Value</th>
+                        <th>Use Case</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>borderRadius</code></td>
+                        <td>4px</td>
+                        <td>Buttons, cards, inputs, badges (default)</td>
+                    </tr>
+                    <tr>
+                        <td><code>borderRadiusLarge</code></td>
+                        <td>8px</td>
+                        <td>Modals, larger containers</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Button Heights</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Value</th>
+                        <th>Use Case</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>buttonHeight</code></td>
+                        <td>48px</td>
+                        <td>Primary CTAs, full-width buttons</td>
+                    </tr>
+                    <tr>
+                        <td><code>buttonHeightSmall</code></td>
+                        <td>44px</td>
+                        <td>Secondary actions, inline buttons</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Icons -->
+        <section id="icons">
+            <h2>Icons</h2>
+            <p>Custom icons are used for dashboard lights and navigation. All icons use #1A1A1A fill color unless specified.</p>
+
+            <h3>Dashboard Light Icons</h3>
+            <p>Used to represent vehicle warning indicators. Located in <code>Assets.xcassets/icon-*.imageset</code></p>
+            <div class="icon-grid">
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/dashboard-errors/check_engine.svg" alt="Check Engine" class="icon-img"></div>
+                    <div class="icon-name">icon-check-engine</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/dashboard-errors/oil.svg" alt="Oil" class="icon-img"></div>
+                    <div class="icon-name">icon-oil</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/dashboard-errors/battery.svg" alt="Battery" class="icon-img"></div>
+                    <div class="icon-name">icon-battery</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/dashboard-errors/radiator.svg" alt="Radiator" class="icon-img"></div>
+                    <div class="icon-name">icon-radiator</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/dashboard-errors/tire.svg" alt="Tire Pressure" class="icon-img"></div>
+                    <div class="icon-name">icon-tire-pressure</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/dashboard-errors/ABS.svg" alt="ABS" class="icon-img"></div>
+                    <div class="icon-name">icon-abs</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/dashboard-errors/airbags.svg" alt="Airbag" class="icon-img"></div>
+                    <div class="icon-name">icon-airbag</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/dashboard-errors/washer_fluid.svg" alt="Washer Fluid" class="icon-img"></div>
+                    <div class="icon-name">icon-washer-fluid</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/dashboard-errors/other.svg" alt="Other" class="icon-img"></div>
+                    <div class="icon-name">icon-other</div>
+                </div>
+            </div>
+
+            <h3>Navigation Icons</h3>
+            <p>Bottom tab bar icons. No strokes — filled only.</p>
+            <div class="icon-grid">
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/bottom-nav/1_home.svg" alt="Home" class="icon-img"></div>
+                    <div class="icon-name">icon-nav-home</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/bottom-nav/2_car_scan.svg" alt="Scan" class="icon-img"></div>
+                    <div class="icon-name">icon-nav-scan</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/bottom-nav/3_support.svg" alt="Support" class="icon-img"></div>
+                    <div class="icon-name">icon-nav-support</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-preview"><img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Icons/bottom-nav/4_settings.svg" alt="Settings" class="icon-img"></div>
+                    <div class="icon-name">icon-nav-settings</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tone & Voice -->
+        <section id="tone">
+            <h2>Tone & Voice</h2>
+            <p>MintCheck's voice is confident, clear, and trustworthy. We speak to users as informed advisors.</p>
+
+            <h3>Core Principles</h3>
+            <div class="tone-grid">
+                <div class="tone-card">
+                    <div class="tone-title">Be Clear, Not Technical</div>
+                    <div class="tone-desc">Explain automotive concepts in everyday language. Avoid jargon unless necessary.</div>
+                </div>
+                <div class="tone-card">
+                    <div class="tone-title">Be Honest, Not Alarmist</div>
+                    <div class="tone-desc">Present facts objectively. Don't exaggerate problems, but don't downplay them either.</div>
+                </div>
+                <div class="tone-card">
+                    <div class="tone-title">Be Helpful, Not Pushy</div>
+                    <div class="tone-desc">Offer guidance and recommendations, but respect that users make their own decisions.</div>
+                </div>
+                <div class="tone-card">
+                    <div class="tone-title">Be Professional, Not Stiff</div>
+                    <div class="tone-desc">Maintain professionalism while being approachable and conversational.</div>
+                </div>
+            </div>
+
+            <h3>Writing Guidelines</h3>
+            <div class="do-dont-grid">
+                <div class="do-card">
+                    <div class="do-dont-header">✓ Do This</div>
+                    <ul class="do-dont-list">
+                        <li>Use active voice: "We found 3 trouble codes"</li>
+                        <li>Be specific: "Engine temperature is 15°F above normal"</li>
+                        <li>Explain implications: "This may cause the vehicle to fail emissions testing"</li>
+                        <li>Use contractions: "We'll scan the engine"</li>
+                        <li>Lead with outcomes: "Safe to Buy — No major issues found"</li>
+                    </ul>
+                </div>
+                <div class="dont-card">
+                    <div class="do-dont-header">✗ Don't Do This</div>
+                    <ul class="do-dont-list">
+                        <li>Use passive voice: "3 trouble codes were found"</li>
+                        <li>Be vague: "Temperature seems a bit high"</li>
+                        <li>Use jargon without context: "P0300 detected"</li>
+                        <li>Be overly formal: "We shall commence scanning"</li>
+                        <li>Bury the lead: "After analyzing data, we determined..."</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>DTC Explanations</h3>
+            <p>When displaying trouble codes, always include a plain-English explanation:</p>
+            <div class="card" style="margin-top: 16px;">
+                <div style="font-weight: 600; color: #1A1A1A; margin-bottom: 8px;">P0420 — Catalyst System Efficiency Below Threshold</div>
+                <div style="font-size: 14px; color: #666666;">"The catalytic converter isn't cleaning exhaust gases effectively. This typically means the converter needs replacement, which can cost $1,000–$2,500 depending on the vehicle."</div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <section style="padding: 48px 0; border-top: 1px solid #E5E5E5; margin-top: 96px;">
+            <p style="text-align: center; font-size: 14px; color: #999999;">
+                MintCheck Brand Style Guide — Updated January 2026
+            </p>
+            <p style="text-align: center; font-size: 14px; color: #999999; margin-top: 8px;">
+                Based on iOS App Implementation — support@mintcheckapp.com
+            </p>
+        </section>
+    </main>
+</body>
+</html>

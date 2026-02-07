@@ -1,0 +1,96 @@
+import { Apple, Menu, X as XIcon } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router';
+
+export default function Navbar() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  return (
+    <nav className="sticky top-0 z-50 bg-white border-b border-border">
+      <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          <Link to="/">
+            <img 
+              src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo-text/lockup-mint.svg" 
+              alt="MintCheck" 
+              className="h-10"
+            />
+          </Link>
+          
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-8">
+            <Link to="/#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors" style={{ fontWeight: 600 }}>
+              How It Works
+            </Link>
+            <Link to="/#use-cases" className="text-muted-foreground hover:text-foreground transition-colors" style={{ fontWeight: 600 }}>
+              Use Cases
+            </Link>
+            <Link to="/#scanners" className="text-muted-foreground hover:text-foreground transition-colors" style={{ fontWeight: 600 }}>
+              Get a Scanner
+            </Link>
+            <a 
+              href="#" 
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 rounded-lg transition-opacity hover:opacity-90"
+              style={{ fontWeight: 600 }}
+            >
+              <Apple className="w-4 h-4" />
+              Get the App
+            </a>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-foreground"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <XIcon className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
+        </div>
+
+        {/* Mobile Navigation */}
+        {mobileMenuOpen && (
+          <div className="md:hidden pt-4 pb-4 flex flex-col gap-4">
+            <Link 
+              to="/#how-it-works" 
+              className="text-muted-foreground hover:text-foreground transition-colors py-2"
+              style={{ fontWeight: 600 }}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              How It Works
+            </Link>
+            <Link 
+              to="/#use-cases" 
+              className="text-muted-foreground hover:text-foreground transition-colors py-2"
+              style={{ fontWeight: 600 }}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Use Cases
+            </Link>
+            <Link 
+              to="/#scanners" 
+              className="text-muted-foreground hover:text-foreground transition-colors py-2"
+              style={{ fontWeight: 600 }}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Get a Scanner
+            </Link>
+            <a 
+              href="#" 
+              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg transition-opacity hover:opacity-90 mt-2"
+              style={{ fontWeight: 600 }}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Apple className="w-4 h-4" />
+              Get the App
+            </a>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}

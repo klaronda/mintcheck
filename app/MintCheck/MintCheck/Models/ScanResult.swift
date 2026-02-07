@@ -1,0 +1,145 @@
+//
+//  ScanResult.swift
+//  MintCheck
+//
+//  Scan results and recommendation models
+//
+
+import Foundation
+import SwiftUI
+
+/// Recommendation type based on scan results
+enum RecommendationType: String, Codable, CaseIterable {
+    case safe = "safe"
+    case caution = "caution"
+    case notRecommended = "not-recommended"
+    
+    var title: String {
+        switch self {
+        case .safe: return "Safe to Buy"
+        case .caution: return "Proceed with Caution"
+        case .notRecommended: return "Not Recommended"
+        }
+    }
+    
+    var summary: String {
+        switch self {
+        case .safe:
+            return "Based on the scan, this vehicle's engine and core systems appear to be in good condition. No major concerns were found."
+        case .caution:
+            return "The scan found some items that need attention. Review the details below and consider having a mechanic inspect the vehicle before buying."
+        case .notRecommended:
+            return "The scan found significant concerns with this vehicle's systems. We recommend looking at other options or getting a professional inspection before proceeding."
+        }
+    }
+    
+    var iconName: String {
+        switch self {
+        case .safe: return "checkmark.circle.fill"
+        case .caution: return "exclamationmark.circle.fill"
+        case .notRecommended: return "xmark.circle.fill"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .safe: return .statusSafe
+        case .caution: return .statusCaution
+        case .notRecommended: return .statusDanger
+        }
+    }
+    
+    var backgroundColor: Color {
+        switch self {
+        case .safe: return .statusSafeBg
+        case .caution: return .statusCautionBg
+        case .notRecommended: return .statusDangerBg
+        }
+    }
+}
+
+/// Complete scan result stored in database
+struct ScanResult: Codable, Identifiable {
+    var id: UUID = UUID()
+    var userId: UUID?
+    var vehicleId: UUID?
+    var recommendation: RecommendationType
+    var scanData: ScanDataJSON?
+    var quickCheck: QuickCheckJSON?
+    var obdData: OBDDataJSON?
+    var createdAt: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case vehicleId = "vehicle_id"
+        case recommendation
+        case scanData = "scan_data"
+        case quickCheck = "quick_check"
+        case obdData = "obd_data"
+        case createdAt = "created_at"
+    }
+}
+
+/// JSON structure for scan metadata
+struct ScanDataJSON: Codable {
+    var deviceType: String?
+    var scanDuration: TimeInterval?
+    var keyFindings: [String]?
+    var priceRange: String?
+    var priceNote: String?
+    var repairEstimate: String?
+}
+
+/// JSON structure for quick check answers
+struct QuickCheckJSON: Codable {
+    var interiorCondition: String?
+    var tireCondition: String?
+    var dashboardLights: Bool?
+    var warningLightTypes: [String]?
+    var engineSounds: Bool?
+    var fluidLeaks: String?
+    var bodyDamage: Bool?
+}
+
+/// JSON structure for OBD scan data
+struct OBDDataJSON: Codable {
+    var vin: String?
+    var dtcs: [String]?
+    var rpm: Double?
+    var coolantTemp: Double?
+    var batteryVoltage: Double?
+    var fuelLevel: Double?
+    var engineLoad: Double?
+    var intakeTemp: Double?
+    var throttlePosition: Double?
+    var vehicleSpeed: Double?
+    var distanceSinceCleared: Double?
+    var warmupCycles: Int?
+    var fuelType: String?
+    var obdStandard: String?
+}
+
+/// System detail for expandable sections
+struct SystemDetail: Identifiable {
+    let id = UUID()
+    let name: String
+    let status: String
+    let color: Color
+    let details: [String]
+    let explanation: String
+}
+
+/// Scan history item for dashboard display
+struct ScanHistoryItem: Identifiable {
+    let id: UUID
+    let date: Date
+    let vehicle: String
+    let recommendation: RecommendationType
+    
+    var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        return formatter.string(from: date)
+    }
+}
