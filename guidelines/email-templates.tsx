@@ -808,6 +808,194 @@ export const receiptEmailTemplate = `
 </html>
 `;
 
+// 7. Buyer Pass Expiring (7 Days Left) Email Template
+export const buyerPassExpiringEmailTemplate = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Buyer Pass expires in 7 days</title>
+  <!--[if !mso]><!--><meta http-equiv="X-UA-Compatible" content="IE=edge"><!--<![endif]-->
+  <style>
+    ${emailBaseStyles}
+  </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #F8F8F7;">
+  <!-- Preheader (hidden text for inbox preview) -->
+  <div style="display: none; max-height: 0; overflow: hidden; font-size: 1px; line-height: 1px; color: #F8F8F7;">
+    Keep scanning &mdash; extend for another 60 days.
+  </div>
+
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #FFFFFF; padding: 32px 32px 24px 32px; border-radius: 4px 4px 0 0;">
+              <div style="color: #3EB489; font-size: 24px; font-weight: 600; margin-bottom: 8px;">MintCheck</div>
+              <h2 style="margin: 0; color: #1A1A1A; font-size: 24px; font-weight: 600;">Your Buyer Pass is almost up</h2>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="background-color: #FFFFFF; padding: 0 32px 40px 32px;">
+              <p style="margin: 0 0 20px 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                Still shopping for a car? Your Buyer Pass expires in <strong style="color: #1A1A1A;">7 days</strong>. Extend now so you don't lose access while you're still looking.
+              </p>
+
+              <p style="margin: 0 0 16px 0; color: #1A1A1A; font-size: 15px; font-weight: 600;">
+                What you get with Buyer Pass:
+              </p>
+
+              <ul style="margin: 0 0 24px 0; padding-left: 20px; color: #666666; font-size: 15px; line-height: 1.7;">
+                <li style="margin-bottom: 10px;">Scan unlimited vehicles</li>
+                <li style="margin-bottom: 10px;">Up to 10 scans per day</li>
+                <li style="margin-bottom: 10px;">Engine, battery, and fuel system health on every car</li>
+                <li style="margin-bottom: 10px;">Buy with confidence &mdash; know what you're getting</li>
+              </ul>
+
+              <!-- CTA Button -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 32px 0 24px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{extendBuyerPassLink}}" style="display: inline-block; padding: 16px 40px; background-color: #3EB489; color: #FFFFFF; text-decoration: none; border-radius: 4px; font-size: 15px; font-weight: 600;">Extend for Another 60 Days</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0 0 12px 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                Just $14.99 for another 60 days of unlimited scanning.
+              </p>
+
+              <p style="margin: 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                The MintCheck Team
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #F8F8F7; padding: 32px; text-align: center; border-radius: 0 0 4px 4px; border-top: 1px solid #E5E5E5;">
+              <p style="margin: 0 0 16px 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                &copy; 2026 MintCheck. All rights reserved.
+              </p>
+              <p style="margin: 0 0 8px 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                <a href="{{helpCenterLink}}" style="color: #3EB489; text-decoration: none;">Help Center</a> &bull;
+                <a href="{{privacyLink}}" style="color: #3EB489; text-decoration: none;">Privacy</a> &bull;
+                <a href="{{termsLink}}" style="color: #3EB489; text-decoration: none;">Terms</a>
+              </p>
+              <p style="margin: 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                <a href="{{unsubscribeLink}}" style="color: #999999; text-decoration: underline;">Unsubscribe</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
+// 8. Buyer Pass Expired Email Template
+export const buyerPassExpiredEmailTemplate = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Buyer Pass has expired</title>
+  <!--[if !mso]><!--><meta http-equiv="X-UA-Compatible" content="IE=edge"><!--<![endif]-->
+  <style>
+    ${emailBaseStyles}
+  </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #F8F8F7;">
+  <!-- Preheader (hidden text for inbox preview) -->
+  <div style="display: none; max-height: 0; overflow: hidden; font-size: 1px; line-height: 1px; color: #F8F8F7;">
+    Pick up where you left off &mdash; $14.99 for 60 more days.
+  </div>
+
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #FFFFFF; padding: 32px 32px 24px 32px; border-radius: 4px 4px 0 0;">
+              <div style="color: #3EB489; font-size: 24px; font-weight: 600; margin-bottom: 8px;">MintCheck</div>
+              <h2 style="margin: 0; color: #1A1A1A; font-size: 24px; font-weight: 600;">Your Buyer Pass has expired</h2>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="background-color: #FFFFFF; padding: 0 32px 40px 32px;">
+              <p style="margin: 0 0 20px 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                Your 60-day Buyer Pass has ended. Your account is now on the free plan, which limits you to 1 vehicle and 3 scans.
+              </p>
+
+              <p style="margin: 0 0 20px 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                Ready to keep going? Pick up right where you left off with another Buyer Pass:
+              </p>
+
+              <ul style="margin: 0 0 24px 0; padding-left: 20px; color: #666666; font-size: 15px; line-height: 1.7;">
+                <li style="margin-bottom: 10px;">Scan unlimited vehicles</li>
+                <li style="margin-bottom: 10px;">Up to 10 scans per day</li>
+                <li style="margin-bottom: 10px;">Engine, battery, and fuel system health on every car</li>
+                <li style="margin-bottom: 10px;">Buy with confidence &mdash; know what you're getting</li>
+              </ul>
+
+              <!-- CTA Button -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 32px 0 24px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{extendBuyerPassLink}}" style="display: inline-block; padding: 16px 40px; background-color: #3EB489; color: #FFFFFF; text-decoration: none; border-radius: 4px; font-size: 15px; font-weight: 600;">Get Another 60 Days</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0 0 12px 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                Just $14.99 &mdash; no subscription, no commitment.
+              </p>
+
+              <p style="margin: 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                The MintCheck Team
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #F8F8F7; padding: 32px; text-align: center; border-radius: 0 0 4px 4px; border-top: 1px solid #E5E5E5;">
+              <p style="margin: 0 0 16px 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                &copy; 2026 MintCheck. All rights reserved.
+              </p>
+              <p style="margin: 0 0 8px 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                <a href="{{helpCenterLink}}" style="color: #3EB489; text-decoration: none;">Help Center</a> &bull;
+                <a href="{{privacyLink}}" style="color: #3EB489; text-decoration: none;">Privacy</a> &bull;
+                <a href="{{termsLink}}" style="color: #3EB489; text-decoration: none;">Terms</a>
+              </p>
+              <p style="margin: 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                <a href="{{unsubscribeLink}}" style="color: #999999; text-decoration: underline;">Unsubscribe</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
 // Component for viewing/managing email templates in React
 export default function EmailTemplates() {
   const templates = [
@@ -818,6 +1006,8 @@ export default function EmailTemplates() {
     { name: 'Issue Alert', template: issueAlertEmailTemplate, description: 'Sent when a critical vehicle issue is detected' },
     { name: 'Monthly Summary', template: monthlySummaryEmailTemplate, description: 'Monthly digest of user activity' },
     { name: 'Receipt/Invoice', template: receiptEmailTemplate, description: 'Payment receipt for subscriptions or purchases' },
+    { name: 'Buyer Pass Expiring', template: buyerPassExpiringEmailTemplate, description: 'Sent 7 days before the Buyer Pass expires' },
+    { name: 'Buyer Pass Expired', template: buyerPassExpiredEmailTemplate, description: 'Sent when the Buyer Pass has expired' },
   ];
 
   const copyToClipboard = (template: string, name: string) => {
@@ -1016,6 +1206,8 @@ function getTemplateVariables(templateName: string): string {
     'Issue Alert': `{{firstName}}, {{vehicleYear}}, {{vehicleMake}}, {{vehicleModel}}, {{vin}}, {{issueTitle}}, {{issueDescription}}, {{severityLevel}}, {{recommendedAction}}, {{viewDetailsLink}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}, {{unsubscribeLink}}`,
     'Monthly Summary': `{{firstName}}, {{monthName}}, {{scansCompleted}}, {{vehiclesChecked}}, {{recentVehicle1}}, {{recentDate1}}, {{recentVehicle2}}, {{recentDate2}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}, {{unsubscribeLink}}`,
     'Receipt/Invoice': `{{firstName}}, {{receiptNumber}}, {{receiptDate}}, {{paymentMethod}}, {{planName}}, {{planAmount}}, {{totalAmount}}, {{downloadReceiptLink}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}, {{unsubscribeLink}}`,
+    'Buyer Pass Expiring': `{{extendBuyerPassLink}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}, {{unsubscribeLink}}`,
+    'Buyer Pass Expired': `{{extendBuyerPassLink}}, {{helpCenterLink}}, {{privacyLink}}, {{termsLink}}, {{unsubscribeLink}}`,
   };
   
   return variables[templateName] || 'No variables';
