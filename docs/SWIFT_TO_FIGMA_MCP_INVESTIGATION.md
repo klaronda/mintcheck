@@ -90,6 +90,71 @@ Use these when creating screens in Figma so they match your app. TalkToFigma use
 | **Screen** | | |
 | Mobile width | 390 pt | create_frame width 390 (e.g. Sign In, Dashboard) |
 
+## How to get Swift screens into Figma (the actual workflow)
+
+There is **no "Import Swift" button**. The plugin doesn’t convert files; Cursor **recreates** the screen in Figma by reading your Swift and calling Figma tools.
+
+**Steps:**
+
+1. **Figma** – Plugin is connected (you see e.g. "Connected to server in channel: **u3b96v5e**"). Have a Figma file open where you want the screen to appear.
+2. **In Cursor chat** – Say: *"Join the TalkToFigma channel u3b96v5e"* (use the **exact** channel name from the plugin’s green message).
+3. **Open a Swift screen** – e.g. `SignInView.swift` or `DashboardView.swift`.
+4. **Ask Cursor to recreate it in Figma** – e.g.:  
+   *"Create this Swift UI screen in Figma. Read the open file and use TalkToFigma to create a frame 390px wide with the header, form labels, and buttons. Use MintCheck colors and spacing from our design system."*
+5. **Cursor** will call `create_frame`, `create_text`, `create_rectangle`, etc. and the screen will appear on your Figma canvas. You then refine it in Figma (groups, components, layout).
+
+Do one screen at a time; repeat for other views.
+
+### Better results: screenshot as reference
+
+If the code-only recreation is off, use the **real app** as reference:
+
+1. Run the app in the Simulator (or on device), go to the screen you want (e.g. All Scans).
+2. Take a screenshot (Cmd+S in Simulator, or device screenshot).
+3. Paste the screenshot into the Cursor chat (or attach it).
+4. Say: *"Use this screenshot as reference and recreate this screen in Figma on the Swift Screens page. Match layout, text, and spacing."*
+
+Cursor can’t run the app or take the screenshot; you provide the image so the layout and styling can be matched more accurately.
+
+### Real data from Supabase for Figma mockups
+
+To make Figma screens look like production (real scan history, real copy), pull data from Supabase and use it as the content for TalkToFigma:
+
+1. **Identify the user** – e.g. `contact@donewellco.com` (or any test account).
+2. **Query the relevant tables** – e.g. `scans` + `vehicles` for that user, ordered by date.
+3. **Format for the screen** – e.g. group scans by month, build the same strings the app uses (vehicle display name, recommendation badge, formatted date).
+4. **Tell Cursor** – *"Create AllScansView in Figma using this data: [paste or reference the spec]. Put it on the Swift Screens page."*
+
+Example: the **contact@donewellco.com** account has scan history in Supabase (mintcheck-app). A pre-built spec for that account is in `docs/figma-allscans-view-real-data.json` so Cursor can create an AllScansView frame with real month groups and scan cards (e.g. "February 2026", "2012 Chevrolet Prizm – Healthy – Feb 1, 2026"). You can regenerate that file or add more users.
+
+---
+
+## How to use TalkToFigma (quick start)
+
+1. **WebSocket server** – From the [cursor-talk-to-figma-mcp](https://github.com/grab/cursor-talk-to-figma-mcp) repo run: `bun socket` (leave the terminal open).
+2. **Figma** – Open a Figma file, run the **Cursor MCP Plugin** (Plugins → Cursor MCP Plugin), enter a channel name (e.g. `mintcheck`) and connect.
+3. **Cursor** – In chat, **join the same channel** so Cursor and Figma talk. You can say: *“Join the TalkToFigma channel `mintcheck`.”* (Cursor will call `join_channel` with that name.)
+4. After that, any TalkToFigma tool (read or create) applies to that Figma file.
+
+**Test it:**
+
+- **Read (verify connection):**  
+  *“Get the current Figma document info”* or *“What’s selected in Figma right now?”*  
+  → Cursor uses `get_document_info` or `get_selection`; you should see doc name, pages, or selection details.
+
+- **Write (create something):**  
+  *“Create a frame in Figma at position 100,100, width 200, height 120, name it Test Frame”*  
+  → Cursor uses `create_frame`; a new frame should appear on the canvas.
+
+- **Swift → Figma:**  
+  Open e.g. `SignInView.swift` and say:  
+  *“Create this screen in Figma using TalkToFigma – one main frame 390 wide, with the header text and a few placeholder elements for the form.”*  
+  → Cursor will use `create_frame`, `create_text`, etc. to approximate the screen; you can refine in Figma.
+
+If a tool fails, check: WebSocket server running, plugin connected with the same channel name, and that you’ve joined that channel in Cursor.
+
+---
+
 ## Setup (TalkToFigma)
 
 **Already done:** TalkToFigma is added to your `~/.cursor/mcp.json`:

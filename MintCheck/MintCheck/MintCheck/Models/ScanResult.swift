@@ -11,6 +11,7 @@ import SwiftUI
 /// Recommendation type based on scan results
 enum RecommendationType: String, Codable, CaseIterable {
     case safe = "safe"
+    case lowData = "low-data"
     case caution = "caution"
     case notRecommended = "not-recommended"
     
@@ -18,6 +19,7 @@ enum RecommendationType: String, Codable, CaseIterable {
     var title: String {
         switch self {
         case .safe: return "Car is Healthy"
+        case .lowData: return "Not Enough Data"
         case .caution: return "Proceed with Caution"
         case .notRecommended: return "Not Recommended"
         }
@@ -27,6 +29,7 @@ enum RecommendationType: String, Codable, CaseIterable {
     var badgeText: String {
         switch self {
         case .safe: return "Healthy"
+        case .lowData: return "Low Results"
         case .caution: return "Caution"
         case .notRecommended: return "Walk Away"
         }
@@ -36,6 +39,8 @@ enum RecommendationType: String, Codable, CaseIterable {
         switch self {
         case .safe:
             return "Based on the scan, this vehicle's engine and core systems appear to be in good condition. No major concerns were found."
+        case .lowData:
+            return "The scan couldn't read enough systems on this vehicle to give a full health assessment. What we did get looks okay, but we recommend a follow-up scan or professional inspection."
         case .caution:
             return "The scan found some items that need attention. Review the details below and consider having a mechanic inspect the vehicle before buying."
         case .notRecommended:
@@ -46,6 +51,7 @@ enum RecommendationType: String, Codable, CaseIterable {
     var iconName: String {
         switch self {
         case .safe: return "checkmark.circle.fill"
+        case .lowData: return "info.circle.fill"
         case .caution: return "exclamationmark.circle.fill"
         case .notRecommended: return "xmark.circle.fill"
         }
@@ -54,6 +60,7 @@ enum RecommendationType: String, Codable, CaseIterable {
     var color: Color {
         switch self {
         case .safe: return .statusSafe
+        case .lowData: return .statusInfo
         case .caution: return .statusCaution
         case .notRecommended: return .statusDanger
         }
@@ -62,6 +69,7 @@ enum RecommendationType: String, Codable, CaseIterable {
     var backgroundColor: Color {
         switch self {
         case .safe: return .statusSafeBg
+        case .lowData: return .statusInfoBg
         case .caution: return .statusCautionBg
         case .notRecommended: return .statusDangerBg
         }

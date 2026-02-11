@@ -17,11 +17,40 @@ class ScanService: ObservableObject {
     @Published var subscriptions: [SubscriptionInfo] = []
     @Published var isLoading: Bool = false
 
-    /// Number of scans completed today (UTC calendar day)
+    private static let scansTodayCountKey = "mintcheck_scans_completed_today_count"
+    private static let scansTodayDateKey = "mintcheck_scans_completed_today_date"
+    
+    /// Number of scans completed today. Does not decrease when user deletes a scan (persisted count for limit).
     var todayScansCount: Int {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        return scanHistory.filter { calendar.isDate($0.date, inSameDayAs: today) }.count
+        let stored = UserDefaults.standard
+        let storedDate = stored.object(forKey: Self.scansTodayDateKey) as? Date
+        let storedCount = stored.integer(forKey: Self.scansTodayCountKey)
+        if let d = storedDate, calendar.isDate(d, inSameDayAs: today) {
+            return storedCount
+        }
+        // New day or first run: use actual history count for today and persist
+        let count = scanHistory.filter { calendar.isDate($0.date, inSameDayAs: today) }.count
+        stored.set(today, forKey: Self.scansTodayDateKey)
+        stored.set(count, forKey: Self.scansTodayCountKey)
+        return count
+    }
+    
+    /// Call when a scan is successfully saved so "Scans Today" increments and does not decrease on delete.
+    func incrementScansCompletedToday() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let stored = UserDefaults.standard
+        let storedDate = stored.object(forKey: Self.scansTodayDateKey) as? Date
+        let storedCount = stored.integer(forKey: Self.scansTodayCountKey)
+        if let d = storedDate, calendar.isDate(d, inSameDayAs: today) {
+            stored.set(storedCount + 1, forKey: Self.scansTodayCountKey)
+        } else {
+            stored.set(today, forKey: Self.scansTodayDateKey)
+            stored.set(1, forKey: Self.scansTodayCountKey)
+        }
+        objectWillChange.send()
     }
     @Published var error: String?
     
@@ -229,6 +258,9 @@ class ScanService: ObservableObject {
             .single()
             .execute()
             .value
+        
+        // Increment "Scans Today" so the count does not decrease when user later deletes a scan
+        incrementScansCompletedToday()
         
         // Refresh scan history
         try await loadScanHistory(userId: userId)

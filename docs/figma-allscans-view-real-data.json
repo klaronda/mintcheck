@@ -1,0 +1,58 @@
+{
+  "source": "Supabase (mintcheck-app), user contact@donewellco.com",
+  "screen": "AllScansView",
+  "title": "Your Vehicle Scans",
+  "description": "Review all your vehicle scans for up to 180 days. To keep scans beyond that time, export the scans you want to PDF with the share button.",
+  "groupedByMonth": [
+    {
+      "monthYear": "February 2026",
+      "scans": [
+        {
+          "vehicle": "2012 Chevrolet Prizm",
+          "formattedDate": "February 1, 2026",
+          "badge": "Healthy"
+        }
+      ]
+    },
+    {
+      "monthYear": "January 2026",
+      "scans": [
+        {
+          "vehicle": "2025 Subaru Crosstrek",
+          "formattedDate": "January 31, 2026",
+          "badge": "Healthy"
+        },
+        {
+          "vehicle": "2012 Jeep Other",
+          "formattedDate": "January 31, 2026",
+          "badge": "Healthy"
+        },
+        {
+          "vehicle": "2018 TOYOTA Corolla",
+          "formattedDate": "January 26, 2026",
+          "badge": "Healthy"
+        },
+        {
+          "vehicle": "2020 SUBARU Outback",
+          "formattedDate": "January 24, 2026",
+          "badge": "Caution"
+        },
+        {
+          "vehicle": "2018 FORD F-150",
+          "formattedDate": "January 24, 2026",
+          "badge": "Healthy"
+        },
+        {
+          "vehicle": "2015 DODGE Grand Caravan",
+          "formattedDate": "January 23, 2026",
+          "badge": "Walk Away"
+        },
+        {
+          "vehicle": "Kia Rio",
+          "formattedDate": "January 23, 2026",
+          "badge": "Healthy"
+        }
+      ]
+    }
+  ]
+}

@@ -325,6 +325,9 @@ class OBDService: ObservableObject {
         if vinChars.count >= 17 {
             return String(vinChars.prefix(17))
         }
+        if vinChars.count >= 1 {
+            return String(vinChars)
+        }
         return nil
     }
     

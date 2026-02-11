@@ -161,7 +161,7 @@ class WiFiConnectionManager: ObservableObject {
     @Published var currentMessage: String = ""
     @Published var currentSSID: String? = nil
     
-    // Common OBD-II WiFi network names to try (ordered by likelihood)
+    // Common OBD-II WiFi network names to try (ordered by likelihood; exclude V-LINK/VEEPEAK per testing)
     private let commonNetworkNames = [
         // WiFi-first naming (very common with cheap adapters)
         "WiFi_OBDII",
@@ -175,13 +175,8 @@ class WiFiConnectionManager: ObservableObject {
         "OBD2_WIFI",
         "OBD2-WIFI",
         "OBD2",
-        // V-LINK adapters
-        "V-LINK",
-        "VLINK",
-        // ELM327 / Veepeak brands
+        // ELM327
         "ELM327",
-        "VEEPEAK",
-        "VEE PEAK",
         // Other common variants
         "CARWIFI",
         "CAR_WIFI",
@@ -190,20 +185,17 @@ class WiFiConnectionManager: ObservableObject {
     
     var connectedNetworkName: String?
     
-    /// Check if current SSID looks like an OBD device
+    /// Check if current SSID looks like an OBD device (excludes V-LINK/VEEPEAK per testing)
     var isConnectedToOBDNetwork: Bool {
         guard let ssid = currentSSID else { return false }
         let upperSSID = ssid.uppercased()
         return commonNetworkNames.contains { upperSSID.contains($0.uppercased()) } ||
                upperSSID.contains("OBD") ||
                upperSSID.contains("ELM") ||
-               upperSSID.contains("VEEPEAK") ||
-               upperSSID.contains("V-LINK") ||
-               upperSSID.contains("VLINK") ||
                upperSSID.contains("CARWIFI")
     }
     
-    /// Fetch current WiFi SSID
+    /// Fetch current WiFi SSID. Uses NEHotspotNetwork.fetchCurrent; iOS may return nil (shown as "Unknown" in UI) unless the app has Hotspot Configuration and the network was joined in a way iOS exposes to the app.
     func fetchCurrentSSID() async {
         await withCheckedContinuation { continuation in
             NEHotspotNetwork.fetchCurrent { network in

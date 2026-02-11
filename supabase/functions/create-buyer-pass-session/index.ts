@@ -133,8 +133,9 @@ serve(async (req) => {
 
     // --- Create Stripe Checkout session ---
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" });
+    // Deep link so Stripe redirect opens the app directly (no "Open MintCheck" tap)
     const successUrl =
-      "https://mintcheckapp.com/buyer-pass/success?session_id={CHECKOUT_SESSION_ID}";
+      "mintcheck://buyer-pass/success?session_id={CHECKOUT_SESSION_ID}";
     const cancelUrl = "https://mintcheckapp.com";
 
     const session = await stripe.checkout.sessions.create({

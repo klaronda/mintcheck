@@ -121,29 +121,47 @@ struct DashboardView: View {
 
                             NeedHelpCard(onVisitSupport: { nav.currentScreen = .support })
                         } else {
-                            // No buyer pass: upgrade options
+                            // No buyer pass: same card style as free users (Scan Plans + Add-Ons)
                             VStack(alignment: .leading, spacing: 16) {
-                                Text("Upgrade options")
+                                Text("Scan Plans")
                                     .font(.system(size: FontSize.h4, weight: .semibold))
                                     .foregroundColor(.textPrimary)
-                                DashboardPlanCard(
-                                    title: "Buyer Pass 60-day Plan",
-                                    bodyText: "Full access for 60 days. Perfect when you're shopping for a used car.",
-                                    cta: "Learn more",
-                                    url: "",
-                                    onCtaTap: {
+                                PlanProductCard(
+                                    imageName: "BuyersPass_mint",
+                                    title: "Scan unlimited vehicles.",
+                                    bodyText: "Buying a used car? Scan up to 10 times per day, for 60 days.",
+                                    subtextBold: "$14.99",
+                                    ctaTitle: "Get Buyer Pass",
+                                    ctaAction: {
                                         Task {
                                             do {
                                                 let checkoutURL = try await BuyerPassService.shared.createCheckoutSession()
                                                 await MainActor.run { UIApplication.shared.open(checkoutURL) }
                                             } catch {
-                                                print("Buyer Pass checkout error: \(error)")
+                                                await MainActor.run {
+                                                    nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
+                                                }
                                             }
                                         }
                                     }
                                 )
-                                DeepVehicleCheckDashboardCard()
                             }
+
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Add-Ons")
+                                    .font(.system(size: FontSize.h4, weight: .semibold))
+                                    .foregroundColor(.textPrimary)
+                                PlanProductCard(
+                                    imageName: "DeepCheck_mint",
+                                    title: "Check a car's history.",
+                                    bodyText: "Enter the VIN and get a full report on accident history, title and more.",
+                                    subtextBold: "$9.99",
+                                    ctaTitle: "Run a Deep Check",
+                                    ctaAction: { nav.currentScreen = .deepCheckEntry }
+                                )
+                            }
+
+                            NeedHelpCard(onVisitSupport: { nav.currentScreen = .support })
                         }
                     } else {
                         // Free user: Scan card (0/3), OBD, Scan Plans, Add-Ons, Need Help
@@ -205,7 +223,9 @@ struct DashboardView: View {
                                                     UIApplication.shared.open(checkoutURL)
                                                 }
                                             } catch {
-                                                print("Buyer Pass checkout error: \(error)")
+                                                await MainActor.run {
+                                                    nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
+                                                }
                                             }
                                         }
                                     }
@@ -450,17 +470,17 @@ struct ScanHistoryCard: View {
     }
 }
 
-// MARK: - Expired Badge (Gray)
+// MARK: - Expired Badge (Gray) — matches StatusBadge small style
 
 struct ExpiredBadge: View {
     var body: some View {
         Text("Expired")
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(size: FontSize.bodySmall, weight: .semibold))
             .foregroundColor(Color(hex: "#666666"))
             .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.vertical, 4)
             .background(Color(hex: "#F0F0F0"))
-            .clipShape(Capsule())
+            .cornerRadius(4)
     }
 }
 
@@ -706,12 +726,11 @@ struct FreeVinMismatchView: View {
 
 struct DeepCheckEntryView: View {
     let onBack: () -> Void
+    @EnvironmentObject var nav: NavigationManager
     @Environment(\.openURL) private var openURL
     @State private var vinInput: String = ""
     @State private var isCreatingSession = false
     @State private var showNoVinAlert = false
-    @State private var showCheckoutError = false
-    @State private var checkoutErrorMessage: String?
     
     private var resolvedVIN: String {
         vinInput.trimmingCharacters(in: .whitespaces).uppercased()
@@ -770,11 +789,6 @@ struct DeepCheckEntryView: View {
         } message: {
             Text("Enter a 17-character VIN (no I, O, or Q).")
         }
-        .alert("Could not start checkout", isPresented: $showCheckoutError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(checkoutErrorMessage ?? "Please try again.")
-        }
     }
     
     private func startCheckout() async {
@@ -785,8 +799,7 @@ struct DeepCheckEntryView: View {
         }
         guard vin.isValidVIN else {
             await MainActor.run {
-                checkoutErrorMessage = "VIN must be 17 characters and cannot contain I, O, or Q."
-                showCheckoutError = true
+                nav.showErrorToast("VIN must be 17 characters and cannot contain I, O, or Q.")
             }
             return
         }
@@ -797,8 +810,7 @@ struct DeepCheckEntryView: View {
             await MainActor.run { openURL(url) }
         } catch {
             await MainActor.run {
-                checkoutErrorMessage = (error as? DeepCheckError)?.message ?? "Could not start checkout. Please try again."
-                showCheckoutError = true
+                nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: (error as? DeepCheckError)?.message ?? error.localizedDescription, scanStep: "deep_check")
             }
         }
     }
@@ -930,108 +942,6 @@ struct OBDDeviceCard: View {
     }
 }
 
-// MARK: - Deep Vehicle Check card on dashboard (VIN from field or first scanned vehicle)
-struct DeepVehicleCheckDashboardCard: View {
-    @EnvironmentObject var authService: AuthService
-    @EnvironmentObject var scanService: ScanService
-    @Environment(\.openURL) private var openURL
-    @State private var isCreatingSession = false
-    @State private var showNoVinAlert = false
-    @State private var showCheckoutError = false
-    @State private var checkoutErrorMessage: String?
-    @State private var vinInput: String = ""
-
-    private var resolvedVIN: String {
-        let manual = vinInput.trimmingCharacters(in: .whitespaces).uppercased()
-        if !manual.isEmpty, manual.count == 17 { return manual }
-        return scanService.vehicles.first?.vin?.trimmingCharacters(in: .whitespaces).uppercased() ?? ""
-    }
-
-    private var canStartCheckout: Bool {
-        !resolvedVIN.isEmpty && resolvedVIN.isValidVIN
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Deep Vehicle Check")
-                    .font(.system(size: FontSize.bodyLarge, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                Text("Accident history, title status, salvage records. Same as Carfax, but $30 less. $9.99.")
-                    .font(.system(size: FontSize.bodySmall))
-                    .foregroundColor(.textSecondary)
-                    .lineSpacing(2)
-                TextField("VIN (17 characters)", text: $vinInput)
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
-                    .font(.system(size: FontSize.bodySmall, design: .monospaced))
-                    .padding(6)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(6)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: {
-                Task { await startCheckout() }
-            }) {
-                if isCreatingSession {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                } else {
-                    Text("Add Now")
-                        .font(.system(size: FontSize.bodyRegular, weight: .semibold))
-                        .foregroundColor(canStartCheckout ? .mintGreen : .gray)
-                }
-            }
-            .disabled(isCreatingSession || !canStartCheckout)
-        }
-        .padding(LayoutConstants.padding6)
-        .background(Color.white)
-        .cornerRadius(LayoutConstants.borderRadius)
-        .overlay(
-            RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
-                .stroke(Color.borderColor, lineWidth: 1)
-        )
-        .alert("VIN required", isPresented: $showNoVinAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Enter a 17-character VIN above (no I, O, or Q), or complete a Mint Check scan first to use that vehicle's VIN.")
-        }
-        .alert("Could not start checkout", isPresented: $showCheckoutError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(checkoutErrorMessage ?? "Please try again.")
-        }
-    }
-
-    private func startCheckout() async {
-        let vin = resolvedVIN
-        guard !vin.isEmpty else {
-            await MainActor.run { showNoVinAlert = true }
-            return
-        }
-        guard vin.isValidVIN else {
-            await MainActor.run {
-                checkoutErrorMessage = "VIN must be 17 characters and cannot contain I, O, or Q."
-                showCheckoutError = true
-            }
-            return
-        }
-        isCreatingSession = true
-        defer { isCreatingSession = false }
-        do {
-            let url = try await DeepCheckService.shared.createSession(vin: vin)
-            await MainActor.run {
-                openURL(url)
-            }
-        } catch {
-            await MainActor.run {
-                checkoutErrorMessage = (error as? DeepCheckError)?.message ?? "Could not start checkout. Please try again."
-                showCheckoutError = true
-            }
-        }
-    }
-}
-
 // MARK: - Dashboard Plan Card (slim upgrade card)
 struct DashboardPlanCard: View {
     let title: String
@@ -1105,6 +1015,7 @@ private struct ScannerDismissToast: View {
 struct ActiveBuyerPassCard: View {
     let subscription: BuyerPassSubscription
     let todayScans: Int
+    @EnvironmentObject var nav: NavigationManager
 
     private let maxDaily = 10
     @State private var isRenewing = false
@@ -1161,7 +1072,9 @@ struct ActiveBuyerPassCard: View {
                                 let checkoutURL = try await BuyerPassService.shared.createCheckoutSession()
                                 await MainActor.run { UIApplication.shared.open(checkoutURL) }
                             } catch {
-                                print("Renew Buyer Pass error: \(error)")
+                                await MainActor.run {
+                                    nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
+                                }
                             }
                             await MainActor.run { isRenewing = false }
                         }

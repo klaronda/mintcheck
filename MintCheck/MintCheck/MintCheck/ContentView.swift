@@ -15,6 +15,7 @@ class NavigationManager: ObservableObject {
     @Published var hasSeenOnboarding: Bool = false
     @Published var currentScanData: ScanData = ScanData()
     @Published var selectedSystemDetail: String? = nil
+    @Published var selectedSystemDetailStatus: String? = nil
     @Published var startInCreateMode: Bool = false
     @Published var authCheckComplete: Bool = false
     @Published var accountDeletedMessage: String? = nil  // Toast message after account deletion
@@ -23,6 +24,8 @@ class NavigationManager: ObservableObject {
     @Published var showFeedbackModal: Bool = false
     /// URL for in-app Deep Check report viewer; when set, show DeepCheckReportView
     @Published var deepCheckReportURL: String?
+    /// When set, Done on Deep Check report returns here (e.g. .results); otherwise dashboard.
+    @Published var returnToScreenAfterDeepCheckReport: Screen? = nil
     /// Prevents duplicate save when close/tab/return trigger save concurrently
     @Published var isSavingScan: Bool = false
     /// Cached first vehicle for free users (loaded before scan flow to compare VIN after scan)
@@ -33,6 +36,10 @@ class NavigationManager: ObservableObject {
     @Published var deepCheckSessionId: String? = nil
     /// Whether the user has any completed deep check reports (for menu display)
     @Published var hasDeepCheckReports: Bool = false
+    /// User-facing toast message (nil = no toast). Rendered by ContentView overlay.
+    @Published var toastMessage: String? = nil
+    /// When set, toast shows "Report this issue" and this context is used for feedback modal.
+    @Published var toastFailureContext: (errorCode: String, message: String, scanStep: String)? = nil
     var feedbackSource: FeedbackSource = .in_app
     var feedbackPrefillMessage: String = ""
     var feedbackErrorCode: String? = nil
@@ -58,6 +65,26 @@ class NavigationManager: ObservableObject {
         currentScanData = ScanData()
         freeUserVehicle = nil
         scanFlowId += 1
+    }
+    
+    /// Show a user-facing toast. When errorCode is non-nil, the toast shows "Report this issue".
+    func showErrorToast(_ message: String, errorCode: String? = nil, errorMessage: String? = nil, scanStep: String? = nil) {
+        Task { @MainActor in
+            toastMessage = message
+            if let code = errorCode {
+                toastFailureContext = (code, errorMessage ?? message, scanStep ?? "unknown")
+            } else {
+                toastFailureContext = nil
+            }
+        }
+    }
+    
+    /// Clear the toast (e.g. after user taps "Report this issue" or dismisses).
+    func clearToast() {
+        Task { @MainActor in
+            toastMessage = nil
+            toastFailureContext = nil
+        }
     }
 }
 
@@ -123,6 +150,7 @@ struct ScanData {
     var reportStorage: ReportStorage = .uploaded  // .local_only or .pending_upload when offline/failed
     var vinVerified: Bool?  // True if VIN confirmed (decode or ECU match)
     var vinMismatch: Bool?  // True if ECU VIN != user-entered VIN
+    var vinPartial: Bool? = nil  // True when ECU returned non-empty VIN with length != 17
     var freeUserVinBlocked: Bool = false  // True if free user scanned a different vehicle
 }
 
@@ -141,11 +169,10 @@ struct ContentView: View {
     @State private var isMenuOpen = false
     @State private var selectedSupportArticle: SupportArticle?
     @State private var showShareSheet = false
-    @State private var toastMessage: String? = nil  // Delete/save failure toast
-    @State private var toastFailureContext: (errorCode: String, message: String, scanStep: String)? = nil  // When set, toast shows "Report this issue"
     @State private var showVinMismatchBlockAlert = false  // Early Access: block scan when VIN mismatch unresolved
     @State private var showFreeScansMaxedAlert = false  // Free user: all 3 free scans used
     @State private var showBuyerPassDailyLimitAlert = false  // Buyer Pass: 10/day limit reached
+    @State private var showVerifyDetailsAlert = false  // "Verify or update vehicle details" tapped on results
     
     /// Screens that show the bottom tab bar
     private var showsTabBar: Bool {
@@ -296,10 +323,13 @@ struct ContentView: View {
                         },
                         onOpenDeepCheckReport: { url in
                             nav.deepCheckReportURL = url
+                            nav.returnToScreenAfterDeepCheckReport = .results
                             nav.currentScreen = .deepCheckReport
                         },
                         vinVerified: nav.currentScanData.vinVerified,
-                        vinMismatch: nav.currentScanData.vinMismatch
+                        vinMismatch: nav.currentScanData.vinMismatch,
+                        vinPartial: nav.currentScanData.vinPartial,
+                        onVerifyDetails: { DispatchQueue.main.async { showVerifyDetailsAlert = true } }
                     )
                 } else {
                     // Fallback: missing data - this should not happen
@@ -310,7 +340,7 @@ struct ContentView: View {
                         Text("Unable to load scan results")
                             .font(.system(size: FontSize.h4, weight: .semibold))
                             .foregroundColor(.textPrimary)
-                        Text("Vehicle info: \(nav.currentScanData.vehicleInfo == nil ? "missing" : "present")\nRecommendation: \(nav.currentScanData.recommendation == nil ? "missing" : "present")")
+                        Text("We couldn't load this report.")
                             .font(.system(size: FontSize.bodyRegular))
                             .foregroundColor(.textSecondary)
                             .multilineTextAlignment(.center)
@@ -331,7 +361,7 @@ struct ContentView: View {
                 if let section = nav.selectedSystemDetail {
                     SystemDetailView(
                         section: section,
-                        status: nav.currentScanData.recommendation == .safe ? "Good" : "Needs Attention",
+                        status: nav.selectedSystemDetailStatus ?? "Unknown",
                         onBack: { nav.currentScreen = .results }
                     )
                 }
@@ -370,7 +400,12 @@ struct ContentView: View {
                 if let urlString = nav.deepCheckReportURL, !urlString.isEmpty, let url = URL(string: urlString) {
                     DeepCheckReportView(url: url, onDone: {
                         nav.deepCheckReportURL = nil
-                        nav.currentScreen = .dashboard
+                        if let target = nav.returnToScreenAfterDeepCheckReport {
+                            nav.currentScreen = target
+                            nav.returnToScreenAfterDeepCheckReport = nil
+                        } else {
+                            nav.currentScreen = .dashboard
+                        }
                     })
                 } else {
                     Color.clear.onAppear { nav.currentScreen = .dashboard }
@@ -396,7 +431,9 @@ struct ContentView: View {
                                 let checkoutURL = try await BuyerPassService.shared.createCheckoutSession()
                                 await MainActor.run { UIApplication.shared.open(checkoutURL) }
                             } catch {
-                                print("Buyer Pass checkout error: \(error)")
+                                await MainActor.run {
+                                    nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
+                                }
                             }
                         }
                     }
@@ -423,7 +460,9 @@ struct ContentView: View {
                         let checkoutURL = try await BuyerPassService.shared.createCheckoutSession()
                         await MainActor.run { UIApplication.shared.open(checkoutURL) }
                     } catch {
-                        print("Buyer Pass checkout error: \(error)")
+                        await MainActor.run {
+                            nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
+                        }
                     }
                 }
             }
@@ -435,6 +474,11 @@ struct ContentView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("You've reached your 10 scan limit for today. Come back tomorrow to scan more vehicles.")
+        }
+        .alert("Update vehicle details", isPresented: $showVerifyDetailsAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("To update vehicle details, start a new scan.")
         }
         .overlay {
             if isMenuOpen {
@@ -570,7 +614,7 @@ struct ContentView: View {
             }
         }
         .overlay {
-            if let message = toastMessage {
+            if let message = nav.toastMessage {
                 VStack {
                     Spacer()
                     VStack(spacing: 8) {
@@ -583,7 +627,7 @@ struct ContentView: View {
                                 .background(Color.textPrimary)
                                 .cornerRadius(LayoutConstants.borderRadius)
                         }
-                        if let ctx = toastFailureContext {
+                        if let ctx = nav.toastFailureContext {
                             Button(action: {
                                 nav.feedbackSource = .error_cta
                                 nav.feedbackPrefillMessage = message
@@ -591,8 +635,7 @@ struct ContentView: View {
                                 nav.feedbackErrorMessage = ctx.message
                                 nav.feedbackScanStep = ctx.scanStep
                                 nav.showFeedbackModal = true
-                                toastMessage = nil
-                                toastFailureContext = nil
+                                nav.clearToast()
                             }) {
                                 Text("Report this issue")
                                     .font(.system(size: FontSize.bodySmall, weight: .semibold))
@@ -604,16 +647,15 @@ struct ContentView: View {
                 }
                 .transition(.opacity)
                 .onTapGesture {
-                    if toastFailureContext == nil { toastMessage = nil }
+                    if nav.toastFailureContext == nil { nav.clearToast() }
                 }
                 .onAppear {
-                    if toastFailureContext == nil {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { toastMessage = nil }
-                    }
+                    // Always auto-dismiss after 2 seconds so toasts don't persist across screens (e.g. scan flow)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { nav.clearToast() }
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: toastMessage)
+        .animation(.easeInOut(duration: 0.2), value: nav.toastMessage)
         .onChange(of: nav.currentScreen) { _, newScreen in
             // Sync tab selection when screen changes
             switch newScreen {
@@ -635,10 +677,13 @@ struct ContentView: View {
         // If we're on results screen and navigating away, save the scan first
         if nav.currentScreen == .results && !nav.currentScanData.isHistoricalView {
             Task {
-                await saveScanToSupabase()
+                let saved = await saveScanToSupabase()
                 await MainActor.run {
-                    nav.resetScanData()
-                    navigateToTab(tab)
+                    if saved {
+                        nav.resetScanData()
+                        navigateToTab(tab)
+                    }
+                    // If save failed, toast is already set by saveScanToSupabase; don't navigate away
                 }
             }
         } else {
@@ -716,7 +761,7 @@ struct ContentView: View {
                                             .frame(width: 22, height: 22)
                                             .foregroundColor(.textPrimary)
                                         
-                                        Text("Scan History")
+                                        Text("History")
                                             .font(.system(size: FontSize.bodyLarge, weight: .medium))
                                             .foregroundColor(.textPrimary)
                                         
@@ -1079,13 +1124,12 @@ struct ContentView: View {
                             )
                         }
                     } else if let error = analysisError {
-                        print("DTC analysis failed: \(error)")
-                        
                         // Check if it's a network error
                         if let analysisError = error as? DTCAnalysisService.AnalysisError,
                            case .networkError = analysisError {
                             nav.currentScanData.aiNetworkError = true
                         }
+                        nav.showErrorToast("Analysis failed. You can still view your scan.", errorCode: ErrorEventCode.ERR_AI_ANALYSIS_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "results")
                     } else {
                         print("DTC analysis timed out or was cancelled")
                     }
@@ -1101,8 +1145,9 @@ struct ContentView: View {
     }
     
     
-    private func handleViewSystemDetail(section: String) {
+    private func handleViewSystemDetail(section: String, status: String) {
         nav.selectedSystemDetail = section
+        nav.selectedSystemDetailStatus = status
         nav.currentScreen = .systemDetail
     }
     
@@ -1128,19 +1173,24 @@ struct ContentView: View {
             await saveScanToSupabase()
             await MainActor.run {
                 if nav.currentScanData.reportStorage == .uploaded {
-                    toastMessage = "Upload complete"
-                    toastFailureContext = nil
+                    nav.showErrorToast("Upload complete")
                 }
             }
         }
     }
     
-    private func saveScanToSupabase() async {
+    private func saveScanToSupabase() async -> Bool {
+        // Already saved — don't create a duplicate
+        if nav.currentScanData.scanId != nil { return true }
+        
         guard let userId = authService.currentUser?.id,
               let vehicleInfo = nav.currentScanData.vehicleInfo,
               let recommendation = nav.currentScanData.recommendation else {
-            await MainActor.run { nav.currentScanData.reportStorage = .pending_upload }
-            return
+            await MainActor.run {
+                nav.currentScanData.reportStorage = .pending_upload
+                nav.showErrorToast("We couldn't save this scan.")
+            }
+            return false
         }
         
         let alreadySaving = await MainActor.run {
@@ -1148,7 +1198,7 @@ struct ContentView: View {
             nav.isSavingScan = true
             return false
         }
-        if alreadySaving { return }
+        if alreadySaving { return false }
         defer { Task { @MainActor in nav.isSavingScan = false } }
         
         do {
@@ -1161,10 +1211,9 @@ struct ContentView: View {
                     let existingVin = (existing.vin ?? "").trimmingCharacters(in: .whitespaces).uppercased()
                     guard !currentVin.isEmpty, currentVin == existingVin else {
                         await MainActor.run {
-                            toastMessage = "You can only scan the vehicle you registered. This VIN doesn't match."
-                            toastFailureContext = nil
+                            nav.showErrorToast("You can only scan the vehicle you registered. This VIN doesn't match.")
                         }
-                        return
+                        return false
                     }
                     vehicleId = existing.id
                 } else {
@@ -1267,8 +1316,9 @@ struct ContentView: View {
                     await MainActor.run {
                         nav.currentScanData.scanId = saved.id
                         nav.currentScanData.reportStorage = .uploaded
+                        nav.showErrorToast("Scan saved")
                     }
-                    return
+                    return true
                 } catch {
                     lastError = error
                     if attempt < maxAttempts {
@@ -1278,11 +1328,9 @@ struct ContentView: View {
             }
             if let err = lastError { throw err }
         } catch {
-            print("Failed to save scan: \(error)")
             await MainActor.run {
                 nav.currentScanData.reportStorage = .pending_upload
-                toastMessage = "Couldn't upload. Tap \"Upload now\" when you're back online."
-                toastFailureContext = (ErrorEventCode.ERR_SAVE_UPLOAD_FAIL.rawValue, error.localizedDescription, "results")
+                nav.showErrorToast("Couldn't upload. Tap \"Upload now\" when you're back online.", errorCode: ErrorEventCode.ERR_SAVE_UPLOAD_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "results")
             }
             ErrorEventLogger.shared.log(
                 screen: "results",
@@ -1290,7 +1338,9 @@ struct ContentView: View {
                 errorCode: .ERR_SAVE_UPLOAD_FAIL,
                 message: error.localizedDescription
             )
+            return false
         }
+        return true
     }
     
     private func handleShare() {
@@ -1337,10 +1387,8 @@ struct ContentView: View {
                     nav.currentScreen = .dashboard
                 }
             } catch {
-                print("Failed to delete scan: \(error)")
                 await MainActor.run {
-                    toastMessage = "Couldn't delete. Tap to try again."
-                    toastFailureContext = (ErrorEventCode.ERR_DELETE_FAIL.rawValue, error.localizedDescription, "results")
+                    nav.showErrorToast("Couldn't delete. Tap to try again.", errorCode: ErrorEventCode.ERR_DELETE_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "results")
                 }
                 ErrorEventLogger.shared.log(
                     screen: "results",
@@ -1395,6 +1443,7 @@ struct ContentView: View {
                                 results.fuelType = obdData.fuelType
                                 results.obdStandard = obdData.obdStandard
                                 nav.currentScanData.scanResults = results
+                                nav.currentScanData.vinPartial = (obdData.vin != nil && (obdData.vin?.count ?? 0) != 17)
                             }
                             
                             // Convert NHTSA JSON back to history report if available
@@ -1480,7 +1529,9 @@ struct ContentView: View {
                     }
                 }
             } catch {
-                print("Failed to load scan history: \(error)")
+                await MainActor.run {
+                    nav.showErrorToast("Couldn't load scan history. Pull to refresh to try again.", errorCode: ErrorEventCode.ERR_GENERIC.rawValue, errorMessage: error.localizedDescription, scanStep: "all_scans")
+                }
             }
         }
     }

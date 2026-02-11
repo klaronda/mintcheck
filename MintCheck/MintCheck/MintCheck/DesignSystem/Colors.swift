@@ -60,6 +60,8 @@ extension Color {
     static let statusCautionBg = Color(hex: "#FFF9E6")
     static let statusDanger = Color(hex: "#C94A4A")
     static let statusDangerBg = Color(hex: "#FFE6E6")
+    static let statusInfo = Color(hex: "#4A90C9")
+    static let statusInfoBg = Color(hex: "#E6F0FA")
     static let statusWarning = Color(hex: "#F59E0B")
     
     // Dark mode specific
@@ -75,6 +77,8 @@ struct StatusColors {
         switch type {
         case .safe:
             return StatusColors(primary: .statusSafe, background: .statusSafeBg)
+        case .lowData:
+            return StatusColors(primary: .statusInfo, background: .statusInfoBg)
         case .caution:
             return StatusColors(primary: .statusCaution, background: .statusCautionBg)
         case .notRecommended:

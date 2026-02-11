@@ -163,7 +163,7 @@ struct SystemDetailView: View {
         return status == "Good" ? .statusSafeBg : .statusCautionBg
     }
     
-    private static let unknownOverviewText = "We weren't able to scan any data for this system. This can be an issue with the car or scanner. We recommend getting a professional inspection."
+    private static let unknownOverviewText = "We weren't able to scan any data for this system. This can be an issue with the car or scanner."
     
     private var overviewText: String {
         if status == "Unknown" {

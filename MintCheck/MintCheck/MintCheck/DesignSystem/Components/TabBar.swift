@@ -26,7 +26,7 @@ enum TabItem: Hashable {
         case .scan: return "Scan"
         case .help: return "Support"
         case .settings: return "Settings"
-        case .scanHistory: return "Scan History"
+        case .scanHistory: return "History"
         case .deepCheckReports: return "Deep Check Reports"
         }
     }

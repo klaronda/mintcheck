@@ -23,9 +23,12 @@ struct DeepCheckSuccessView: View {
     @EnvironmentObject var nav: NavigationManager
     let onDone: () -> Void
 
+    private static let completionStepInterval: TimeInterval = 0.5
+
     @State private var status: DeepCheckStatus?
     @State private var isLoading = true
     @State private var isPolling = false
+    @State private var isCompletingProgress = false
     @State private var currentStepIndex: Int = 0
 
     var body: some View {
@@ -36,25 +39,10 @@ struct DeepCheckSuccessView: View {
                 backAction: {}
             )
 
-            if isLoading {
-                stepProgressView(subtitle: "Loading…")
-            } else if let s = status, s.status == "pending" {
-                VStack(spacing: 24) {
-                    Spacer()
-                    ProgressView()
-                        .scaleEffect(1.2)
-                    Text("Confirming your payment…")
-                        .font(.system(size: FontSize.bodyLarge, weight: .medium))
-                        .foregroundColor(.textPrimary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                    Text("This usually takes just a few seconds.")
-                        .font(.system(size: FontSize.bodyRegular))
-                        .foregroundColor(.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                    Spacer()
-                }
+            if isCompletingProgress {
+                stepProgressView(subtitle: "Finalizing…")
+            } else if isLoading || (status?.status == "pending") {
+                stepProgressView(subtitle: "Confirming your payment… This usually takes just a few seconds.")
             } else if isPolling {
                 stepProgressView(subtitle: "Generating your report… This usually takes under a minute.")
             } else if let s = status {
@@ -156,9 +144,21 @@ struct DeepCheckSuccessView: View {
         }
         .background(Color.deepBackground)
         .onReceive(Timer.publish(every: Self.stepAdvanceInterval, on: .main, in: .common).autoconnect()) { _ in
-            if isLoading || isPolling {
+            if (isLoading || isPolling) && !isCompletingProgress {
                 currentStepIndex = min(currentStepIndex + 1, Self.generatingSteps.count - 1)
             }
+        }
+        .task(id: isCompletingProgress) {
+            guard isCompletingProgress else { return }
+            let lastIndex = Self.generatingSteps.count - 1
+            while currentStepIndex < lastIndex {
+                try? await Task.sleep(nanoseconds: UInt64(Self.completionStepInterval * 1_000_000_000))
+                await MainActor.run {
+                    currentStepIndex = min(currentStepIndex + 1, lastIndex)
+                }
+            }
+            try? await Task.sleep(nanoseconds: UInt64(Self.completionStepInterval * 1_000_000_000))
+            await MainActor.run { isCompletingProgress = false }
         }
         .task {
             await loadAndPollUntilReady()
@@ -283,9 +283,10 @@ struct DeepCheckSuccessView: View {
             await MainActor.run { status = next }
             if next?.status == "report_ready", let url = next?.reportUrl, !url.isEmpty {
                 await MainActor.run {
+                    status = next
                     isPolling = false
+                    isCompletingProgress = true
                     nav.deepCheckReportURL = url
-                    nav.currentScreen = .deepCheckReport
                 }
                 return
             }

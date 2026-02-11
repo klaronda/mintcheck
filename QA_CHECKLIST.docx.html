@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MintCheck QA Checklist</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11pt; line-height: 1.4; color: #1a1a1a; max-width: 8.5in; margin: 0 auto; padding: 0.5in; }
+h1 { font-size: 18pt; font-weight: 700; margin-bottom: 4pt; color: #1a1a1a; }
+h2 { font-size: 13pt; font-weight: 600; margin-top: 18pt; margin-bottom: 8pt; color: #1a1a1a; page-break-after: avoid; }
+.subtitle { font-size: 10pt; color: #555; margin-bottom: 12pt; }
+.usage { font-size: 10pt; color: #444; background: #f5f5f5; padding: 10pt 12pt; margin-bottom: 18pt; border-left: 3px solid #3EB489; }
+.meta { font-size: 10pt; color: #555; margin-bottom: 20pt; }
+.meta span { margin-right: 20pt; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 18pt; font-size: 10pt; page-break-inside: auto; }
+tr { page-break-inside: avoid; page-break-after: auto; }
+th { text-align: left; padding: 6pt 8pt; border: 1px solid #ccc; background: #f8f8f8; font-weight: 600; }
+td { padding: 6pt 8pt; border: 1px solid #ccc; vertical-align: top; }
+td.num { width: 36pt; }
+td.check { width: 60pt; text-align: center; }
+td.desc { }
+.notes { font-size: 10pt; color: #444; margin-top: 24pt; padding: 12pt; background: #f9f9f9; border: 1px solid #e0e0e0; }
+.notes h3 { font-size: 11pt; margin-top: 0; margin-bottom: 8pt; }
+.notes ul { margin: 0; padding-left: 20pt; }
+.notes li { margin-bottom: 4pt; }
+</style>
+</head>
+<body>
+
+<h1>MintCheck QA Checklist</h1>
+<p class="subtitle">Pre–TestFlight, launch, or after major changes</p>
+
+<div class="usage">
+<strong>How to use:</strong> Test on a <strong>real device</strong> for OBD and deep links; simulator is fine for auth, settings, and navigation. Mark <strong>Pass</strong> with ✓ or Y when the check passes; leave blank or mark ✗/N if it fails. Use the Notes section at the end for device, OS, and build info.
+</div>
+
+<p class="meta">
+<span><strong>Tester:</strong> _______________________</span>
+<span><strong>Date:</strong> _______________________</span>
+<span><strong>Build / Version:</strong> _______________________</span>
+</p>
+
+<h2>1. iOS App – Launch and Auth</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">1.1</td><td class="desc">App launches to splash (mint green), then resolves to Home (logged out) or Dashboard (logged in).</td><td class="check"></td></tr>
+<tr><td class="num">1.2</td><td class="desc"><strong>Home (logged out):</strong> "Get Started" / "Sign In" navigates to Sign In.</td><td class="check"></td></tr>
+<tr><td class="num">1.3</td><td class="desc"><strong>Sign In:</strong> Valid email + password signs in and lands on Dashboard.</td><td class="check"></td></tr>
+<tr><td class="num">1.4</td><td class="desc"><strong>Sign In:</strong> Wrong password shows error and "Report this issue" is available.</td><td class="check"></td></tr>
+<tr><td class="num">1.5</td><td class="desc"><strong>Create account:</strong> All fields (name, email, password, birthdate) validate; signup succeeds and shows email confirmation message or lands in app.</td><td class="check"></td></tr>
+<tr><td class="num">1.6</td><td class="desc"><strong>Create account:</strong> Validation errors (e.g. passwords don't match, short password) show; "Report this issue" appears when error is shown.</td><td class="check"></td></tr>
+<tr><td class="num">1.7</td><td class="desc"><strong>Forgot password (from Sign In):</strong> Opens sheet; submitting email shows success or error; "Report this issue" on error.</td><td class="check"></td></tr>
+<tr><td class="num">1.8</td><td class="desc"><strong>Reset password (deep link):</strong> Open https://mintcheckapp.com/auth/reset?token=... in Safari on device with app installed – app opens to Set New Password (or "Link Expired" if invalid).</td><td class="check"></td></tr>
+<tr><td class="num">1.9</td><td class="desc"><strong>Reset password:</strong> New password + confirm updates password; success state and "Sign In" work.</td><td class="check"></td></tr>
+<tr><td class="num">1.10</td><td class="desc"><strong>Email confirmation (deep link):</strong> Open https://mintcheckapp.com/auth/confirm?token=...&type=signup – app opens to confirmation success or appropriate screen.</td><td class="check"></td></tr>
+<tr><td class="num">1.11</td><td class="desc"><strong>Sign out:</strong> From Settings or menu, sign out returns to Home; session is cleared.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>2. iOS App – Navigation and Tabs</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">2.1</td><td class="desc">Bottom tabs: Home, Scan, Support, Settings – each switches to correct root screen.</td><td class="check"></td></tr>
+<tr><td class="num">2.2</td><td class="desc">From Dashboard: "Start a check" enters scan flow; "View all scans" opens All Scans; scan history loads.</td><td class="check"></td></tr>
+<tr><td class="num">2.3</td><td class="desc">Menu (if used) opens and tab selection works.</td><td class="check"></td></tr>
+<tr><td class="num">2.4</td><td class="desc">Navigating away from Results (e.g. to another tab) triggers save/upload when applicable; no crash.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>3. iOS App – Scan Flow (full path)</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">3.1</td><td class="desc"><strong>Engine on</strong> – Continue advances.</td><td class="check"></td></tr>
+<tr><td class="num">3.2</td><td class="desc"><strong>Enter VIN:</strong> Manual entry accepts 17-char VIN; camera/scanner opens if available; invalid VIN shows error and "Report this issue."</td><td class="check"></td></tr>
+<tr><td class="num">3.3</td><td class="desc"><strong>VIN decode:</strong> Valid VIN shows "Vehicle Found!" and decoded make/model/year; manual fallback works.</td><td class="check"></td></tr>
+<tr><td class="num">3.4</td><td class="desc"><strong>Vehicle details:</strong> Year/make/model (and any optional fields) – Next continues.</td><td class="check"></td></tr>
+<tr><td class="num">3.5</td><td class="desc"><strong>Locate port / OBD help:</strong> Help sheet opens and closes.</td><td class="check"></td></tr>
+<tr><td class="num">3.6</td><td class="desc"><strong>Connect WiFi:</strong> Instructions and "I'm connected – start scan" work; if phone is already on OBD WiFi with no internet, "Scanner connected too soon" alert appears with "Report this issue."</td><td class="check"></td></tr>
+<tr><td class="num">3.7</td><td class="desc"><strong>Connect WiFi – failure:</strong> After connection fails, "Couldn't find your scanner automatically" with Open Settings, Try Again, Troubleshoot; "Report this issue" opens feedback with context.</td><td class="check"></td></tr>
+<tr><td class="num">3.8</td><td class="desc"><strong>Connect WiFi – success:</strong> Connected state shows; "Start Scan" appears.</td><td class="check"></td></tr>
+<tr><td class="num">3.9</td><td class="desc"><strong>Scanning:</strong> Progress and status text update; scan completes or shows error.</td><td class="check"></td></tr>
+<tr><td class="num">3.10</td><td class="desc"><strong>Scan error:</strong> "Scan Error" alert with Try Again, Cancel, and "Report this issue" – Report opens feedback with error message.</td><td class="check"></td></tr>
+<tr><td class="num">3.11</td><td class="desc"><strong>Connection lost mid-scan:</strong> Recovery overlay (Retry / Start Over / Troubleshoot) appears and works.</td><td class="check"></td></tr>
+<tr><td class="num">3.12</td><td class="desc"><strong>Unplug device:</strong> "I've Unplugged It" continues.</td><td class="check"></td></tr>
+<tr><td class="num">3.13</td><td class="desc"><strong>Disconnect WiFi:</strong> Step completes; flow continues to analyzing/results. If no internet, "Continue with offline report" appears after retries.</td><td class="check"></td></tr>
+<tr><td class="num">3.14</td><td class="desc"><strong>No scanner dialog:</strong> If shown ("only compatible with select Wi‑Fi scanners"), dismiss works.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>4. iOS App – Results and Share</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">4.1</td><td class="desc">Results screen shows: recommendation badge, findings, price context, system details, vehicle information, disclaimer.</td><td class="check"></td></tr>
+<tr><td class="num">4.2</td><td class="desc"><strong>AI/valuation:</strong> If network failed, "Estimated value not available" and "Report this issue" appear.</td><td class="check"></td></tr>
+<tr><td class="num">4.3</td><td class="desc"><strong>Share:</strong> Share button opens share sheet; recipients field, message, "Send Report" work.</td><td class="check"></td></tr>
+<tr><td class="num">4.4</td><td class="desc"><strong>Share – success:</strong> Report sent; success state and shareable link (if any) show.</td><td class="check"></td></tr>
+<tr><td class="num">4.5</td><td class="desc"><strong>Share – failure:</strong> Error message, "Try Again," "Copy Share Link" (if applicable), and "Report this issue" work.</td><td class="check"></td></tr>
+<tr><td class="num">4.6</td><td class="desc"><strong>Share – offline:</strong> Offline message and disabled send (or clear error) as designed.</td><td class="check"></td></tr>
+<tr><td class="num">4.7</td><td class="desc"><strong>View system detail:</strong> Tapping a system opens system detail; back returns to results.</td><td class="check"></td></tr>
+<tr><td class="num">4.8</td><td class="desc"><strong>Delete scan:</strong> "Delete this car scan" → confirmation alert → scan removed and navigated away.</td><td class="check"></td></tr>
+<tr><td class="num">4.9</td><td class="desc"><strong>Delete scan – failure:</strong> Toast "Couldn't delete…" and "Report this issue" appear.</td><td class="check"></td></tr>
+<tr><td class="num">4.10</td><td class="desc"><strong>Upload pending:</strong> If save/upload failed, "Not uploaded yet" / "Upload now" and "Report this issue" (in toast) work.</td><td class="check"></td></tr>
+<tr><td class="num">4.11</td><td class="desc"><strong>Close/Done:</strong> Returns to Dashboard; scan saved when applicable.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>5. iOS App – Settings and Account</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">5.1</td><td class="desc"><strong>Account info:</strong> Name, email displayed; Edit expands; save updates profile and shows confirmation.</td><td class="check"></td></tr>
+<tr><td class="num">5.2</td><td class="desc"><strong>Change email:</strong> Sheet opens; new email + password; confirmation email or error; "Report this issue" on error.</td><td class="check"></td></tr>
+<tr><td class="num">5.3</td><td class="desc"><strong>Change password:</strong> Current + new + confirm; update works; "Report this issue" on error; Forgot password link opens sheet.</td><td class="check"></td></tr>
+<tr><td class="num">5.4</td><td class="desc"><strong>Send feedback:</strong> Opens feedback modal (category, message, optional email); submit shows success or offline message.</td><td class="check"></td></tr>
+<tr><td class="num">5.5</td><td class="desc"><strong>Privacy Policy:</strong> Opens https://mintcheckapp.com/privacy in browser.</td><td class="check"></td></tr>
+<tr><td class="num">5.6</td><td class="desc"><strong>Terms of Service:</strong> Opens https://mintcheckapp.com/terms in browser.</td><td class="check"></td></tr>
+<tr><td class="num">5.7</td><td class="desc"><strong>Shared Links:</strong> List loads; copy link works; delete link works.</td><td class="check"></td></tr>
+<tr><td class="num">5.8</td><td class="desc"><strong>Shared Links – load error:</strong> Error state and "Report this issue" appear.</td><td class="check"></td></tr>
+<tr><td class="num">5.9</td><td class="desc"><strong>Delete shared link – failure:</strong> Alert "Couldn't delete link" with "Report this issue."</td><td class="check"></td></tr>
+<tr><td class="num">5.10</td><td class="desc"><strong>Sign out:</strong> Confirmation alert; sign out completes.</td><td class="check"></td></tr>
+<tr><td class="num">5.11</td><td class="desc"><strong>Delete account:</strong> First alert → Confirm → second confirmation; account deletes and success message or error with "Report this issue."</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>6. iOS App – Support and Help</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">6.1</td><td class="desc">Support tab lists help articles; tapping opens article.</td><td class="check"></td></tr>
+<tr><td class="num">6.2</td><td class="desc">OBD / scanner help opens from scan flow or support where implemented.</td><td class="check"></td></tr>
+<tr><td class="num">6.3</td><td class="desc">Troubleshoot sheet opens and closes from scan error or connect failure.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>7. iOS App – Feedback (all entry points)</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">7.1</td><td class="desc">Settings → "Send feedback" → submit: success toast or offline message.</td><td class="check"></td></tr>
+<tr><td class="num">7.2</td><td class="desc">Scanner connected too soon → "Report this issue" → modal pre-filled (bug), submit works.</td><td class="check"></td></tr>
+<tr><td class="num">7.3</td><td class="desc">Connect failed → "Report this issue" → modal with connect failure context.</td><td class="check"></td></tr>
+<tr><td class="num">7.4</td><td class="desc">Scan Error alert → "Report this issue" → modal with scan error.</td><td class="check"></td></tr>
+<tr><td class="num">7.5</td><td class="desc">Save/upload failure toast → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.6</td><td class="desc">Delete scan failure toast → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.7</td><td class="desc">AI/valuation error on results → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.8</td><td class="desc">Share send failed → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.9</td><td class="desc">Delete account failed → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.10</td><td class="desc">Delete shared link failed → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.11</td><td class="desc">Shared Links load failed → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.12</td><td class="desc">Sign in / Create account error → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.13</td><td class="desc">Change password / email / Forgot / Reset password error → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.14</td><td class="desc">VIN decode error (vehicle basics) → "Report this issue" → modal.</td><td class="check"></td></tr>
+<tr><td class="num">7.15</td><td class="desc">Submit feedback while offline: queued message; after back online, open app and confirm queue flushes (if testable).</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>8. iOS App – Deep Links and Universal Links (requires paid Apple Developer)</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">8.1</td><td class="desc"><strong>Universal Links:</strong> From Safari on device, open https://mintcheckapp.com/auth/confirm?token=...&type=signup – app opens (not browser).</td><td class="check"></td></tr>
+<tr><td class="num">8.2</td><td class="desc"><strong>Universal Links:</strong> Same for https://mintcheckapp.com/auth/reset?token=... – app opens to reset flow.</td><td class="check"></td></tr>
+<tr><td class="num">8.3</td><td class="desc"><strong>Fallback (no app / UL fail):</strong> Same URLs in browser show "Opening MintCheck…" and "Download the app" / copy link.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>9. Website – Public Pages</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">9.1</td><td class="desc"><strong>Home:</strong> https://mintcheckapp.com loads; CTAs, copy, and "Download" link work.</td><td class="check"></td></tr>
+<tr><td class="num">9.2</td><td class="desc"><strong>Download:</strong> https://mintcheckapp.com/download – content and App Store link (or placeholder) correct.</td><td class="check"></td></tr>
+<tr><td class="num">9.3</td><td class="desc"><strong>Privacy:</strong> https://mintcheckapp.com/privacy – policy loads and is readable.</td><td class="check"></td></tr>
+<tr><td class="num">9.4</td><td class="desc"><strong>Terms:</strong> https://mintcheckapp.com/terms – terms load and are readable.</td><td class="check"></td></tr>
+<tr><td class="num">9.5</td><td class="desc"><strong>Support:</strong> Support index and article routes (e.g. /support, /support/:slug) work.</td><td class="check"></td></tr>
+<tr><td class="num">9.6</td><td class="desc"><strong>Report page:</strong> https://mintcheckapp.com/report/:shareCode – valid share code shows report; invalid shows appropriate error or 404.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>10. Website – Auth Fallbacks and AASA</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">10.1</td><td class="desc"><strong>Auth confirm:</strong> https://mintcheckapp.com/auth/confirm?token=test&type=signup – "Opening MintCheck…" and Download/Copy link.</td><td class="check"></td></tr>
+<tr><td class="num">10.2</td><td class="desc"><strong>Auth reset:</strong> https://mintcheckapp.com/auth/reset?token=test – same.</td><td class="check"></td></tr>
+<tr><td class="num">10.3</td><td class="desc"><strong>AASA:</strong> curl -I https://mintcheckapp.com/.well-known/apple-app-site-association returns 200 and Content-Type: application/json.</td><td class="check"></td></tr>
+<tr><td class="num">10.4</td><td class="desc"><strong>AASA body:</strong> curl https://mintcheckapp.com/.well-known/apple-app-site-association returns valid JSON with applinks paths.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>11. Website – Admin</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">11.1</td><td class="desc"><strong>Admin login:</strong> /admin/login – credentials work; redirect to dashboard.</td><td class="check"></td></tr>
+<tr><td class="num">11.2</td><td class="desc"><strong>Admin dashboard:</strong> /admin/dashboard – loads; "Feedback" link present.</td><td class="check"></td></tr>
+<tr><td class="num">11.3</td><td class="desc"><strong>Admin feedback:</strong> /admin/feedback – list loads (with VITE_ADMIN_FEEDBACK_SECRET set); expand row shows full message and context JSON.</td><td class="check"></td></tr>
+<tr><td class="num">11.4</td><td class="desc"><strong>Admin feedback – no secret:</strong> With secret unset, 401 or error message as designed.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>12. Backend and Integration</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">12.1</td><td class="desc"><strong>Supabase Auth:</strong> Sign up, sign in, sign out, reset password, and email confirmation complete without errors.</td><td class="check"></td></tr>
+<tr><td class="num">12.2</td><td class="desc"><strong>Supabase DB:</strong> Scans and vehicles save/load; profiles update.</td><td class="check"></td></tr>
+<tr><td class="num">12.3</td><td class="desc"><strong>Edge Functions:</strong> Auth emails (confirm, reset) send and links work.</td><td class="check"></td></tr>
+<tr><td class="num">12.4</td><td class="desc"><strong>Edge Functions:</strong> delete-account succeeds when called with valid token.</td><td class="check"></td></tr>
+<tr><td class="num">12.5</td><td class="desc"><strong>Feedback:</strong> Submit from app → row in feedback table; notify-feedback sends team email (Resend).</td><td class="check"></td></tr>
+<tr><td class="num">12.6</td><td class="desc"><strong>Share:</strong> Share report API creates link and/or sends email; report page fetches by share code.</td><td class="check"></td></tr>
+<tr><td class="num">12.7</td><td class="desc"><strong>list-feedback:</strong> Returns data when called with correct x-admin-secret.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>13. Device and Network</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">13.1</td><td class="desc"><strong>WiFi OBD (real device):</strong> Phone on OBD WiFi, scan flow connects and completes scan (tested on known-good vehicle).</td><td class="check"></td></tr>
+<tr><td class="num">13.2</td><td class="desc"><strong>Airplane / no network:</strong> App doesn't crash; offline messaging and queued feedback behave as designed.</td><td class="check"></td></tr>
+<tr><td class="num">13.3</td><td class="desc"><strong>Poor network:</strong> Scan save/upload retry or "Upload now" and toasts work.</td><td class="check"></td></tr>
+<tr><td class="num">13.4</td><td class="desc"><strong>Simulator:</strong> Auth, navigation, settings, support, feedback (no OBD) all work.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<h2>14. App Store Readiness (pre-submission)</h2>
+<table>
+<thead><tr><th class="num">#</th><th>Check</th><th class="check">Pass</th></tr></thead>
+<tbody>
+<tr><td class="num">14.1</td><td class="desc">App icon set for all required sizes in Assets.</td><td class="check"></td></tr>
+<tr><td class="num">14.2</td><td class="desc">Screenshots prepared for required device sizes (e.g. 6.7", 5.5").</td><td class="check"></td></tr>
+<tr><td class="num">14.3</td><td class="desc">Privacy policy URL: https://mintcheckapp.com/privacy.</td><td class="check"></td></tr>
+<tr><td class="num">14.4</td><td class="desc">Terms (or EULA) URL: https://mintcheckapp.com/terms.</td><td class="check"></td></tr>
+<tr><td class="num">14.5</td><td class="desc">Support URL/email (e.g. support@mintcheckapp.com) set.</td><td class="check"></td></tr>
+<tr><td class="num">14.6</td><td class="desc">Age rating and export compliance (encryption) completed in App Store Connect.</td><td class="check"></td></tr>
+<tr><td class="num">14.7</td><td class="desc">Entitlements: If using OBD WiFi and Universal Links, Associated Domains and Hotspot/Wi-Fi Info enabled in MintCheck.entitlements and in Xcode Signing & Capabilities.</td><td class="check"></td></tr>
+</tbody>
+</table>
+
+<div class="notes">
+<h3>Notes</h3>
+<ul>
+<li><strong>OBD:</strong> Full scan flow and "Report this issue" from connect/scan errors require a <strong>real device</strong> and (for WiFi OBD) a <strong>paid Apple Developer account</strong> with entitlements enabled.</li>
+<li><strong>Feedback queue:</strong> To verify offline queue, submit feedback with device offline then bring it online and reopen app; check admin inbox or DB for the delayed submission.</li>
+<li><strong>Deep links:</strong> Use real tokens from your auth emails for reset/confirm; replace ... in the checklist URLs when testing.</li>
+</ul>
+</div>
+
+</body>
+</html>

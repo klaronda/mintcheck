@@ -130,9 +130,15 @@ struct ScanFreshnessBadge: View {
                 
                 // Expiry date (shown in header, not compact mode)
                 if showExpiryDate, !compact, let expiry = expiryDate, let expiryText = formatExpiryDate(expiry) {
-                    Text("Report expires on \(expiryText)")
-                        .font(.system(size: FontSize.bodySmall))
-                        .foregroundColor(.textSecondary)
+                    if case .expired = freshness {
+                        Text("Expired \(expiryText). Reports are valid for 14 days.")
+                            .font(.system(size: FontSize.bodySmall))
+                            .foregroundColor(.textSecondary)
+                    } else {
+                        Text("Report expires on \(expiryText)")
+                            .font(.system(size: FontSize.bodySmall))
+                            .foregroundColor(.textSecondary)
+                    }
                 }
             }
         }

@@ -355,10 +355,10 @@ struct SettingsView: View {
                     isLoadingSharedReports = false
                 }
             } catch {
-                print("Failed to load shared reports: \(error)")
                 await MainActor.run {
                     loadSharedReportsError = (error as NSError).localizedDescription
                     isLoadingSharedReports = false
+                    nav.showErrorToast("Couldn't load shared links.", errorCode: ErrorEventCode.ERR_LOAD_SHARED_REPORTS_FAIL.rawValue, errorMessage: (error as NSError).localizedDescription, scanStep: "settings")
                 }
             }
         }
@@ -699,6 +699,7 @@ struct SharedLinkRow: View {
 // MARK: - Plan Details Section (Early Access / Tester badge and upgrade cards)
 struct PlanDetailsSection: View {
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var nav: NavigationManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -741,14 +742,15 @@ struct PlanDetailsSection: View {
                     // Renew link — only visible in the last 7 days
                     if activeSub.daysRemaining <= 7 {
                         Button(action: {
-                            Task {
-                                do {
+                            runAsync(
+                                {
                                     let checkoutURL = try await BuyerPassService.shared.createCheckoutSession()
                                     await MainActor.run { UIApplication.shared.open(checkoutURL) }
-                                } catch {
-                                    print("Renew Buyer Pass error: \(error)")
+                                },
+                                onFailure: { error in
+                                    nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
                                 }
-                            }
+                            )
                         }) {
                             Text("Renew Buyer Pass")
                                 .font(.system(size: FontSize.bodyRegular, weight: .semibold))
@@ -766,7 +768,7 @@ struct PlanDetailsSection: View {
                         .stroke(Color.mintGreen.opacity(0.35), lineWidth: 1)
                 )
             } else if authService.hasFullAccess {
-                // Early Access / Tester
+                // Early Access / Tester — Buyer Pass card matches Active Buyer Pass card style, CTA goes to Stripe
                 VStack(alignment: .leading, spacing: 12) {
                     Text(authService.isTester ? "Tester (full access)" : "Early Access User")
                         .font(.system(size: FontSize.bodyRegular, weight: .semibold))
@@ -781,25 +783,42 @@ struct PlanDetailsSection: View {
                         .font(.system(size: FontSize.bodyRegular))
                         .foregroundColor(.textSecondary)
                         .lineSpacing(4)
-                    DashboardPlanCard(
-                        title: "Buyer Pass",
-                        bodyText: "60-day full access when shopping for a used car.",
-                        cta: "Learn more",
-                        url: "",
-                        onCtaTap: {
-                            Task {
-                                do {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Buyer Pass")
+                            .font(.system(size: FontSize.bodyRegular, weight: .semibold))
+                            .foregroundColor(Color(red: 26/255, green: 26/255, blue: 26/255))
+                        Text("60-day full access when shopping for a used car. Scan up to 10 vehicles per day.")
+                            .font(.system(size: FontSize.bodyRegular))
+                            .foregroundColor(.textSecondary)
+                            .lineSpacing(4)
+                        Button(action: {
+                            runAsync(
+                                {
                                     let checkoutURL = try await BuyerPassService.shared.createCheckoutSession()
                                     await MainActor.run { UIApplication.shared.open(checkoutURL) }
-                                } catch {
-                                    print("Buyer Pass checkout error: \(error)")
+                                },
+                                onFailure: { error in
+                                    nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
                                 }
-                            }
+                            )
+                        }) {
+                            Text("Get Buyer Pass")
+                                .font(.system(size: FontSize.bodyRegular, weight: .semibold))
+                                .foregroundColor(.mintGreen)
                         }
+                        .padding(.top, 4)
+                    }
+                    .padding(LayoutConstants.padding4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.mintGreen.opacity(0.06))
+                    .cornerRadius(LayoutConstants.borderRadius)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
+                            .stroke(Color.mintGreen.opacity(0.35), lineWidth: 1)
                     )
                 }
             } else {
-                // Free user — no active plan
+                // Free user — no active plan; Buyer Pass card matches Active Buyer Pass card style, CTA goes to Stripe
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Free")
                         .font(.system(size: FontSize.bodyRegular, weight: .semibold))
@@ -812,26 +831,58 @@ struct PlanDetailsSection: View {
                         .font(.system(size: FontSize.bodyRegular))
                         .foregroundColor(.textSecondary)
                         .lineSpacing(4)
-                    DashboardPlanCard(
-                        title: "Buyer Pass",
-                        bodyText: "60-day full access when shopping for a used car.",
-                        cta: "Get Buyer Pass",
-                        url: "",
-                        onCtaTap: {
-                            Task {
-                                do {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Buyer Pass")
+                            .font(.system(size: FontSize.bodyRegular, weight: .semibold))
+                            .foregroundColor(Color(red: 26/255, green: 26/255, blue: 26/255))
+                        Text("60-day full access when shopping for a used car. Scan up to 10 vehicles per day.")
+                            .font(.system(size: FontSize.bodyRegular))
+                            .foregroundColor(.textSecondary)
+                            .lineSpacing(4)
+                        Button(action: {
+                            runAsync(
+                                {
                                     let checkoutURL = try await BuyerPassService.shared.createCheckoutSession()
                                     await MainActor.run { UIApplication.shared.open(checkoutURL) }
-                                } catch {
-                                    print("Buyer Pass checkout error: \(error)")
+                                },
+                                onFailure: { error in
+                                    nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
                                 }
-                            }
+                            )
+                        }) {
+                            Text("Get Buyer Pass")
+                                .font(.system(size: FontSize.bodyRegular, weight: .semibold))
+                                .foregroundColor(.mintGreen)
                         }
+                        .padding(.top, 4)
+                    }
+                    .padding(LayoutConstants.padding4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.mintGreen.opacity(0.06))
+                    .cornerRadius(LayoutConstants.borderRadius)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
+                            .stroke(Color.mintGreen.opacity(0.35), lineWidth: 1)
                     )
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Async helper for Settings
+private func runAsync(_ operation: @escaping () async throws -> Void, onFailure: ((Error) -> Void)? = nil) {
+    Task {
+        do {
+            try await operation()
+        } catch {
+            if let onFailure = onFailure {
+                await MainActor.run { onFailure(error) }
+            } else {
+                print("Error: \(error)")
+            }
+        }
     }
 }
 

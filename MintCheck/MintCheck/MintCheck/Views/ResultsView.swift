@@ -19,7 +19,7 @@ struct ResultsView: View {
     let scanDate: Date?
     var reportStorage: ReportStorage = .uploaded
     var scanMode: ScanMode = .online_scan
-    let onViewDetails: (String) -> Void
+    let onViewDetails: (String, String) -> Void  // section, status
     let onShare: () -> Void
     let onClose: () -> Void
     let onDelete: () -> Void
@@ -28,6 +28,8 @@ struct ResultsView: View {
     var onOpenDeepCheckReport: ((String) -> Void)? = nil
     var vinVerified: Bool? = nil
     var vinMismatch: Bool? = nil
+    var vinPartial: Bool? = nil
+    var onVerifyDetails: (() -> Void)? = nil
     
     @Environment(\.openURL) private var openURL
     @State private var expandedSections: Set<String> = []
@@ -87,7 +89,7 @@ struct ResultsView: View {
             // Content
             ScrollView {
                 VStack(spacing: 24) {
-                    // Scan freshness + report status
+                    // Status / Expires on (no offline badge; offline state shown in notification below)
                     HStack {
                         ScanFreshnessBadge(
                             freshness: scanFreshness,
@@ -95,7 +97,6 @@ struct ResultsView: View {
                             scannedAt: scanDate
                         )
                         Spacer()
-                        ReportStatusBadge(status: reportStorageStatus)
                     }
                     
                     // Not uploaded yet + Upload now (when pending or local only)
@@ -133,26 +134,38 @@ struct ResultsView: View {
                         .cornerRadius(LayoutConstants.borderRadius)
                     }
                     
-                    // VIN unverified prompt (post-scan)
-                    if vinVerified == false && vinMismatch != true {
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "info.circle.fill")
-                                .foregroundColor(.textSecondary)
-                            Text("We couldn't confirm this VIN. To continue using MintCheck, you'll need to verify your vehicle's VIN.")
-                                .font(.system(size: FontSize.bodyRegular))
-                                .foregroundColor(.textSecondary)
-                        }
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.deepBackground)
-                        .cornerRadius(LayoutConstants.borderRadius)
-                    }
-                    
                     // 1. Recommendation badge
                     RecommendationBadge(
                         recommendation: recommendation,
                         aiExplanation: dtcAnalysis?.summary
                     )
+                    
+                    // VIN unverified prompt (under recommendation card) — vehicle didn't report VIN
+                    if vinVerified == false && vinMismatch != true {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "info.circle.fill")
+                                    .foregroundColor(.textSecondary)
+                                Text("Your vehicle didn't report a VIN during the scan. We're using the VIN you entered.")
+                                    .font(.system(size: FontSize.bodyRegular))
+                                    .foregroundColor(.textSecondary)
+                            }
+                            if let action = onVerifyDetails {
+                                Button(action: action) {
+                                    Text("Verify or update vehicle details")
+                                        .font(.system(size: FontSize.bodySmall, weight: .medium))
+                                        .foregroundColor(.textSecondary)
+                                        .underline()
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.deepBackground)
+                        .cornerRadius(LayoutConstants.borderRadius)
+                    }
                     
                     // 2. What We Found (merged with pricing)
                     FindingsWithPricingCard(
@@ -170,7 +183,8 @@ struct ResultsView: View {
                     // 3. System details
                     SystemDetailsCard(
                         systems: systemDetails,
-                        expandedSections: $expandedSections
+                        expandedSections: $expandedSections,
+                        onViewFullDetails: onViewDetails
                     )
                     
                     // 3b. Deep Vehicle Check: VIN entry, result card, or upsell
@@ -190,8 +204,15 @@ struct ResultsView: View {
                         MoreModelDetailsCard(report: history)
                     }
                     
-                    // 5. Vehicle details
-                    VehicleDetailsCard(vehicleInfo: vehicleInfo)
+                    // 5. Vehicle information
+                    VehicleDetailsCard(
+                        vehicleInfo: vehicleInfo,
+                        vinVerified: vinVerified,
+                        vinMismatch: vinMismatch,
+                        vinPartial: vinPartial,
+                        ecuVin: scanResults?.vin,
+                        onVerifyDetails: onVerifyDetails
+                    )
                     
                     // Disclaimer with scan date
                     HStack(alignment: .top, spacing: 8) {
@@ -275,6 +296,12 @@ struct ResultsView: View {
                 "Fuel system operating correctly",
                 "Emissions system functioning properly"
             ]
+        case .lowData:
+            return [
+                "Multiple systems did not return data",
+                "What we received looks normal",
+                "A follow-up scan or professional inspection is recommended"
+            ]
         case .caution:
             return [
                 "Some systems haven't completed self-checks yet",
@@ -301,151 +328,109 @@ struct ResultsView: View {
         }
         
         switch recommendation {
-        case .safe: return nil
+        case .safe, .lowData: return nil
         case .caution: return "Issues like these typically cost $800 - $2,500 to repair."
         case .notRecommended: return "Issues like these typically cost $2,500 - $5,000+ to repair."
         }
     }
     
-    private static let unknownSystemMessage = "We weren't able to scan any data for this system. This can be an issue with the car or scanner. We recommend getting a professional inspection."
+    private static let unknownSystemMessage = "We weren't able to scan any data for this system. This can be an issue with the car or scanner."
+    
+    /// Builds (status, color, details, explanation) for a system using the common unknown / good / attention pattern.
+    private static func systemStatus(
+        hasData: Bool,
+        isOK: Bool,
+        unknownDetails: [String],
+        goodDetails: [String],
+        goodExplanation: String,
+        attentionStatus: String,
+        attentionDetails: [String],
+        attentionExplanation: String
+    ) -> (status: String, color: Color, details: [String], explanation: String) {
+        if !hasData {
+            return ("Unknown", Color.gray, unknownDetails, unknownSystemMessage)
+        }
+        if isOK {
+            return ("Good", Color.statusSafe, goodDetails, goodExplanation)
+        }
+        return (attentionStatus, Color.statusCaution, attentionDetails, attentionExplanation)
+    }
+    
+    private static let noDataDetails = ["No engine data was reported by the vehicle", "Scanner attempted a second read"]
+    private static let noDataDetailsFuel = ["No fuel system data was reported by the vehicle", "Scanner attempted a second read"]
+    private static let noDataDetailsEmissions = ["No emissions data was reported by the vehicle", "Scanner attempted a second read"]
+    private static let noDataDetailsElectrical = ["No battery/electrical data was reported by the vehicle", "Scanner attempted a second read"]
     
     private var systemDetails: [SystemDetail] {
-        // Use actual scan data when available
         let dtcs = scanResults?.dtcs ?? []
         let hasDTCs = !dtcs.isEmpty
         let emissionsDTCs = dtcs.filter { $0.hasPrefix("P04") || $0.hasPrefix("P044") }
         
-        // Engine - need at least rpm or coolantTemp, or DTCs (DTCs mean we have engine data)
+        // Engine
         let hasEngineData = (scanResults?.rpm != nil || scanResults?.coolantTemp != nil) || hasDTCs
-        let engineStatus: String
-        let engineColor: Color
-        var engineDetails: [String] = []
-        var engineExplanation: String
+        var engineAttentionDetails = ["\(dtcs.count) trouble code\(dtcs.count == 1 ? "" : "s") detected"]
+        for dtc in dtcs.prefix(3) { engineAttentionDetails.append(dtc) }
+        if dtcs.count > 3 { engineAttentionDetails.append("+ \(dtcs.count - 3) more codes") }
+        let engine = Self.systemStatus(
+            hasData: hasEngineData,
+            isOK: !hasDTCs,
+            unknownDetails: Self.noDataDetails,
+            goodDetails: ["No trouble codes detected", "All sensors responding correctly", "Timing and performance normal"],
+            goodExplanation: "The engine is operating normally with no issues detected.",
+            attentionStatus: "Needs Attention",
+            attentionDetails: engineAttentionDetails,
+            attentionExplanation: "The engine has trouble codes that need attention. These may affect performance or reliability."
+        )
         
-        if !hasEngineData {
-            engineStatus = "Unknown"
-            engineColor = Color.gray
-            engineDetails = ["No engine data was reported by the vehicle", "Scanner attempted a second read"]
-            engineExplanation = Self.unknownSystemMessage
-        } else if hasDTCs {
-            engineStatus = "Needs Attention"
-            engineColor = Color.statusCaution
-            engineDetails.append("\(dtcs.count) trouble code\(dtcs.count == 1 ? "" : "s") detected")
-            for dtc in dtcs.prefix(3) { engineDetails.append(dtc) }
-            if dtcs.count > 3 { engineDetails.append("+ \(dtcs.count - 3) more codes") }
-            engineExplanation = "The engine has trouble codes that need attention. These may affect performance or reliability."
-        } else {
-            engineStatus = "Good"
-            engineColor = Color.statusSafe
-            engineDetails = ["No trouble codes detected", "All sensors responding correctly", "Timing and performance normal"]
-            engineExplanation = "The engine is operating normally with no issues detected."
-        }
-        
-        // Fuel System - need at least one of fuelLevel or trims
+        // Fuel System
         let hasFuelData = scanResults?.fuelLevel != nil || scanResults?.shortTermFuelTrim != nil || scanResults?.longTermFuelTrim != nil
         let fuelOK = (scanResults?.fuelLevel ?? 50) > 10
-        let fuelStatus: String
-        let fuelColor: Color
-        let fuelDetails: [String]
-        let fuelExplanation: String
+        let fuel = Self.systemStatus(
+            hasData: hasFuelData,
+            isOK: fuelOK,
+            unknownDetails: Self.noDataDetailsFuel,
+            goodDetails: ["Fuel system operating normally", "No leaks detected", "Injectors responding correctly"],
+            goodExplanation: "The fuel system is delivering the correct amount of fuel and maintaining proper pressure.",
+            attentionStatus: "Low",
+            attentionDetails: ["Fuel level low", "Check fuel system if recently filled"],
+            attentionExplanation: "The fuel level is low. If you recently filled up, there may be a fuel system issue."
+        )
         
-        if !hasFuelData {
-            fuelStatus = "Unknown"
-            fuelColor = Color.gray
-            fuelDetails = ["No fuel system data was reported by the vehicle", "Scanner attempted a second read"]
-            fuelExplanation = Self.unknownSystemMessage
-        } else if fuelOK {
-            fuelStatus = "Good"
-            fuelColor = Color.statusSafe
-            fuelDetails = ["Fuel system operating normally", "No leaks detected", "Injectors responding correctly"]
-            fuelExplanation = "The fuel system is delivering the correct amount of fuel and maintaining proper pressure."
-        } else {
-            fuelStatus = "Low"
-            fuelColor = Color.statusCaution
-            fuelDetails = ["Fuel level low", "Check fuel system if recently filled"]
-            fuelExplanation = "The fuel level is low. If you recently filled up, there may be a fuel system issue."
-        }
-        
-        // Emissions - need emissions DTCs or barometricPressure
+        // Emissions
         let hasEmissionsData = !emissionsDTCs.isEmpty || scanResults?.barometricPressure != nil
         let emissionsOK = emissionsDTCs.isEmpty
-        let emissionsStatus: String
-        let emissionsColor: Color
-        let emissionsDetails: [String]
-        let emissionsExplanation: String
+        let emissionsAttentionDetails = ["Emissions-related codes detected"] + emissionsDTCs.prefix(2).map { $0 }
+        let emissions = Self.systemStatus(
+            hasData: hasEmissionsData,
+            isOK: emissionsOK,
+            unknownDetails: Self.noDataDetailsEmissions,
+            goodDetails: ["Catalytic converter functioning normally", "All emissions monitors ready", "Should pass emissions testing"],
+            goodExplanation: "All emissions systems are functioning correctly.",
+            attentionStatus: "Needs Attention",
+            attentionDetails: emissionsAttentionDetails,
+            attentionExplanation: "Some emissions systems may need attention. This could affect emissions testing."
+        )
         
-        if !hasEmissionsData {
-            emissionsStatus = "Unknown"
-            emissionsColor = Color.gray
-            emissionsDetails = ["No emissions data was reported by the vehicle", "Scanner attempted a second read"]
-            emissionsExplanation = Self.unknownSystemMessage
-        } else if emissionsOK {
-            emissionsStatus = "Good"
-            emissionsColor = Color.statusSafe
-            emissionsDetails = ["Catalytic converter functioning normally", "All emissions monitors ready", "Should pass emissions testing"]
-            emissionsExplanation = "All emissions systems are functioning correctly."
-        } else {
-            emissionsStatus = "Needs Attention"
-            emissionsColor = Color.statusCaution
-            emissionsDetails = ["Emissions-related codes detected"] + emissionsDTCs.prefix(2).map { $0 }
-            emissionsExplanation = "Some emissions systems may need attention. This could affect emissions testing."
-        }
-        
-        // Electrical - need battery voltage
+        // Electrical
         let hasElectricalData = scanResults?.batteryVoltage != nil
         let voltage = scanResults?.batteryVoltage ?? 0
         let electricalOK = voltage >= 12.4 && voltage <= 14.8
-        let electricalStatus: String
-        let electricalColor: Color
-        var electricalDetails: [String] = []
-        let electricalExplanation: String
-        
-        if !hasElectricalData {
-            electricalStatus = "Unknown"
-            electricalColor = Color.gray
-            electricalDetails = ["No battery/electrical data was reported by the vehicle", "Scanner attempted a second read"]
-            electricalExplanation = Self.unknownSystemMessage
-        } else if electricalOK {
-            electricalStatus = "Good"
-            electricalColor = Color.statusSafe
-            electricalDetails = ["Battery voltage: \(String(format: "%.1f", voltage))V", "Charging system normal", "All electrical sensors responding"]
-            electricalExplanation = "The electrical system is functioning properly."
-        } else {
-            electricalStatus = "Needs Attention"
-            electricalColor = Color.statusCaution
-            electricalDetails = ["Battery voltage: \(String(format: "%.1f", voltage))V", "Voltage outside normal range"]
-            electricalExplanation = "Battery voltage is outside the normal range (12.4V - 14.8V). The battery or alternator may need attention."
-        }
+        let electrical = Self.systemStatus(
+            hasData: hasElectricalData,
+            isOK: electricalOK,
+            unknownDetails: Self.noDataDetailsElectrical,
+            goodDetails: ["Battery voltage: \(String(format: "%.1f", voltage))V", "Charging system normal", "All electrical sensors responding"],
+            goodExplanation: "The electrical system is functioning properly.",
+            attentionStatus: "Needs Attention",
+            attentionDetails: ["Battery voltage: \(String(format: "%.1f", voltage))V", "Voltage outside normal range"],
+            attentionExplanation: "Battery voltage is outside the normal range (12.4V - 14.8V). The battery or alternator may need attention."
+        )
         
         return [
-            SystemDetail(
-                name: "Engine",
-                status: engineStatus,
-                color: engineColor,
-                details: engineDetails,
-                explanation: engineExplanation
-            ),
-            SystemDetail(
-                name: "Fuel System",
-                status: fuelStatus,
-                color: fuelColor,
-                details: fuelDetails,
-                explanation: fuelExplanation
-            ),
-            SystemDetail(
-                name: "Emissions",
-                status: emissionsStatus,
-                color: emissionsColor,
-                details: emissionsDetails,
-                explanation: emissionsExplanation
-            ),
-            SystemDetail(
-                name: "Electrical",
-                status: electricalStatus,
-                color: electricalColor,
-                details: electricalDetails,
-                explanation: electricalExplanation
-            )
+            SystemDetail(name: "Engine", status: engine.status, color: engine.color, details: engine.details, explanation: engine.explanation),
+            SystemDetail(name: "Fuel System", status: fuel.status, color: fuel.color, details: fuel.details, explanation: fuel.explanation),
+            SystemDetail(name: "Emissions", status: emissions.status, color: emissions.color, details: emissions.details, explanation: emissions.explanation),
+            SystemDetail(name: "Electrical", status: electrical.status, color: electrical.color, details: electrical.details, explanation: electrical.explanation)
         ]
     }
 }
@@ -631,13 +616,33 @@ struct FindingsWithPricingCard: View {
     }
 }
 
-// MARK: - Vehicle Details Card
+// MARK: - Vehicle Information Card
 struct VehicleDetailsCard: View {
     let vehicleInfo: VehicleInfo
+    var vinVerified: Bool? = nil
+    var vinMismatch: Bool? = nil
+    var vinPartial: Bool? = nil
+    var ecuVin: String? = nil  // From scanResults.vin (full or partial)
+    var onVerifyDetails: (() -> Void)? = nil
+    
+    private var ecuVinTrimmed: String? {
+        guard let v = ecuVin?.trimmingCharacters(in: .whitespaces), !v.isEmpty else { return nil }
+        return v
+    }
+    
+    /// When user has full VIN and ECU returned partial, show user VIN; otherwise show ECU or vehicleInfo VIN
+    private var vinDisplayValue: String? {
+        let userVin = vehicleInfo.vin?.trimmingCharacters(in: .whitespaces), u = userVin ?? ""
+        if !u.isEmpty && u.count == 17, let ecu = ecuVinTrimmed, ecu.count != 17 {
+            return u
+        }
+        if let ecu = ecuVinTrimmed { return ecu }
+        return vehicleInfo.vin?.trimmingCharacters(in: .whitespaces)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Vehicle Details")
+            Text("Vehicle Information")
                 .font(.system(size: FontSize.h4, weight: .semibold))
                 .foregroundColor(.textPrimary)
                 .padding(.bottom, 16)
@@ -647,8 +652,8 @@ struct VehicleDetailsCard: View {
             Divider()
             
             VStack(spacing: 12) {
-                if let vin = vehicleInfo.vin {
-                    DetailRow(label: "VIN", value: vin, isMonospace: true)
+                if let vinValue = vinDisplayValue {
+                    DetailRow(label: "VIN", value: vinValue, isMonospace: true)
                 }
                 DetailRow(label: "Year", value: vehicleInfo.year)
                 DetailRow(label: "Make", value: vehicleInfo.make)
@@ -672,16 +677,44 @@ struct VehicleDetailsCard: View {
             .padding(.horizontal, LayoutConstants.padding6)
             .padding(.vertical, LayoutConstants.padding4)
             
-            if !vehicleInfo.hasDecodedDetails {
+            if vinPartial == true {
                 Divider()
-                
-                Text(vehicleInfo.vin != nil
-                    ? "VIN could not be decoded. Details shown are based on user input."
-                    : "VIN was not provided. Details shown are based on user input.")
-                    .font(.system(size: FontSize.bodySmall))
-                    .foregroundColor(.textSecondary)
-                    .padding(.horizontal, LayoutConstants.padding6)
-                    .padding(.vertical, LayoutConstants.padding4)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("We got a partial VIN from your vehicle. Make, model and year are from your input.")
+                        .font(.system(size: FontSize.bodySmall))
+                        .foregroundColor(.textSecondary)
+                    if let action = onVerifyDetails {
+                        Button(action: action) {
+                            Text("Verify or update vehicle details")
+                                .font(.system(size: FontSize.bodySmall, weight: .medium))
+                                .foregroundColor(.textSecondary)
+                                .underline()
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, LayoutConstants.padding6)
+                .padding(.vertical, LayoutConstants.padding4)
+            } else if !vehicleInfo.hasDecodedDetails {
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(vehicleInfo.vin != nil
+                        ? "VIN could not be decoded. Details shown are based on user input."
+                        : "VIN was not provided. Details shown are based on user input.")
+                        .font(.system(size: FontSize.bodySmall))
+                        .foregroundColor(.textSecondary)
+                    if let action = onVerifyDetails {
+                        Button(action: action) {
+                            Text("Verify or update vehicle details")
+                                .font(.system(size: FontSize.bodySmall, weight: .medium))
+                                .foregroundColor(.textSecondary)
+                                .underline()
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, LayoutConstants.padding6)
+                .padding(.vertical, LayoutConstants.padding4)
             }
         }
         .background(Color.white)
@@ -699,7 +732,7 @@ struct DetailRow: View {
     var isMonospace: Bool = false
     
     var body: some View {
-        HStack {
+        HStack(alignment: .center, spacing: 6) {
             Text(label)
                 .font(.system(size: FontSize.bodyLarge))
                 .foregroundColor(.textSecondary)
@@ -719,6 +752,7 @@ struct DetailRow: View {
 struct SystemDetailsCard: View {
     let systems: [SystemDetail]
     @Binding var expandedSections: Set<String>
+    var onViewFullDetails: ((String, String) -> Void)? = nil  // section, status
     
     var body: some View {
         VStack(spacing: 0) {
@@ -744,7 +778,8 @@ struct SystemDetailsCard: View {
                                 expandedSections.insert(system.name)
                             }
                         }
-                    }
+                    },
+                    onViewFullDetails: onViewFullDetails
                 )
                 
                 if index < systems.count - 1 {
@@ -781,6 +816,7 @@ private struct DeepCheckBlockView: View {
             DeepCheckResultCard(
                 reportUrl: reportUrl,
                 recommendationStatus: purchase.recommendationStatus,
+                purchasedAt: purchase.createdAt,
                 onViewReport: { onOpenReport?(reportUrl) }
             )
         } else {
@@ -861,7 +897,14 @@ private struct DeepCheckVINEntryCard: View {
 private struct DeepCheckResultCard: View {
     let reportUrl: String
     let recommendationStatus: String?
+    let purchasedAt: Date?
     let onViewReport: () -> Void
+
+    private static var purchaseDateFormatter: DateFormatter {
+        let f = DateFormatter()
+        f.dateStyle = .long  // e.g. "January 21, 2025"
+        return f
+    }
 
     private var isProblemsReported: Bool {
         recommendationStatus == "problems_reported"
@@ -875,22 +918,20 @@ private struct DeepCheckResultCard: View {
         isProblemsReported ? Color(red: 1, green: 0.9, blue: 0.9) : Color(red: 0.24, green: 0.96, blue: 0.93, opacity: 0.15)
     }
 
-    private var statusText: String {
-        isProblemsReported ? "Problems Reported" : "History Available"
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 10) {
                 Image(systemName: isProblemsReported ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                     .foregroundColor(statusColor)
-                Text("Vehicle History Report")
+                Text("Deep Check Report")
                     .font(.system(size: FontSize.h4, weight: .semibold))
                     .foregroundColor(.textPrimary)
             }
-            Text(statusText)
-                .font(.system(size: FontSize.bodyLarge))
-                .foregroundColor(.textSecondary)
+            if let date = purchasedAt {
+                Text("You purchased this report on \(Self.purchaseDateFormatter.string(from: date)).")
+                    .font(.system(size: FontSize.bodyLarge))
+                    .foregroundColor(.textSecondary)
+            }
             Button(action: onViewReport) {
                 Text("View Vehicle History")
                     .font(.system(size: FontSize.bodyRegular, weight: .semibold))
@@ -916,9 +957,8 @@ struct DeepVehicleCheckCard: View {
     let vin: String
     @Environment(\.openURL) private var openURL
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var nav: NavigationManager
     @State private var isCreatingSession = false
-    @State private var showCheckoutError = false
-    @State private var checkoutErrorMessage: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -963,11 +1003,6 @@ struct DeepVehicleCheckCard: View {
             RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
                 .stroke(Color.borderColor, lineWidth: 1)
         )
-        .alert("Could not start checkout", isPresented: $showCheckoutError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(checkoutErrorMessage ?? "Please try again.")
-        }
     }
 
     private func startCheckout() async {
@@ -981,8 +1016,7 @@ struct DeepVehicleCheckCard: View {
             }
         } catch {
             await MainActor.run {
-                checkoutErrorMessage = (error as? DeepCheckError)?.message ?? "Could not start checkout. Please try again."
-                showCheckoutError = true
+                nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: (error as? DeepCheckError)?.message ?? error.localizedDescription, scanStep: "deep_check")
             }
         }
     }
@@ -992,6 +1026,7 @@ struct SystemRow: View {
     let system: SystemDetail
     let isExpanded: Bool
     let onToggle: () -> Void
+    var onViewFullDetails: ((String, String) -> Void)? = nil  // section, status
     
     var body: some View {
         VStack(spacing: 0) {
@@ -1049,6 +1084,19 @@ struct SystemRow: View {
                                     .foregroundColor(.textSecondary)
                             }
                         }
+                    }
+                    
+                    if let onViewFullDetails = onViewFullDetails {
+                        Button(action: { onViewFullDetails(system.name, system.status) }) {
+                            HStack(spacing: 6) {
+                                Text("View full details")
+                                    .font(.system(size: FontSize.bodyRegular, weight: .semibold))
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                            .foregroundColor(.mintGreen)
+                        }
+                        .padding(.top, 4)
                     }
                 }
                 .padding(.horizontal, LayoutConstants.padding4)
@@ -1282,7 +1330,7 @@ struct SafetyRatingRow: View {
         dtcAnalysis: nil,
         aiNetworkError: false,
         scanDate: Calendar.current.date(byAdding: .day, value: -3, to: Date()),
-        onViewDetails: { _ in },
+        onViewDetails: { _, _ in },
         onShare: {},
         onClose: {},
         onDelete: {},

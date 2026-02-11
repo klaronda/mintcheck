@@ -26,7 +26,10 @@ struct ScanFlowView: View {
     @State private var showNoScannerDialog = false
     @State private var showOBDHelp = false
     @State private var isDisconnecting = false
-    @State private var showDisconnectHelp = false
+    /// When non-nil, DisconnectWifiStepView shows state-specific help (still on scanner vs no internet).
+    @State private var disconnectHelpState: DisconnectStepHelpState = .none
+    /// Number of "Check Again" retries with no internet; after 2+, we show "Continue with offline report".
+    @State private var disconnectRetryCount = 0
     @StateObject private var obdService = OBDService()
     @State private var isDecodingVin = false
     @State private var showVinRegionHint = false
@@ -58,7 +61,8 @@ struct ScanFlowView: View {
                     showRegionHint: showVinRegionHint,
                     onConfirmDetails: handleConfirmVehicleDetails,
                     showDecodedInfo: $showDecodedInfo,
-                    decodedInfo: $decodedInfo
+                    decodedInfo: $decodedInfo,
+                    isVinLocked: !authService.hasFullAccess && nav.freeUserVehicle?.vin != nil && !vinNumber.isEmpty
                 )
                 .sheet(isPresented: $showCamera) {
                     VINCameraView(onVINScanned: { scannedVIN in
@@ -121,6 +125,47 @@ struct ScanFlowView: View {
                         nav.feedbackScanStep = "connect_obd"
                         nav.showFeedbackModal = true
                     },
+                    onHavingTroubleConnecting: {
+                        let article = SupportArticle(
+                            id: "connect-scanner",
+                            title: "How to connect your OBD-II scanner",
+                            content: """
+                            Follow these steps to connect your OBD-II scanner and start a vehicle scan:
+                            
+                            **Step 1: Locate the OBD-II port**
+                            Find the port under the dashboard on the driver's side. See our "Finding your OBD-II port" article for detailed instructions.
+                            
+                            **Step 2: Plug in the scanner**
+                            Insert your OBD-II scanner firmly into the port. It should click into place.
+                            
+                            **Step 3: Turn on the ignition**
+                            Turn your vehicle's ignition to the "ON" position. The engine does not need to be running for most scans.
+                            
+                            **Step 4: Connect to the scanner**
+                            
+                            For WiFi scanners:
+                            - Open your phone's Settings
+                            - Go to WiFi settings
+                            - Connect to the scanner's network (usually named "OBDII", "WiFi_OBD", or similar)
+                            - Return to MintCheck
+                            
+                            For Bluetooth scanners:
+                            - Enable Bluetooth on your phone
+                            - Pair with the scanner in your phone's Bluetooth settings
+                            - Return to MintCheck
+                            
+                            **Step 5: Start the scan**
+                            Tap "Start Scan" in MintCheck to begin the diagnostic check. The scan typically takes 30-60 seconds.
+                            
+                            **Troubleshooting:**
+                            - Make sure the scanner is fully inserted
+                            - Ensure the ignition is on (not just accessories)
+                            - Try reconnecting to the scanner's WiFi/Bluetooth
+                            - Restart the scanner by unplugging and re-plugging it
+                            """
+                        )
+                        onExitToScannerHelp(article)
+                    },
                     isOffline: connectionManager.internetStatus == .offline,
                     wifiManager: connectionManager.wifiManager
                 )
@@ -132,7 +177,12 @@ struct ScanFlowView: View {
                         nav.currentScanData.reportStorage = nav.currentScanData.scanMode == .offline_scan ? .local_only : .uploaded
                         let userVin = (nav.currentScanData.vehicleInfo?.vin ?? "").trimmingCharacters(in: .whitespaces).uppercased()
                         let ecuVin = (results.vin ?? "").trimmingCharacters(in: .whitespaces).uppercased()
-                        if !userVin.isEmpty && !ecuVin.isEmpty {
+                        let ecuVinIsPartial = !ecuVin.isEmpty && ecuVin.count != 17
+                        nav.currentScanData.vinPartial = ecuVinIsPartial ? true : (ecuVin.isEmpty ? nil : false)
+                        if ecuVinIsPartial {
+                            nav.currentScanData.vinVerified = false
+                            nav.currentScanData.vinMismatch = false
+                        } else if !userVin.isEmpty && !ecuVin.isEmpty {
                             if userVin != ecuVin {
                                 nav.currentScanData.vinMismatch = true
                                 nav.currentScanData.vinVerified = false
@@ -148,13 +198,9 @@ struct ScanFlowView: View {
                             nav.currentScanData.vinMismatch = false
                         }
                         
-                        // Free user: compare ECU VIN against cached first vehicle
-                        if !authService.hasFullAccess, let cachedVehicle = nav.freeUserVehicle {
-                            let cachedVin = (cachedVehicle.vin ?? "").trimmingCharacters(in: .whitespaces).uppercased()
-                            if !cachedVin.isEmpty && !ecuVin.isEmpty && cachedVin != ecuVin {
-                                nav.currentScanData.freeUserVinBlocked = true
-                            }
-                        }
+                        // Note: Free user VIN enforcement is now handled at input time —
+                        // the VIN field is pre-filled and locked on scans 2-3, so no
+                        // post-scan ECU comparison is needed.
                         
                         step = .unplugDevice
                     },
@@ -176,9 +222,15 @@ struct ScanFlowView: View {
             case .disconnectWifi:
                 DisconnectWifiStepView(
                     isDisconnecting: isDisconnecting,
-                    showHelp: showDisconnectHelp,
+                    helpState: disconnectHelpState,
+                    retryCount: disconnectRetryCount,
                     onOpenSettings: openSettings,
                     onRetry: handleDisconnectRetry,
+                    onContinueOffline: {
+                        nav.currentScanData.scanMode = .offline_scan
+                        disconnectRetryCount = 0
+                        step = .analyzingResults
+                    },
                     wifiManager: connectionManager.wifiManager
                 )
             case .analyzingResults:
@@ -198,6 +250,14 @@ struct ScanFlowView: View {
             if flowId != lastSeenFlowId {
                 lastSeenFlowId = flowId
                 step = .engineOn
+                
+                // Free user returning for scan 2 or 3: pre-fill and lock the VIN
+                if !authService.hasFullAccess,
+                   let cachedVehicle = nav.freeUserVehicle,
+                   let cachedVin = cachedVehicle.vin,
+                   !cachedVin.trimmingCharacters(in: .whitespaces).isEmpty {
+                    vinNumber = cachedVin.trimmingCharacters(in: .whitespaces).uppercased()
+                }
             }
         }
         .alert("MintCheck is only compatible with select Wi‑Fi scanners.", isPresented: $showNoScannerDialog) {
@@ -452,13 +512,29 @@ struct ScanFlowView: View {
             recommendation = .caution
         }
 
+        // If 2+ of 4 systems returned no data and nothing else is wrong,
+        // we can't confidently say the car is healthy.
+        if recommendation == .safe {
+            let hasEngineData = (results.rpm != nil || results.coolantTemp != nil) || !results.dtcs.isEmpty
+            let hasFuelData = results.fuelLevel != nil || results.shortTermFuelTrim != nil || results.longTermFuelTrim != nil
+            let hasEmissionsData = !results.dtcs.filter({ $0.hasPrefix("P04") || $0.hasPrefix("P044") }).isEmpty || results.barometricPressure != nil
+            let hasElectricalData = results.batteryVoltage != nil
+
+            let unknownCount = [hasEngineData, hasFuelData, hasEmissionsData, hasElectricalData]
+                .filter { !$0 }.count
+
+            if unknownCount >= 2 {
+                recommendation = .lowData
+            }
+        }
+
         return recommendation
     }
 
     private func handleDisconnectFlow() {
         guard !isDisconnecting else { return }
         isDisconnecting = true
-        showDisconnectHelp = false
+        disconnectHelpState = .none
 
         Task {
             // First fetch current SSID so user can see what they're connected to
@@ -474,13 +550,15 @@ struct ScanFlowView: View {
                 await MainActor.run {
                     isDisconnecting = false
                     if hasInternet {
+                        disconnectRetryCount = 0
                         step = .analyzingResults
                     } else {
-                        // Disconnected but no internet yet - fetch SSID again and show help
+                        // Disconnected but no internet yet - show help (counts as first "no internet")
                         Task {
                             await connectionManager.wifiManager.fetchCurrentSSID()
                         }
-                        showDisconnectHelp = true
+                        disconnectHelpState = .noInternet
+                        disconnectRetryCount = 1
                     }
                 }
             } else {
@@ -489,7 +567,7 @@ struct ScanFlowView: View {
                 
                 await MainActor.run {
                     isDisconnecting = false
-                    showDisconnectHelp = true
+                    disconnectHelpState = .stillConnected
                     // Auto-open Settings so user can manually disconnect
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         openSettings()
@@ -503,7 +581,7 @@ struct ScanFlowView: View {
         // User already disconnected manually - just verify internet and proceed
         guard !isDisconnecting else { return }
         isDisconnecting = true
-        showDisconnectHelp = false
+        disconnectHelpState = .none
         
         Task {
             // Fetch current SSID to show what they're connected to now
@@ -515,11 +593,11 @@ struct ScanFlowView: View {
             await MainActor.run {
                 isDisconnecting = false
                 if hasInternet {
-                    // Good to go - proceed to AI analysis
+                    disconnectRetryCount = 0
                     step = .analyzingResults
                 } else {
-                    // Still no internet - show help again
-                    showDisconnectHelp = true
+                    disconnectHelpState = .noInternet
+                    disconnectRetryCount += 1
                 }
             }
         }
@@ -528,12 +606,6 @@ struct ScanFlowView: View {
     private func startAnalysisFlow() {
         guard !analysisStarted else { return }
         analysisStarted = true
-
-        // Free user VIN mismatch: block before showing results
-        if nav.currentScanData.freeUserVinBlocked {
-            nav.currentScreen = .freeVinMismatch
-            return
-        }
 
         guard let scanResults = nav.currentScanData.scanResults,
               let vehicleInfo = nav.currentScanData.vehicleInfo else {
@@ -641,19 +713,25 @@ enum ScanFlowStep: CaseIterable {
         return ScanFlowStep.allCases.first { $0.order == self.order - 1 }
     }
     
+    /// Unique order (1–10) for step sequence. Single source of truth for previous/next.
     private var order: Int {
         switch self {
         case .engineOn: return 1
         case .enterVin: return 2
-        case .vehicleDetails: return 2
-        case .locatePort: return 3
-        case .connectWifi: return 4
-        case .scanning: return 5
-        case .unplugDevice: return 6
-        case .disconnectWifi: return 6
-        case .analyzingResults: return 7
-        case .results: return 8
+        case .vehicleDetails: return 3
+        case .locatePort: return 4
+        case .connectWifi: return 5
+        case .scanning: return 6
+        case .unplugDevice: return 7
+        case .disconnectWifi: return 8
+        case .analyzingResults: return 9
+        case .results: return 10
         }
+    }
+    
+    /// Display step (1–6) for progress bar and "Step X of 6"; post-scan steps show as 6.
+    private var displayStep: Int {
+        min(order, 6)
     }
     
     var showsProgressHeader: Bool {
@@ -667,7 +745,7 @@ enum ScanFlowStep: CaseIterable {
     
     var progressFraction: CGFloat {
         let total = 6.0
-        let current = min(Double(order), total)
+        let current = Double(displayStep)
         return CGFloat(current / total)
     }
     
@@ -687,7 +765,7 @@ enum ScanFlowStep: CaseIterable {
     }
     
     var stepCountLabel: String {
-        "Step \(min(order, 6)) of 6"
+        "Step \(displayStep) of 6"
     }
 }
 
@@ -770,29 +848,36 @@ struct LocatePortStepView: View {
 struct ConnectWifiStepView: View {
     let onOpenSettings: () -> Void
     let onStartScan: () -> Void
-    let onCheckInternet: () async -> Bool  // Caller provides real connectivity check
-    var onReportIssue: (() -> Void)? = nil  // Early OBD "Scanner connected too soon"
-    var onReportConnectFailed: ((Int) -> Void)? = nil  // Connect to scanner failed (attempt count)
-    var isOffline: Bool = false  // Show "continue offline" hint when true
+    let onCheckInternet: () async -> Bool
+    var onReportIssue: (() -> Void)? = nil
+    var onReportConnectFailed: ((Int) -> Void)? = nil
+    var onHavingTroubleConnecting: (() -> Void)? = nil
+    var isOffline: Bool = false
     @ObservedObject var wifiManager: WiFiConnectionManager
     
-    @State private var isConnecting = false
-    @State private var connectionFailed = false
-    @State private var usedManualConnect = false
     @State private var showEarlyOBDAlert = false
-    @State private var connectFailureCount = 0
+    @State private var isChecking = true
+    @State private var pollTimer: Timer?
+    @State private var detectedOBD = false
     @State private var showTroubleshootSheet = false
-    @State private var checkingEarlyOBD = true
+    
+    /// Whether the user is on an OBD scanner network
+    private var isOnScannerWifi: Bool {
+        detectedOBD || wifiManager.isConnectedToOBDNetwork
+    }
     
     var body: some View {
         VStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Blocking: scanner connected too soon (on OBD Wi‑Fi with no internet)
+                VStack(alignment: .leading, spacing: 20) {
+                    // Early OBD warning (connected before plugging in)
                     if showEarlyOBDAlert {
-                        let earlyOBDActions: [(title: String, action: () -> Void)] = {
-                            var a: [(title: String, action: () -> Void)] = [
-                                ("Open Wi‑Fi Settings", { onOpenSettings() }),
+                        InlineAlert(
+                            type: .warning,
+                            title: "Scanner connected too soon",
+                            message: "Your phone is on the scanner's Wi‑Fi but has no internet. Unplug the scanner or switch Wi‑Fi, then try again.",
+                            actions: [
+                                ("Open Settings", { onOpenSettings() }),
                                 ("I unplugged it", {
                                     Task {
                                         await wifiManager.fetchCurrentSSID()
@@ -805,135 +890,83 @@ struct ConnectWifiStepView: View {
                                     }
                                 })
                             ]
-                            if let report = onReportIssue {
-                                a.append(("Report this issue", report))
-                            }
-                            return a
-                        }()
-                        InlineAlert(
-                            type: .warning,
-                            title: "Scanner connected too soon",
-                            message: "Your phone is on the scanner's Wi‑Fi but has no internet. Connect to the scanner only after tapping \"Connect to Scanner\" so we can upload your results. Unplug the scanner or switch Wi‑Fi, then try again.",
-                            actions: earlyOBDActions
                         )
-                        .padding(.horizontal, 24)
-                        .padding(.top, 16)
-                    }
-                    if isConnecting {
-                        // Connecting state
-                        VStack(spacing: 16) {
-                            ProgressView()
-                                .scaleEffect(1.2)
-                                .tint(.mintGreen)
-                            
-                            Text(wifiManager.currentMessage.isEmpty ? "Searching for scanner..." : wifiManager.currentMessage)
-                                .font(.system(size: FontSize.bodyLarge))
-                                .foregroundColor(.textSecondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 60)
-                    } else if wifiManager.connectionState == .connected {
-                        // Connected state
-                        VStack(spacing: 16) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 48))
-                                .foregroundColor(.mintGreen)
-                            
-                            Text("Connected to \(wifiManager.connectedNetworkName ?? "scanner")")
-                                .font(.system(size: FontSize.bodyLarge, weight: .medium))
-                                .foregroundColor(.textPrimary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 60)
-                    } else if connectionFailed {
-                        // Failed - show manual instructions
-                        Text("Couldn't find your scanner automatically.")
-                            .font(.system(size: FontSize.h4, weight: .semibold))
-                            .foregroundColor(.textPrimary)
-                        
-                        Text("Go to Settings and manually connect to your scanner's Wi-Fi network.")
-                            .font(.system(size: FontSize.bodyLarge))
-                            .foregroundColor(.textSecondary)
-                            .lineSpacing(4)
-                        
-                        HStack {
-                            Spacer()
-                            Button(action: {
-                                usedManualConnect = true
-                                onOpenSettings()
-                            }) {
-                                Text("Open Settings")
-                                    .font(.system(size: FontSize.bodyRegular, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(Color.mintGreen)
-                                    .cornerRadius(LayoutConstants.borderRadius)
-                            }
-                            .buttonStyle(.plain)
-                            Spacer()
-                        }
-                        .padding(.top, 8)
-                        
-                        InfoCard(
-                            text: "If you connect manually, you may need to disconnect manually after the scan.",
-                            icon: "exclamationmark.triangle"
-                        )
-                        .padding(.top, 16)
-                        
-                        Button(action: startConnection) {
-                            Text("Try Again")
-                                .font(.system(size: FontSize.bodyRegular, weight: .medium))
-                                .foregroundColor(.mintGreen)
-                        }
-                        .padding(.top, 8)
-                        
-                        if connectFailureCount >= 2 {
-                            Button(action: { showTroubleshootSheet = true }) {
-                                Text("Troubleshoot")
-                                    .font(.system(size: FontSize.bodyRegular, weight: .semibold))
-                                    .foregroundColor(.mintGreen)
-                            }
-                            .padding(.top, 8)
-                        }
-                        if let report = onReportConnectFailed {
-                            Button(action: { report(connectFailureCount) }) {
-                                Text("Report this issue")
-                                    .font(.system(size: FontSize.bodyRegular, weight: .medium))
-                                    .foregroundColor(.mintGreen)
-                            }
-                            .padding(.top, 8)
-                        }
-                    } else if !showEarlyOBDAlert && !checkingEarlyOBD {
-                        // Initial state (not when early OBD alert is blocking)
-                        Text("Connect to your OBD-II scanner")
-                            .font(.system(size: FontSize.h4, weight: .semibold))
-                            .foregroundColor(.textPrimary)
-                        
-                        Text("We'll automatically search for your scanner's Wi-Fi network.")
-                            .font(.system(size: FontSize.bodyLarge))
-                            .foregroundColor(.textSecondary)
-                            .lineSpacing(4)
-                        
-                        PrimaryButton(
-                            title: "Connect to Scanner",
-                            action: startConnection
-                        )
-                        .padding(.top, 16)
-                    } else if checkingEarlyOBD {
+                    } else if isChecking {
                         ProgressView()
                             .scaleEffect(1.0)
                             .tint(.mintGreen)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 40)
+                    } else if isOnScannerWifi {
+                        // Successfully detected OBD scanner network
+                        VStack(spacing: 16) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 48))
+                                .foregroundColor(.mintGreen)
+                            
+                            Text("Connected to \(wifiManager.currentSSID ?? "scanner")")
+                                .font(.system(size: FontSize.bodyLarge, weight: .medium))
+                                .foregroundColor(.textPrimary)
+                            
+                            Text("You're on the scanner's Wi‑Fi. Ready to scan.")
+                                .font(.system(size: FontSize.bodyRegular))
+                                .foregroundColor(.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 40)
+                    } else {
+                        // Main state: guide user to connect manually
+                        Text("Connect to your scanner's Wi‑Fi")
+                            .font(.system(size: FontSize.h4, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                        
+                        // Instructions
+                        VStack(alignment: .leading, spacing: 12) {
+                            InstructionRow(number: "1", text: "Open your phone's **Settings** app")
+                            InstructionRow(number: "2", text: "Tap **Wi‑Fi**")
+                            InstructionRow(number: "3", text: "Connect to your scanner's network")
+                            InstructionRow(number: "4", text: "Come back here and tap the button below")
+                        }
+                        
+                        // Open Wi-Fi settings button (opens Settings app; user taps Wi‑Fi there)
+                        Button(action: onOpenSettings) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wifi")
+                                    .font(.system(size: 16))
+                                Text("Open Wi‑Fi settings")
+                                    .font(.system(size: FontSize.bodyRegular, weight: .medium))
+                            }
+                            .foregroundColor(.mintGreen)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.mintGreen.opacity(0.12))
+                            .cornerRadius(LayoutConstants.borderRadius)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        // Common network names hint (only scanners we've validated)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Common scanner network names:")
+                                .font(.system(size: FontSize.bodySmall, weight: .medium))
+                                .foregroundColor(.textSecondary)
+                            Text("WiFi_OBDII, OBD2, ELM327")
+                                .font(.system(size: FontSize.bodySmall))
+                                .foregroundColor(.textSecondary)
+                                .italic()
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.statusInfoBg)
+                        .cornerRadius(8)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 24)
                 .padding(.top, 32)
+                .padding(.bottom, 120)
             }
             
-            if wifiManager.connectionState == .connected || usedManualConnect {
+            if isOnScannerWifi {
                 VStack(spacing: 12) {
                     if isOffline {
                         InfoCard(
@@ -957,69 +990,101 @@ struct ConnectWifiStepView: View {
                         .foregroundColor(.borderColor),
                     alignment: .top
                 )
+            } else if !isChecking && !showEarlyOBDAlert {
+                // Sticky footer: I'm connected + Having trouble connecting (main state)
+                VStack(spacing: 12) {
+                    PrimaryButton(
+                        title: "I'm connected – start scan",
+                        action: onStartScan,
+                        isEnabled: true
+                    )
+                    if let action = onHavingTroubleConnecting {
+                        Button(action: action) {
+                            Text("Having trouble connecting?")
+                                .font(.system(size: FontSize.bodySmall, weight: .medium))
+                                .foregroundColor(.textSecondary)
+                                .underline()
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .background(Color.white)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(.borderColor),
+                    alignment: .top
+                )
             }
         }
         .onAppear {
-            if !showEarlyOBDAlert {
-                checkEarlyOBDThenConnect()
-            }
+            checkInitialState()
+            startPolling()
+        }
+        .onDisappear {
+            stopPolling()
         }
         .sheet(isPresented: $showTroubleshootSheet) {
             TroubleshootSheet(onDismiss: { showTroubleshootSheet = false })
         }
     }
     
-    private func checkEarlyOBDThenConnect() {
-        checkingEarlyOBD = true
+    private func checkInitialState() {
+        isChecking = true
         Task {
             await wifiManager.fetchCurrentSSID()
             let hasInternet = await onCheckInternet()
             let onOBDNoInternet = wifiManager.isConnectedToOBDNetwork && !hasInternet
             await MainActor.run {
-                checkingEarlyOBD = false
+                isChecking = false
                 if onOBDNoInternet {
                     showEarlyOBDAlert = true
-                    ErrorEventLogger.shared.log(
-                        screen: "connectWifi",
-                        internetStatus: "offline",
-                        obdStatus: "obd_wifi",
-                        errorCode: .ERR_OBD_EARLY_WIFI,
-                        message: "User on OBD WiFi with no internet before Connect to Scanner"
-                    )
-                } else if wifiManager.connectionState == .idle && !connectionFailed {
-                    startConnection()
+                } else if wifiManager.isConnectedToOBDNetwork {
+                    detectedOBD = true
                 }
             }
         }
     }
     
-    private func startConnection() {
-        isConnecting = true
-        connectionFailed = false
-        
-        Task {
-            let startTime = Date()
-            let savedDevice = DeviceStorage.loadSavedDevice()
-            await wifiManager.connectToScanner(savedDevice: savedDevice)
-            
-            // Ensure connecting state is shown for at least 1 second
-            let elapsed = Date().timeIntervalSince(startTime)
-            if elapsed < 1.0 {
-                try? await Task.sleep(nanoseconds: UInt64((1.0 - elapsed) * 1_000_000_000))
-            }
-            
-            await MainActor.run {
-                isConnecting = false
-                if wifiManager.connectionState == .failed {
-                    connectionFailed = true
-                    connectFailureCount += 1
-                    ErrorEventLogger.shared.log(
-                        screen: "connectWifi",
-                        errorCode: .ERR_OBD_CONNECT_FAIL,
-                        message: "Connect to scanner failed (attempt \(connectFailureCount))"
-                    )
+    private func startPolling() {
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            Task {
+                await wifiManager.fetchCurrentSSID()
+                await MainActor.run {
+                    if wifiManager.isConnectedToOBDNetwork && !showEarlyOBDAlert {
+                        detectedOBD = true
+                    }
                 }
             }
+        }
+    }
+    
+    private func stopPolling() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+    }
+}
+
+/// Numbered instruction row for the connect flow
+private struct InstructionRow: View {
+    let number: String
+    let text: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(number)
+                .font(.system(size: FontSize.bodySmall, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 22, height: 22)
+                .background(Color.mintGreen)
+                .clipShape(Circle())
+            
+            Text(.init(text))  // .init for markdown bold support
+                .font(.system(size: FontSize.bodyRegular))
+                .foregroundColor(.textPrimary)
+                .lineSpacing(4)
         }
     }
 }
@@ -1091,12 +1156,44 @@ struct UnplugDeviceStepView: View {
     }
 }
 
+/// State for disconnect-step help message (still on scanner vs no internet).
+enum DisconnectStepHelpState {
+    case none
+    case stillConnected  // Programmatic disconnect failed; user must switch in Settings
+    case noInternet     // Disconnected but no internet yet
+}
+
 struct DisconnectWifiStepView: View {
     let isDisconnecting: Bool
-    let showHelp: Bool
+    let helpState: DisconnectStepHelpState
+    let retryCount: Int
     let onOpenSettings: () -> Void
     let onRetry: () -> Void
+    var onContinueOffline: (() -> Void)? = nil
     @ObservedObject var wifiManager: WiFiConnectionManager
+    
+    private var headingText: String {
+        if isDisconnecting { return "Disconnecting from scanner Wi‑Fi..." }
+        switch helpState {
+        case .stillConnected: return "Still connected to scanner"
+        case .noInternet: return "No internet connection"
+        case .none: return "Disconnect from scanner Wi‑Fi"
+        }
+    }
+    
+    private var subtitleText: String {
+        if isDisconnecting {
+            return "Please disconnect from the scanner Wi-Fi and connect to your regular internet."
+        }
+        switch helpState {
+        case .stillConnected:
+            return "Please disconnect from the scanner Wi-Fi and connect to your regular internet."
+        case .noInternet:
+            return "We need internet to finish your report. Connect to Wi‑Fi or cellular, or continue with an offline report below."
+        case .none:
+            return "Please disconnect from the scanner Wi-Fi and connect to your regular internet."
+        }
+    }
     
     var body: some View {
         VStack {
@@ -1109,13 +1206,13 @@ struct DisconnectWifiStepView: View {
                         .tint(.mintGreen)
                 }
                 
-                Text(isDisconnecting ? "Disconnecting from scanner Wi-Fi..." : "Still connected to scanner")
+                Text(headingText)
                     .font(.system(size: FontSize.bodyLarge, weight: .medium))
                     .foregroundColor(.textPrimary)
                     .multilineTextAlignment(.center)
                 
-                // Show current network prominently
-                if let ssid = wifiManager.currentSSID {
+                // Only show "Connected to: SSID" when we're actually still on scanner Wi‑Fi (avoids implying scanner when it's just poor cell)
+                if helpState == .stillConnected, let ssid = wifiManager.currentSSID {
                     HStack(spacing: 8) {
                         Image(systemName: "wifi")
                             .foregroundColor(.orange)
@@ -1129,12 +1226,27 @@ struct DisconnectWifiStepView: View {
                     .cornerRadius(8)
                 }
                 
-                Text("Please disconnect from the scanner Wi-Fi and connect to your regular internet.")
+                Text(subtitleText)
                     .font(.system(size: FontSize.bodyRegular))
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.horizontal, 24)
+                
+                // State-specific help when auto-disconnect failed or no internet yet
+                if helpState == .stillConnected {
+                    InfoCard(
+                        text: "Still connected to scanner Wi‑Fi. Open Wi‑Fi Settings, switch to your usual network, then come back and tap \"I've Disconnected – Check Again\".",
+                        icon: "wifi.slash"
+                    )
+                    .padding(.horizontal, 8)
+                } else if helpState == .noInternet {
+                    InfoCard(
+                        text: "We still don't have internet. Connect to your home Wi‑Fi or cellular, then tap \"I've Disconnected – Check Again\". Or continue with an offline report below.",
+                        icon: "wifi.slash"
+                    )
+                    .padding(.horizontal, 8)
+                }
             }
             
             Spacer()
@@ -1144,6 +1256,17 @@ struct DisconnectWifiStepView: View {
                     title: "I've Disconnected – Check Again",
                     action: onRetry
                 )
+                
+                // After 2+ retries with no internet, offer offline report so user isn't stuck
+                if helpState == .noInternet, retryCount >= 2, let continueOffline = onContinueOffline {
+                    Button(action: continueOffline) {
+                        Text("Continue with offline report")
+                            .font(.system(size: FontSize.bodyRegular, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
+                }
                 
                 Button(action: onOpenSettings) {
                     Text("Open Wi-Fi Settings")
@@ -1228,6 +1351,7 @@ struct EnterVinStepView: View {
     let onConfirmDetails: () -> Void
     @Binding var showDecodedInfo: Bool
     @Binding var decodedInfo: VINDecodeResult?
+    var isVinLocked: Bool = false  // Free user scan 2-3: VIN pre-filled and read-only
     
     private var vinCountText: String {
         "\(min(vinNumber.count, 17))/17 characters"
@@ -1268,13 +1392,19 @@ struct EnterVinStepView: View {
                     
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("Scan or Enter VIN")
+                            Text(isVinLocked ? "VIN" : "Scan or Enter VIN")
                                 .font(.system(size: FontSize.bodyRegular, weight: .medium))
                                 .foregroundColor(.textPrimary)
                             
+                            if isVinLocked {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.textSecondary)
+                            }
+                            
                             Spacer()
                             
-                            if showConfirmLink {
+                            if showConfirmLink && !isVinLocked {
                                 Button(action: onConfirmDetails) {
                                     Text("Confirm VIN")
                                         .font(.system(size: FontSize.bodySmall, weight: .semibold))
@@ -1287,21 +1417,24 @@ struct EnterVinStepView: View {
                         HStack(spacing: 12) {
                             TextField("1HGBH41JXMN109186", text: $vinNumber)
                                 .font(.system(size: FontSize.bodyLarge))
-                                .foregroundColor(.textPrimary)
+                                .foregroundColor(isVinLocked ? .textSecondary : .textPrimary)
                                 .autocapitalization(.allCharacters)
                                 .disableAutocorrection(true)
+                                .disabled(isVinLocked)
                             
-                            Button(action: { showCamera = true }) {
-                                Image(systemName: "camera")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.textSecondary)
-                                    .frame(width: 32, height: 32)
+                            if !isVinLocked {
+                                Button(action: { showCamera = true }) {
+                                    Image(systemName: "camera")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.textSecondary)
+                                        .frame(width: 32, height: 32)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                         .padding(.horizontal, LayoutConstants.padding3)
                         .frame(height: 44)
-                        .background(Color.white)
+                        .background(isVinLocked ? Color(.systemGray6) : Color.white)
                         .cornerRadius(LayoutConstants.borderRadius)
                         .overlay(
                             RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
@@ -1309,14 +1442,20 @@ struct EnterVinStepView: View {
                         )
                         
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(vinCountText)
-                                .font(.system(size: FontSize.bodySmall))
-                                .foregroundColor(.textSecondary)
-                            
-                            if showRegionHint {
-                                Text("VIN lookup is optimized for U.S. vehicles and may not work in other regions.")
+                            if isVinLocked {
+                                Text("Free plan is limited to one vehicle. Upgrade to scan more.")
                                     .font(.system(size: FontSize.bodySmall))
                                     .foregroundColor(.textSecondary)
+                            } else {
+                                Text(vinCountText)
+                                    .font(.system(size: FontSize.bodySmall))
+                                    .foregroundColor(.textSecondary)
+                                
+                                if showRegionHint {
+                                    Text("VIN lookup is optimized for U.S. vehicles and may not work in other regions.")
+                                        .font(.system(size: FontSize.bodySmall))
+                                        .foregroundColor(.textSecondary)
+                                }
                             }
                         }
                     }
