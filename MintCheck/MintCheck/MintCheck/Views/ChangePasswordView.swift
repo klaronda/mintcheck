@@ -22,9 +22,18 @@ struct ChangePasswordView: View {
     private var passwordsMatch: Bool {
         !newPassword.isEmpty && newPassword == confirmPassword
     }
+
+    private var newPasswordValidationResult: PasswordValidationResult {
+        PasswordValidator.validate(newPassword)
+    }
+
+    private var newPasswordValidationMessage: String? {
+        guard !newPassword.isEmpty, !newPasswordValidationResult.isValid else { return nil }
+        return newPasswordValidationResult.failureMessage
+    }
     
     private var isFormValid: Bool {
-        !currentPassword.isEmpty && newPassword.count >= 6 && passwordsMatch
+        !currentPassword.isEmpty && newPasswordValidationResult.isValid && passwordsMatch
     }
     
     var body: some View {
@@ -42,9 +51,12 @@ struct ChangePasswordView: View {
                         label: "New password",
                         text: $newPassword,
                         placeholder: "••••••••",
-                        isSecure: true
+                        isSecure: true,
+                        errorMessage: newPasswordValidationMessage
                     )
-                    
+                    Text(PasswordValidator.requirementsHint)
+                        .font(.system(size: FontSize.bodySmall))
+                        .foregroundColor(.textSecondary)
                     InputField(
                         label: "Confirm new password",
                         text: $confirmPassword,

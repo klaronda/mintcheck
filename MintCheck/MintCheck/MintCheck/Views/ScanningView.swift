@@ -147,11 +147,13 @@ struct ScanningView: View {
                         .font(.system(size: FontSize.bodyRegular, weight: .semibold))
                         .foregroundColor(.mintGreen)
                 }
+                .padding(.top, 8)
                 Button(action: { showTroubleshootSheet = true }) {
                     Text("Troubleshoot")
                         .font(.system(size: FontSize.bodyRegular, weight: .medium))
                         .foregroundColor(.textSecondary)
                 }
+                .padding(.top, 8)
             }
             .padding(.horizontal, 24)
         }

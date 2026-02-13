@@ -92,6 +92,8 @@ struct ScanResult: Codable, Identifiable {
     var createdAt: Date?
     var shareCode: String?  // Share link code if report has been shared
     var summary: String?  // AI-generated recommendation summary
+    var vinVerified: Bool?  // True if VIN confirmed (decode or ECU match)
+    var vinMismatch: Bool?  // True if ECU VIN != user-entered VIN
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -108,6 +110,8 @@ struct ScanResult: Codable, Identifiable {
         case createdAt = "created_at"
         case shareCode = "share_code"
         case summary
+        case vinVerified = "vin_verified"
+        case vinMismatch = "vin_mismatch"
     }
 }
 
@@ -179,6 +183,7 @@ struct OBDDataJSON: Codable {
     var warmupCycles: Int?
     var fuelType: String?
     var obdStandard: String?
+    var barometricPressure: Double?
 }
 
 /// System detail for expandable sections

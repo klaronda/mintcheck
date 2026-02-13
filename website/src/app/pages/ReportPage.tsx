@@ -108,15 +108,39 @@ function ReportHeader() {
   );
 }
 
+// Map status text to a display color
+function statusColor(status: string): string {
+  switch (status) {
+    case 'Good': return '#3EB489';
+    case 'Unknown': return '#999999';
+    case 'Needs Attention': return '#E3B341';
+    default:
+      // Issue counts or other attention statuses
+      if (status.includes('Issue')) return '#E3B341';
+      return '#C94A4A';
+  }
+}
+
 // Generate system details from report data
 function generateSystemDetails(rd: ReportData): SystemDetailData[] {
+  // If the iOS app sent authoritative system statuses, use them directly
+  if (rd.systemStatuses && rd.systemStatuses.length > 0) {
+    return rd.systemStatuses.map(s => ({
+      name: s.name,
+      status: s.status,
+      color: statusColor(s.status),
+      details: s.details,
+      explanation: s.explanation,
+    }));
+  }
+
+  // Fallback: derive from DTCs (legacy reports without systemStatuses)
   const dtcs = rd.dtcAnalyses || [];
-  const hasDTCs = dtcs.length > 0;
-  
+
   // Engine status
   const engineDTCs = dtcs.filter(d => d.code.startsWith('P0') || d.code.startsWith('P1'));
   const engineOK = engineDTCs.length === 0;
-  const engineStatus = engineOK ? 'OK' : `${engineDTCs.length} Issue${engineDTCs.length > 1 ? 's' : ''}`;
+  const engineStatus = engineOK ? 'Good' : `${engineDTCs.length} Issue${engineDTCs.length > 1 ? 's' : ''}`;
   const engineColor = engineOK ? '#3EB489' : '#C94A4A';
   const engineDetails = engineOK 
     ? ['No engine trouble codes detected', 'Engine systems functioning normally']
@@ -128,7 +152,7 @@ function generateSystemDetails(rd: ReportData): SystemDetailData[] {
   // Fuel system
   const fuelDTCs = dtcs.filter(d => d.code.startsWith('P02') || d.code.startsWith('P017'));
   const fuelOK = fuelDTCs.length === 0;
-  const fuelStatus = fuelOK ? 'OK' : `${fuelDTCs.length} Issue${fuelDTCs.length > 1 ? 's' : ''}`;
+  const fuelStatus = fuelOK ? 'Good' : `${fuelDTCs.length} Issue${fuelDTCs.length > 1 ? 's' : ''}`;
   const fuelColor = fuelOK ? '#3EB489' : '#E3B341';
   const fuelDetails = fuelOK 
     ? ['Fuel system operating normally', 'No fuel-related codes detected']
@@ -140,7 +164,7 @@ function generateSystemDetails(rd: ReportData): SystemDetailData[] {
   // Emissions
   const emissionsDTCs = dtcs.filter(d => d.code.startsWith('P04') || d.code.startsWith('P042'));
   const emissionsOK = emissionsDTCs.length === 0;
-  const emissionsStatus = emissionsOK ? 'OK' : `${emissionsDTCs.length} Issue${emissionsDTCs.length > 1 ? 's' : ''}`;
+  const emissionsStatus = emissionsOK ? 'Good' : `${emissionsDTCs.length} Issue${emissionsDTCs.length > 1 ? 's' : ''}`;
   const emissionsColor = emissionsOK ? '#3EB489' : '#E3B341';
   const emissionsDetails = emissionsOK 
     ? ['Emissions systems operating normally', 'Catalytic converter functioning properly']
@@ -152,7 +176,7 @@ function generateSystemDetails(rd: ReportData): SystemDetailData[] {
   // Electrical
   const electricalDTCs = dtcs.filter(d => d.code.startsWith('B') || d.code.startsWith('U'));
   const electricalOK = electricalDTCs.length === 0;
-  const electricalStatus = electricalOK ? 'OK' : `${electricalDTCs.length} Issue${electricalDTCs.length > 1 ? 's' : ''}`;
+  const electricalStatus = electricalOK ? 'Good' : `${electricalDTCs.length} Issue${electricalDTCs.length > 1 ? 's' : ''}`;
   const electricalColor = electricalOK ? '#3EB489' : '#E3B341';
   const electricalDetails = electricalOK 
     ? ['Battery and charging system normal', 'No electrical faults detected']

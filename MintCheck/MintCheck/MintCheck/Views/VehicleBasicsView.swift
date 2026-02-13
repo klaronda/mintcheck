@@ -253,23 +253,9 @@ struct VehicleBasicsView: View {
                 }
                 
                 if let error = vinError {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(error)
-                            .font(.system(size: FontSize.bodySmall))
-                            .foregroundColor(.statusDanger)
-                        Button(action: {
-                            nav.feedbackSource = .error_cta
-                            nav.feedbackPrefillMessage = "VIN decode or vehicle entry failed."
-                            nav.feedbackErrorCode = ErrorEventCode.ERR_VIN_DECODE_FAIL.rawValue
-                            nav.feedbackErrorMessage = error
-                            nav.feedbackScanStep = "vehicleBasics"
-                            nav.showFeedbackModal = true
-                        }) {
-                            Text("Report this issue")
-                                .font(.system(size: FontSize.bodySmall, weight: .semibold))
-                                .foregroundColor(.mintGreen)
-                        }
-                    }
+                    Text(error)
+                        .font(.system(size: FontSize.bodySmall))
+                        .foregroundColor(.statusDanger)
                 }
             }
             

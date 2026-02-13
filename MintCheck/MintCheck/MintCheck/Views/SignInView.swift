@@ -79,9 +79,15 @@ struct SignInView: View {
                         label: "Password",
                         text: $password,
                         placeholder: "••••••••",
-                        isSecure: true
+                        isSecure: true,
+                        errorMessage: isCreatingAccount ? passwordValidationMessage : nil
                     )
-                    
+                    if isCreatingAccount {
+                        Text(PasswordValidator.requirementsHint)
+                            .font(.system(size: FontSize.bodySmall))
+                            .foregroundColor(.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     if !isCreatingAccount {
                         Button(action: { showForgotPassword = true }) {
                             Text("Forgot password?")
@@ -125,11 +131,11 @@ struct SignInView: View {
                                 .font(.system(size: 32))
                                 .foregroundColor(.statusSafe)
                             
-                            Text("Check your email!")
+                            Text("Thanks for joining MintCheck.")
                                 .font(.system(size: FontSize.h4, weight: .semibold))
                                 .foregroundColor(.textPrimary)
                             
-                            Text("We sent a confirmation link to \(email). Click the link to activate your account, then come back and sign in.")
+                            Text("We just sent you a confirmation link to the email address you entered above.\n\nTap the button in the email to activate your account.")
                                 .font(.system(size: FontSize.bodyRegular))
                                 .foregroundColor(.textSecondary)
                                 .multilineTextAlignment(.center)
@@ -145,24 +151,11 @@ struct SignInView: View {
                     }
                     
                     if let error = errorMessage ?? authService.error {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(error)
-                                .font(.system(size: FontSize.bodySmall))
-                                .foregroundColor(.statusDanger)
-                            Button(action: {
-                                nav.feedbackSource = .error_cta
-                                nav.feedbackPrefillMessage = "Sign in / Create account failed."
-                                nav.feedbackErrorCode = ErrorEventCode.ERR_AUTH_FAIL.rawValue
-                                nav.feedbackErrorMessage = error
-                                nav.feedbackScanStep = "signIn"
-                                nav.showFeedbackModal = true
-                            }) {
-                                Text("Report this issue")
-                                    .font(.system(size: FontSize.bodySmall, weight: .semibold))
-                                    .foregroundColor(.mintGreen)
-                            }
-                        }
-                        .padding(.vertical, 8)
+                        Text(error)
+                            .font(.system(size: FontSize.bodySmall))
+                            .foregroundColor(.statusDanger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 8)
                     }
                     
                     // Submit button (hide if showing confirmation)
@@ -218,9 +211,19 @@ struct SignInView: View {
         }
     }
     
+    private var passwordValidationResult: PasswordValidationResult {
+        PasswordValidator.validate(password)
+    }
+
+    private var passwordValidationMessage: String? {
+        guard isCreatingAccount, !password.isEmpty, !passwordValidationResult.isValid else { return nil }
+        return passwordValidationResult.failureMessage
+    }
+
     private var isFormValid: Bool {
         if isCreatingAccount {
-            return !email.isEmpty && !password.isEmpty && !firstName.isEmpty && !lastName.isEmpty && password.count >= 6
+            return !email.isEmpty && !firstName.isEmpty && !lastName.isEmpty
+                && passwordValidationResult.isValid
         }
         return !email.isEmpty && !password.isEmpty
     }
@@ -256,7 +259,8 @@ struct SignInView: View {
                 showEmailConfirmation = true
                 errorMessage = nil
             } catch {
-                errorMessage = error.localizedDescription
+                // Prefer AuthService's friendly message (set before rethrow); fallback to error description
+                errorMessage = authService.error ?? error.localizedDescription
             }
         }
     }

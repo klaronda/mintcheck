@@ -9,6 +9,8 @@ import SwiftUI
 
 struct DashboardView: View {
     let onStartCheck: () -> Void
+    /// When provided and Buyer Pass is active, early-access vehicle card shows a second CTA to scan using Buyer Pass.
+    var onStartBuyerPassCheck: (() -> Void)? = nil
     let onViewHistory: (String) -> Void
     let onMenuTap: () -> Void
     
@@ -18,7 +20,7 @@ struct DashboardView: View {
     
     @State private var isEmailConfirmed: Bool = true
     @State private var deepCheckReports: [DeepCheckPurchase] = []
-    @State private var hasOwnScanner: Bool = UserDefaults.standard.bool(forKey: "hasOwnScanner")
+    @State private var hasOwnScanner: Bool = false
     @State private var showScannerDismissToast: Bool = false
     
     var body: some View {
@@ -41,31 +43,63 @@ struct DashboardView: View {
                     }
                     
                     if authService.hasFullAccess {
-                        // Full access: primary card, recent scans, OBD, upgrade options
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Ready to check a vehicle?")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.textPrimary)
-                            
-                            Text(authService.isEarlyAccess
-                                 ? "Scan one vehicle. Know what's going on."
-                                 : "Scan as many vehicles as you like. Know what's going on.")
-                                .font(.system(size: FontSize.bodyLarge))
-                                .foregroundColor(.textSecondary)
-                                .lineSpacing(4)
-                            
-                            PrimaryButton(
-                                title: "Start a Mint Check",
-                                action: onStartCheck
+                        // Full access: primary card (or early-access "Your vehicle" card), recent scans, OBD, upgrade options
+                        if authService.isEarlyAccess, let vehicle = scanService.vehicles.first {
+                            // Early access with a saved vehicle: show vehicle card
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text(vehicle.shortDisplayName)
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(.textPrimary)
+                                Text("As an early adopter of MintCheck, scans for this vehicle are free – no plan required.")
+                                    .font(.system(size: FontSize.bodyLarge))
+                                    .foregroundColor(.textSecondary)
+                                    .lineSpacing(4)
+                                PrimaryButton(
+                                    title: "Scan Again",
+                                    action: onStartCheck
+                                )
+                                if BuyerPassService.shared.activeBuyerPass?.isActive == true,
+                                   let onBP = onStartBuyerPassCheck {
+                                    SecondaryButton(
+                                        title: "Scan with Buyer Pass",
+                                        action: onBP,
+                                        style: .outlined
+                                    )
+                                    .padding(.top, 8)
+                                }
+                            }
+                            .padding(LayoutConstants.padding6)
+                            .background(Color.white)
+                            .cornerRadius(LayoutConstants.borderRadius)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
+                                    .stroke(Color.borderColor, lineWidth: 1)
+                            )
+                        } else {
+                            // Full access (or early access with no vehicle yet): standard "Ready to check" card
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Ready to check a vehicle?")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundColor(.textPrimary)
+                                Text(authService.isEarlyAccess
+                                     ? "Scan one vehicle. Know what's going on."
+                                     : "Scan as many vehicles as you like. Know what's going on.")
+                                    .font(.system(size: FontSize.bodyLarge))
+                                    .foregroundColor(.textSecondary)
+                                    .lineSpacing(4)
+                                PrimaryButton(
+                                    title: "Start a Mint Check",
+                                    action: onStartCheck
+                                )
+                            }
+                            .padding(LayoutConstants.padding6)
+                            .background(Color.white)
+                            .cornerRadius(LayoutConstants.borderRadius)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
+                                    .stroke(Color.borderColor, lineWidth: 1)
                             )
                         }
-                        .padding(LayoutConstants.padding6)
-                        .background(Color.white)
-                        .cornerRadius(LayoutConstants.borderRadius)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
-                                .stroke(Color.borderColor, lineWidth: 1)
-                        )
                         
                         if !scanService.scanHistory.isEmpty {
                             VStack(alignment: .leading, spacing: 16) {
@@ -173,6 +207,12 @@ struct DashboardView: View {
                         
                         // Show active Buyer Pass card if active; otherwise show upsell
                         if let activeSub = BuyerPassService.shared.activeBuyerPass, activeSub.isActive {
+                            if !hasOwnScanner {
+                                OBDDeviceSection(onDismiss: dismissScannerSection)
+                            } else if showScannerDismissToast {
+                                ScannerDismissToast()
+                            }
+
                             VStack(alignment: .leading, spacing: 16) {
                                 Text("Scan Plans")
                                     .font(.system(size: FontSize.h4, weight: .semibold))
@@ -260,6 +300,7 @@ struct DashboardView: View {
         }
         .background(Color.deepBackground)
         .onAppear {
+            hasOwnScanner = UserDefaults.standard.bool(forKey: scannerDismissKey())
             loadData()
             Task { await refreshEmailConfirmed() }
         }
@@ -268,7 +309,7 @@ struct DashboardView: View {
     private func refreshDashboard() async {
         guard let userId = authService.currentUser?.id else { return }
         try? await scanService.loadScanHistory(userId: userId)
-        if !authService.hasFullAccess {
+        if !authService.hasFullAccess || authService.isEarlyAccess {
             try? await scanService.loadVehicles(userId: userId)
         }
         await authService.refreshBuyerPassStatus()
@@ -279,8 +320,14 @@ struct DashboardView: View {
         await refreshEmailConfirmed()
     }
     
+    private func scannerDismissKey() -> String {
+        let uid = authService.currentUser?.id.uuidString ?? ""
+        return "hasOwnScanner_\(uid)"
+    }
+
     private func dismissScannerSection() {
-        UserDefaults.standard.set(true, forKey: "hasOwnScanner")
+        let key = scannerDismissKey()
+        UserDefaults.standard.set(true, forKey: key)
         withAnimation(.easeInOut(duration: 0.25)) {
             hasOwnScanner = true
             showScannerDismissToast = true
@@ -300,7 +347,7 @@ struct DashboardView: View {
         guard let userId = authService.currentUser?.id else { return }
         Task {
             try? await scanService.loadScanHistory(userId: userId)
-            if !authService.hasFullAccess {
+            if !authService.hasFullAccess || authService.isEarlyAccess {
                 try? await scanService.loadVehicles(userId: userId)
             }
             await authService.refreshBuyerPassStatus()

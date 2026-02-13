@@ -52,6 +52,13 @@ export interface ReportData {
     urgency?: string;
   }>;
   nhtsaData?: NHTSAData;
+  /// Authoritative system statuses from the iOS app (Engine, Fuel System, Emissions, Electrical)
+  systemStatuses?: Array<{
+    name: string;
+    status: string;       // "Good", "Unknown", "Needs Attention", etc.
+    details: string[];
+    explanation: string;
+  }>;
 }
 
 export interface SharedReport {

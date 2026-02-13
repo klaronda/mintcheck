@@ -42,6 +42,13 @@ class ShareService {
         let userName: String
     }
     
+    struct SystemStatusJSON: Codable {
+        let name: String
+        let status: String
+        let details: [String]
+        let explanation: String
+    }
+    
     struct ReportData: Codable {
         let vehicleYear: String
         let vehicleMake: String
@@ -57,6 +64,7 @@ class ShareService {
         let askingPrice: Int?
         let dtcAnalyses: [SharedDTCAnalysis]?
         let nhtsaData: NHTSADataJSON?
+        let systemStatuses: [SystemStatusJSON]?
     }
     
     struct ShareResponse: Codable {
@@ -131,6 +139,7 @@ class ShareService {
         askingPrice: Int?,
         dtcAnalyses: [DTCAnalysisService.DTCAnalysis]?,
         nhtsaData: NHTSADataJSON?,
+        systemStatuses: [SystemStatusJSON]?,
         userEmail: String,
         userName: String,
         accessToken: String
@@ -167,7 +176,8 @@ class ShareService {
             odometerReading: odometerReading,
             askingPrice: askingPrice,
             dtcAnalyses: sharedDtcAnalyses,
-            nhtsaData: nhtsaData
+            nhtsaData: nhtsaData,
+            systemStatuses: systemStatuses
         )
         
         let request = ShareRequest(

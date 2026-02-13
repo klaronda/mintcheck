@@ -29,7 +29,6 @@ struct ResultsView: View {
     var vinVerified: Bool? = nil
     var vinMismatch: Bool? = nil
     var vinPartial: Bool? = nil
-    var onVerifyDetails: (() -> Void)? = nil
     
     @Environment(\.openURL) private var openURL
     @State private var expandedSections: Set<String> = []
@@ -150,15 +149,6 @@ struct ResultsView: View {
                                     .font(.system(size: FontSize.bodyRegular))
                                     .foregroundColor(.textSecondary)
                             }
-                            if let action = onVerifyDetails {
-                                Button(action: action) {
-                                    Text("Verify or update vehicle details")
-                                        .font(.system(size: FontSize.bodySmall, weight: .medium))
-                                        .foregroundColor(.textSecondary)
-                                        .underline()
-                                }
-                                .buttonStyle(.plain)
-                            }
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
@@ -210,8 +200,7 @@ struct ResultsView: View {
                         vinVerified: vinVerified,
                         vinMismatch: vinMismatch,
                         vinPartial: vinPartial,
-                        ecuVin: scanResults?.vin,
-                        onVerifyDetails: onVerifyDetails
+                        ecuVin: scanResults?.vin
                     )
                     
                     // Disclaimer with scan date
@@ -562,20 +551,11 @@ struct FindingsWithPricingCard: View {
                     }
                     .padding(.top, 4)
                 } else if aiNetworkError {
-                    // Network error - show specific message
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Estimated value not available. You are not connected to the internet.")
-                            .font(.system(size: FontSize.bodyRegular))
-                            .foregroundColor(.textSecondary)
-                        if let report = onReportIssue {
-                            Button(action: report) {
-                                Text("Report this issue")
-                                    .font(.system(size: FontSize.bodySmall, weight: .semibold))
-                                    .foregroundColor(.mintGreen)
-                            }
-                        }
-                    }
-                    .padding(.top, 4)
+                    // Network error - show specific message (no Report this issue; user/network, not app bug)
+                    Text("Estimated value not available. You are not connected to the internet.")
+                        .font(.system(size: FontSize.bodyRegular))
+                        .foregroundColor(.textSecondary)
+                        .padding(.top, 4)
                 }
                 
                 Text("Current market prices for a \(vehicleInfo.year) \(vehicleInfo.make) \(vehicleInfo.model) may vary by trim, condition and region.")
@@ -623,7 +603,6 @@ struct VehicleDetailsCard: View {
     var vinMismatch: Bool? = nil
     var vinPartial: Bool? = nil
     var ecuVin: String? = nil  // From scanResults.vin (full or partial)
-    var onVerifyDetails: (() -> Void)? = nil
     
     private var ecuVinTrimmed: String? {
         guard let v = ecuVin?.trimmingCharacters(in: .whitespaces), !v.isEmpty else { return nil }
@@ -683,15 +662,6 @@ struct VehicleDetailsCard: View {
                     Text("We got a partial VIN from your vehicle. Make, model and year are from your input.")
                         .font(.system(size: FontSize.bodySmall))
                         .foregroundColor(.textSecondary)
-                    if let action = onVerifyDetails {
-                        Button(action: action) {
-                            Text("Verify or update vehicle details")
-                                .font(.system(size: FontSize.bodySmall, weight: .medium))
-                                .foregroundColor(.textSecondary)
-                                .underline()
-                        }
-                        .buttonStyle(.plain)
-                    }
                 }
                 .padding(.horizontal, LayoutConstants.padding6)
                 .padding(.vertical, LayoutConstants.padding4)
@@ -703,15 +673,6 @@ struct VehicleDetailsCard: View {
                         : "VIN was not provided. Details shown are based on user input.")
                         .font(.system(size: FontSize.bodySmall))
                         .foregroundColor(.textSecondary)
-                    if let action = onVerifyDetails {
-                        Button(action: action) {
-                            Text("Verify or update vehicle details")
-                                .font(.system(size: FontSize.bodySmall, weight: .medium))
-                                .foregroundColor(.textSecondary)
-                                .underline()
-                        }
-                        .buttonStyle(.plain)
-                    }
                 }
                 .padding(.horizontal, LayoutConstants.padding6)
                 .padding(.vertical, LayoutConstants.padding4)

@@ -21,10 +21,12 @@ struct ShareReportSheet: View {
     let askingPrice: Int?
     let dtcAnalyses: [DTCAnalysisService.DTCAnalysis]?
     let nhtsaData: NHTSADataJSON?
+    let systemStatuses: [ShareService.SystemStatusJSON]?  // Authoritative system statuses from in-app results
     let existingShareCode: String?  // Existing share code if report was already shared
     let onDismiss: () -> Void
     let onShareCodeCreated: ((String) -> Void)?  // Callback when a new share code is created
     var isOffline: Bool = false  // When true, show offline message and disable send
+    var isScanSaving: Bool = false  // When true, scan is still being saved — block share until done
     var onReportIssue: (() -> Void)? = nil  // When send fails, optional "Report this issue" callback
     
     @EnvironmentObject var authService: AuthService
@@ -369,6 +371,10 @@ struct ShareReportSheet: View {
             errorMessage = "You're offline. Sharing will be available when you're back online."
             return
         }
+        if isScanSaving {
+            errorMessage = "Your scan is still saving. Please try again in a moment."
+            return
+        }
         
         // Client-side email validation
         let recipientStrings = recipientsText
@@ -416,6 +422,7 @@ struct ShareReportSheet: View {
                     askingPrice: askingPrice,
                     dtcAnalyses: dtcAnalyses,
                     nhtsaData: nhtsaData,
+                    systemStatuses: systemStatuses,
                     userEmail: user.email ?? "",
                     userName: userName.isEmpty ? "MintCheck User" : userName,
                     accessToken: accessToken
@@ -433,7 +440,7 @@ struct ShareReportSheet: View {
                             onShareCodeCreated?(newCode)
                         }
                     } else {
-                        errorMessage = response.error ?? "Failed to send report"
+                        errorMessage = userFacingShareErrorMessage(response.error ?? "Failed to send report")
                         if let url = response.shareUrl ?? (hasExistingLink ? existingShareUrl : nil) {
                             sendFailedWithLink = url
                         }
@@ -447,7 +454,7 @@ struct ShareReportSheet: View {
             } catch {
                 await MainActor.run {
                     isLoading = false
-                    errorMessage = error.localizedDescription
+                    errorMessage = userFacingShareErrorMessage(error.localizedDescription)
                     if hasExistingLink, let url = existingShareUrl {
                         sendFailedWithLink = url
                     }
@@ -461,6 +468,34 @@ struct ShareReportSheet: View {
         }
     }
     
+    /// Maps raw API/network error (e.g. "HTTP 500") to a short, user-facing message shown in red.
+    private func userFacingShareErrorMessage(_ raw: String) -> String {
+        let lower = raw.lowercased()
+        if lower.contains("500") || lower.contains("internal server error") {
+            return "Something went wrong on our end. Please try again in a moment."
+        }
+        if lower.contains("502") || lower.contains("503") || lower.contains("504") {
+            return "Our servers are temporarily busy. Please try again in a moment."
+        }
+        if lower.contains("400") || lower.contains("bad request") {
+            return "We couldn't send the report. Please check the email addresses and try again."
+        }
+        if lower.contains("401") || lower.contains("unauthorized") {
+            return "Please sign in again to share reports."
+        }
+        if lower.contains("429") || lower.contains("too many requests") {
+            return "Too many attempts. Please wait a moment and try again."
+        }
+        if lower.contains("network") || lower.contains("connection") || lower.contains("offline") {
+            return "We couldn't reach our servers. Check your connection and try again."
+        }
+        // If it already looks like a sentence, use it; otherwise avoid showing raw codes
+        if raw.starts(with: "HTTP ") || raw.allSatisfy({ $0.isNumber }) || raw.count < 10 {
+            return "We couldn't send the email. Please try again."
+        }
+        return raw
+    }
+
     private func copyToClipboard(_ text: String) {
         UIPasteboard.general.string = text
     }
@@ -510,6 +545,7 @@ private extension String {
         askingPrice: 19500,
         dtcAnalyses: nil,
         nhtsaData: nil,
+        systemStatuses: nil,
         existingShareCode: nil,
         onDismiss: {},
         onShareCodeCreated: nil

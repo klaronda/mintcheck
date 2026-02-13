@@ -107,7 +107,8 @@ class AuthService: ObservableObject {
             
             // Check if email confirmation is required (session will be nil)
             if authResponse.session == nil {
-                // User created but needs to confirm email
+                // Send confirmation email via Resend (branded template)
+                try? await sendConfirmationEmail(to: data.email, type: "signup")
                 // Still try to update profile with name
                 try? await supabase
                     .from("profiles")
@@ -172,9 +173,31 @@ class AuthService: ObservableObject {
             
             return profile
         } catch {
-            self.error = error.localizedDescription
+            self.error = Self.friendlyMessage(forSignInError: error)
             throw error
         }
+    }
+
+    /// User-facing message for invalid credentials / wrong password.
+    static let friendlySignInFailureMessage = "We couldn't sign you in. Double-check your email and password. If you use a password manager, try pasting your password again or typing it manually."
+
+    /// Map sign-in or reauth errors to a friendly message.
+    static func friendlyMessage(forSignInError error: Error) -> String {
+        if let authError = error as? AuthError {
+            return authError.errorDescription ?? friendlySignInFailureMessage
+        }
+        let msg = error.localizedDescription.lowercased()
+        if msg.contains("invalid") && (msg.contains("credential") || msg.contains("login") || msg.contains("password") || msg.contains("email")),
+           msg.contains("confirm") == false {
+            return friendlySignInFailureMessage
+        }
+        if msg.contains("email not confirmed") || msg.contains("confirm your email") {
+            return "Please check your email to confirm your account."
+        }
+        if msg.contains("user not found") || msg.contains("no user") || msg.contains("not found") {
+            return "No account found with this email. Try creating an account or check for typos."
+        }
+        return "We couldn't sign you in. Please check your email and password."
     }
     
     // MARK: - Sign Out
@@ -209,7 +232,7 @@ class AuthService: ObservableObject {
             )
             return true
         } catch {
-            self.error = error.localizedDescription
+            self.error = Self.friendlyMessage(forSignInError: error)
             throw error
         }
     }
@@ -316,7 +339,11 @@ class AuthService: ObservableObject {
     /// Resend email confirmation link (for unconfirmed accounts).
     func resendConfirmationEmail() async throws {
         guard let email = currentUser?.email else { throw AuthError.notAuthenticated }
-        let session = try? await supabase.auth.session
+        try await sendConfirmationEmail(to: email, type: "signup")
+    }
+
+    /// Send confirmation email via Edge Function (Resend). Used for first signup and resend. No session required.
+    private func sendConfirmationEmail(to email: String, type: String) async throws {
         let baseURL = SupabaseConfig.shared.baseURL
         guard let url = URL(string: "\(baseURL.absoluteString)/functions/v1/send-confirmation-email") else {
             throw AuthError.signUpFailed
@@ -325,10 +352,10 @@ class AuthService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(SupabaseConfig.shared.anonKey, forHTTPHeaderField: "apikey")
-        if let token = session?.accessToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let session = try? await supabase.auth.session {
+            request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
         }
-        request.httpBody = try? JSONEncoder().encode(["email": email, "type": "signup"])
+        request.httpBody = try? JSONEncoder().encode(["email": email, "type": type])
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw AuthError.signUpFailed }
         guard http.statusCode == 200 else {
@@ -432,7 +459,7 @@ enum AuthError: LocalizedError {
         case .signUpFailed:
             return "Failed to create account. Please try again."
         case .signInFailed:
-            return "Invalid email or password."
+            return AuthService.friendlySignInFailureMessage
         case .notAuthenticated:
             return "You must be signed in to perform this action."
         case .profileNotFound:

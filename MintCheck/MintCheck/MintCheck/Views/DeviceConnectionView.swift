@@ -267,12 +267,14 @@ struct WiFiSearchingView: View {
                                 .background(Color.white.opacity(0.2))
                                 .cornerRadius(LayoutConstants.borderRadius)
                         }
+                        .padding(.top, 8)
                         
                         Button(action: onDismiss) {
                             Text("Cancel")
                                 .font(.system(size: FontSize.bodyLarge))
                                 .foregroundColor(.white.opacity(0.8))
                         }
+                        .padding(.top, 8)
                     }
                     .padding(.horizontal, 40)
                     .padding(.top, 8)

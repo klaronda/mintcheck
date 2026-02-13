@@ -109,63 +109,9 @@ struct ScanFlowView: View {
                         }
                     },
                     onCheckInternet: { await connectionManager.checkInternetStatus() },
-                    onReportIssue: {
-                        nav.feedbackSource = .error_cta
-                        nav.feedbackPrefillMessage = "Issue occurred during connect_obd"
-                        nav.feedbackErrorCode = ErrorEventCode.ERR_OBD_EARLY_WIFI.rawValue
-                        nav.feedbackErrorMessage = "Scanner connected too soon"
-                        nav.feedbackScanStep = "connect_obd"
-                        nav.showFeedbackModal = true
-                    },
-                    onReportConnectFailed: { count in
-                        nav.feedbackSource = .error_cta
-                        nav.feedbackPrefillMessage = "Couldn't find your scanner automatically."
-                        nav.feedbackErrorCode = ErrorEventCode.ERR_OBD_CONNECT_FAIL.rawValue
-                        nav.feedbackErrorMessage = "Connect to scanner failed (attempt \(count))"
-                        nav.feedbackScanStep = "connect_obd"
-                        nav.showFeedbackModal = true
-                    },
-                    onHavingTroubleConnecting: {
-                        let article = SupportArticle(
-                            id: "connect-scanner",
-                            title: "How to connect your OBD-II scanner",
-                            content: """
-                            Follow these steps to connect your OBD-II scanner and start a vehicle scan:
-                            
-                            **Step 1: Locate the OBD-II port**
-                            Find the port under the dashboard on the driver's side. See our "Finding your OBD-II port" article for detailed instructions.
-                            
-                            **Step 2: Plug in the scanner**
-                            Insert your OBD-II scanner firmly into the port. It should click into place.
-                            
-                            **Step 3: Turn on the ignition**
-                            Turn your vehicle's ignition to the "ON" position. The engine does not need to be running for most scans.
-                            
-                            **Step 4: Connect to the scanner**
-                            
-                            For WiFi scanners:
-                            - Open your phone's Settings
-                            - Go to WiFi settings
-                            - Connect to the scanner's network (usually named "OBDII", "WiFi_OBD", or similar)
-                            - Return to MintCheck
-                            
-                            For Bluetooth scanners:
-                            - Enable Bluetooth on your phone
-                            - Pair with the scanner in your phone's Bluetooth settings
-                            - Return to MintCheck
-                            
-                            **Step 5: Start the scan**
-                            Tap "Start Scan" in MintCheck to begin the diagnostic check. The scan typically takes 30-60 seconds.
-                            
-                            **Troubleshooting:**
-                            - Make sure the scanner is fully inserted
-                            - Ensure the ignition is on (not just accessories)
-                            - Try reconnecting to the scanner's WiFi/Bluetooth
-                            - Restart the scanner by unplugging and re-plugging it
-                            """
-                        )
-                        onExitToScannerHelp(article)
-                    },
+                    onReportIssue: nil,
+                    onReportConnectFailed: nil,
+                    onHavingTroubleConnecting: nil,
                     isOffline: connectionManager.internetStatus == .offline,
                     wifiManager: connectionManager.wifiManager
                 )
@@ -831,6 +777,7 @@ struct LocatePortStepView: View {
                         .font(.system(size: FontSize.bodyLarge, weight: .semibold))
                         .foregroundColor(.textSecondary)
                 }
+                .padding(.top, 8)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
@@ -998,15 +945,12 @@ struct ConnectWifiStepView: View {
                         action: onStartScan,
                         isEnabled: true
                     )
-                    if let action = onHavingTroubleConnecting {
-                        Button(action: action) {
-                            Text("Having trouble connecting?")
-                                .font(.system(size: FontSize.bodySmall, weight: .medium))
-                                .foregroundColor(.textSecondary)
-                                .underline()
-                        }
-                        .buttonStyle(.plain)
+                    Button(action: { showTroubleshootSheet = true }) {
+                        Text("Having trouble connecting?")
+                            .font(.system(size: FontSize.bodyLarge, weight: .semibold))
+                            .foregroundColor(.textSecondary)
                     }
+                    .padding(.top, 8)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
@@ -1266,6 +1210,7 @@ struct DisconnectWifiStepView: View {
                             .underline()
                     }
                     .buttonStyle(.plain)
+                    .padding(.top, 8)
                 }
                 
                 Button(action: onOpenSettings) {
@@ -1273,6 +1218,7 @@ struct DisconnectWifiStepView: View {
                         .font(.system(size: FontSize.bodyLarge, weight: .semibold))
                         .foregroundColor(.mintGreen)
                 }
+                .padding(.top, 8)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
@@ -1458,6 +1404,11 @@ struct EnterVinStepView: View {
                                 }
                             }
                         }
+                        .onChange(of: vinNumber) { newValue in
+                            if newValue.count == 17 && newValue.isValidVIN && !isVinLocked && !showDecodedInfo {
+                                onConfirmDetails()
+                            }
+                        }
                     }
                     
                     // Decoded Vehicle Info Card (green box)
@@ -1549,6 +1500,7 @@ struct EnterVinStepView: View {
                         .font(.system(size: FontSize.bodyLarge, weight: .semibold))
                         .foregroundColor(.textSecondary)
                 }
+                .padding(.top, 8)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)

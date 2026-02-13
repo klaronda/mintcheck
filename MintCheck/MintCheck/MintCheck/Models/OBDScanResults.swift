@@ -72,7 +72,8 @@ struct OBDScanResults: Codable {
             distanceSinceCleared: distanceSinceCleared,
             warmupCycles: warmupsSinceCleared,
             fuelType: fuelType,
-            obdStandard: obdStandard
+            obdStandard: obdStandard,
+            barometricPressure: barometricPressure
         )
     }
 }

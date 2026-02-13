@@ -67,6 +67,13 @@ class NavigationManager: ObservableObject {
         scanFlowId += 1
     }
     
+    /// Start scan flow with Buyer Pass (early-access users: any vehicle, use BP quota). Resets scan data then sets flag.
+    func startScanWithBuyerPass() {
+        resetScanData()
+        currentScanData.useBuyerPassForThisScan = true
+        currentScreen = .scanFlow
+    }
+    
     /// Show a user-facing toast. When errorCode is non-nil, the toast shows "Report this issue".
     func showErrorToast(_ message: String, errorCode: String? = nil, errorMessage: String? = nil, scanStep: String? = nil) {
         Task { @MainActor in
@@ -152,6 +159,8 @@ struct ScanData {
     var vinMismatch: Bool?  // True if ECU VIN != user-entered VIN
     var vinPartial: Bool? = nil  // True when ECU returned non-empty VIN with length != 17
     var freeUserVinBlocked: Bool = false  // True if free user scanned a different vehicle
+    /// When true, early-access user is using Buyer Pass for this scan (any vehicle, use BP quota)
+    var useBuyerPassForThisScan: Bool = false
 }
 
 enum DeviceType: Codable {
@@ -172,7 +181,7 @@ struct ContentView: View {
     @State private var showVinMismatchBlockAlert = false  // Early Access: block scan when VIN mismatch unresolved
     @State private var showFreeScansMaxedAlert = false  // Free user: all 3 free scans used
     @State private var showBuyerPassDailyLimitAlert = false  // Buyer Pass: 10/day limit reached
-    @State private var showVerifyDetailsAlert = false  // "Verify or update vehicle details" tapped on results
+    
     
     /// Screens that show the bottom tab bar
     private var showsTabBar: Bool {
@@ -181,6 +190,74 @@ struct ContentView: View {
     
     /// Summary for share/save: AI summary when non-empty, otherwise default so report always has text
     private static let defaultSummaryText = "Vehicle scan completed. Review the report for full details."
+    
+    /// Build authoritative system statuses from OBD scan results, matching ResultsView logic.
+    private static func buildSystemStatuses(from scanResults: OBDScanResults?) -> [ShareService.SystemStatusJSON] {
+        let dtcs = scanResults?.dtcs ?? []
+        let emissionsDTCs = dtcs.filter { $0.hasPrefix("P04") || $0.hasPrefix("P044") }
+        
+        func status(hasData: Bool, isOK: Bool, unknownDetails: [String], unknownExplanation: String,
+                     goodDetails: [String], goodExplanation: String,
+                     attentionStatus: String, attentionDetails: [String], attentionExplanation: String)
+        -> (status: String, details: [String], explanation: String) {
+            if !hasData { return ("Unknown", unknownDetails, unknownExplanation) }
+            if isOK { return ("Good", goodDetails, goodExplanation) }
+            return (attentionStatus, attentionDetails, attentionExplanation)
+        }
+        
+        let unknownMsg = "This system wasn't tested or didn't report enough data to evaluate."
+        
+        // Engine
+        let hasEngineData = (scanResults?.rpm != nil || scanResults?.coolantTemp != nil) || !dtcs.isEmpty
+        var engineAttnDetails = ["\(dtcs.count) trouble code\(dtcs.count == 1 ? "" : "s") detected"]
+        for dtc in dtcs.prefix(3) { engineAttnDetails.append(dtc) }
+        let engine = status(hasData: hasEngineData, isOK: dtcs.isEmpty,
+                            unknownDetails: ["No engine data was reported by the vehicle"], unknownExplanation: unknownMsg,
+                            goodDetails: ["No trouble codes detected", "All sensors responding correctly", "Timing and performance normal"],
+                            goodExplanation: "The engine is operating normally with no issues detected.",
+                            attentionStatus: "Needs Attention", attentionDetails: engineAttnDetails,
+                            attentionExplanation: "The engine has trouble codes that need attention.")
+        
+        // Fuel
+        let hasFuelData = scanResults?.fuelLevel != nil || scanResults?.shortTermFuelTrim != nil || scanResults?.longTermFuelTrim != nil
+        let fuelOK = (scanResults?.fuelLevel ?? 50) > 10
+        let fuel = status(hasData: hasFuelData, isOK: fuelOK,
+                          unknownDetails: ["No fuel system data was reported by the vehicle"], unknownExplanation: unknownMsg,
+                          goodDetails: ["Fuel system operating normally", "No leaks detected", "Injectors responding correctly"],
+                          goodExplanation: "The fuel system is delivering the correct amount of fuel and maintaining proper pressure.",
+                          attentionStatus: "Low", attentionDetails: ["Fuel level low", "Check fuel system if recently filled"],
+                          attentionExplanation: "The fuel level is low.")
+        
+        // Emissions
+        let hasEmissionsData = !emissionsDTCs.isEmpty || scanResults?.barometricPressure != nil
+        let emissionsOK = emissionsDTCs.isEmpty
+        let emissionsAttnDetails = ["Emissions-related codes detected"] + emissionsDTCs.prefix(2).map { $0 }
+        let emissions = status(hasData: hasEmissionsData, isOK: emissionsOK,
+                               unknownDetails: ["No emissions data was reported by the vehicle"], unknownExplanation: unknownMsg,
+                               goodDetails: ["Catalytic converter functioning normally", "All emissions monitors ready", "Should pass emissions testing"],
+                               goodExplanation: "All emissions systems are functioning correctly.",
+                               attentionStatus: "Needs Attention", attentionDetails: emissionsAttnDetails,
+                               attentionExplanation: "Some emissions systems may need attention.")
+        
+        // Electrical
+        let hasElectricalData = scanResults?.batteryVoltage != nil
+        let voltage = scanResults?.batteryVoltage ?? 0
+        let electricalOK = voltage >= 12.4 && voltage <= 14.8
+        let electrical = status(hasData: hasElectricalData, isOK: electricalOK,
+                                unknownDetails: ["No battery/electrical data was reported by the vehicle"], unknownExplanation: unknownMsg,
+                                goodDetails: ["Battery voltage normal", "Charging system functioning", "Electrical systems stable"],
+                                goodExplanation: "The electrical system is functioning properly.",
+                                attentionStatus: "Needs Attention",
+                                attentionDetails: voltage < 12.4 ? ["Battery voltage low (\(String(format: "%.1f", voltage))V)"] : ["Battery voltage high (\(String(format: "%.1f", voltage))V)"],
+                                attentionExplanation: "The battery or charging system may need attention.")
+        
+        return [
+            ShareService.SystemStatusJSON(name: "Engine", status: engine.status, details: engine.details, explanation: engine.explanation),
+            ShareService.SystemStatusJSON(name: "Fuel System", status: fuel.status, details: fuel.details, explanation: fuel.explanation),
+            ShareService.SystemStatusJSON(name: "Emissions", status: emissions.status, details: emissions.details, explanation: emissions.explanation),
+            ShareService.SystemStatusJSON(name: "Electrical", status: electrical.status, details: electrical.details, explanation: electrical.explanation),
+        ]
+    }
     private var effectiveSummaryForShare: String {
         let s = nav.currentScanData.dtcAnalysis?.summary
         let trimmed = s.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
@@ -193,6 +270,7 @@ struct ContentView: View {
             if nav.authCheckComplete && authService.currentUser != nil {
                 DashboardView(
                     onStartCheck: { nav.resetScanData(); nav.currentScreen = .scanFlow },
+                    onStartBuyerPassCheck: { nav.startScanWithBuyerPass() },
                     onViewHistory: handleViewHistory,
                     onMenuTap: { isMenuOpen = true }
                 )
@@ -313,14 +391,7 @@ struct ContentView: View {
                         onClose: handleCloseResults,
                         onDelete: handleDeleteScan,
                         onUploadNow: handleUploadNow,
-                        onReportIssue: {
-                            nav.feedbackSource = .error_cta
-                            nav.feedbackPrefillMessage = "AI / DTC analysis or value estimate failed or unavailable."
-                            nav.feedbackErrorCode = ErrorEventCode.ERR_AI_ANALYSIS_FAIL.rawValue
-                            nav.feedbackErrorMessage = "Estimated value not available (network error)"
-                            nav.feedbackScanStep = "results"
-                            nav.showFeedbackModal = true
-                        },
+                        onReportIssue: nil,
                         onOpenDeepCheckReport: { url in
                             nav.deepCheckReportURL = url
                             nav.returnToScreenAfterDeepCheckReport = .results
@@ -328,8 +399,7 @@ struct ContentView: View {
                         },
                         vinVerified: nav.currentScanData.vinVerified,
                         vinMismatch: nav.currentScanData.vinMismatch,
-                        vinPartial: nav.currentScanData.vinPartial,
-                        onVerifyDetails: { DispatchQueue.main.async { showVerifyDetailsAlert = true } }
+                        vinPartial: nav.currentScanData.vinPartial
                     )
                 } else {
                     // Fallback: missing data - this should not happen
@@ -383,7 +453,13 @@ struct ContentView: View {
             case .emailConfirmationSuccess:
                 EmailConfirmationView(
                     onContinue: {
-                        nav.currentScreen = authService.currentUser != nil ? .dashboard : .signIn
+                        if authService.currentUser == nil {
+                            nav.currentScreen = .signIn
+                        } else {
+                            // First time entering after email confirm: show onboarding like handleSignIn(isNewSignup: true)
+                            nav.resetOnboarding()
+                            nav.currentScreen = nav.hasSeenOnboarding ? .dashboard : .onboarding
+                        }
                     }
                 )
                 .environmentObject(authService)
@@ -475,11 +551,6 @@ struct ContentView: View {
         } message: {
             Text("You've reached your 10 scan limit for today. Come back tomorrow to scan more vehicles.")
         }
-        .alert("Update vehicle details", isPresented: $showVerifyDetailsAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("To update vehicle details, start a new scan.")
-        }
         .overlay {
             if isMenuOpen {
                 ZStack(alignment: .trailing) {
@@ -531,12 +602,14 @@ struct ContentView: View {
                     askingPrice: nav.currentScanData.humanCheck?.askingPrice,
                     dtcAnalyses: nav.currentScanData.dtcAnalysis?.analyses,
                     nhtsaData: nav.currentScanData.historyReport?.toJSON(),
+                    systemStatuses: Self.buildSystemStatuses(from: nav.currentScanData.scanResults),
                     existingShareCode: nav.currentScanData.shareCode,
                     onDismiss: { showShareSheet = false },
                     onShareCodeCreated: { newCode in
                         nav.currentScanData.shareCode = newCode
                     },
                     isOffline: connectionManager.internetStatus == .offline,
+                    isScanSaving: nav.isSavingScan || nav.currentScanData.reportStorage == .pending_upload,
                     onReportIssue: {
                         nav.feedbackSource = .error_cta
                         nav.feedbackPrefillMessage = "Send report failed."
@@ -986,7 +1059,25 @@ struct ContentView: View {
     private func handleVehicleBasicsNext(vehicleInfo: VehicleInfo) {
         nav.currentScanData.vehicleInfo = vehicleInfo
         nav.currentScanData.vin = vehicleInfo.vin
-        nav.currentScreen = .deviceConnection
+        if authService.isEarlyAccess {
+            Task {
+                await ensureEarlyAccessVehicleSaved(vehicleInfo)
+                await MainActor.run {
+                    nav.currentScreen = .deviceConnection
+                }
+            }
+        } else {
+            nav.currentScreen = .deviceConnection
+        }
+    }
+    
+    /// For early access: ensure the "one car" exists (and is locked) as soon as they confirm VIN, before first scan save.
+    private func ensureEarlyAccessVehicleSaved(_ vehicleInfo: VehicleInfo) async {
+        guard let userId = authService.currentUser?.id else { return }
+        try? await scanService.loadVehicles(userId: userId)
+        guard scanService.vehicles.first == nil else { return }
+        guard let saved = try? await scanService.createVehicle(vehicleInfo, userId: userId) else { return }
+        try? await scanService.setVehicleVinLocked(vehicleId: saved.id)
     }
     
     private func handleDeviceConnect(deviceType: DeviceType) {
@@ -1129,7 +1220,7 @@ struct ContentView: View {
                            case .networkError = analysisError {
                             nav.currentScanData.aiNetworkError = true
                         }
-                        nav.showErrorToast("Analysis failed. You can still view your scan.", errorCode: ErrorEventCode.ERR_AI_ANALYSIS_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "results")
+                        nav.showErrorToast("Analysis failed. You can still view your scan.")
                     } else {
                         print("DTC analysis timed out or was cancelled")
                     }
@@ -1203,8 +1294,8 @@ struct ContentView: View {
         
         do {
             var vehicleId: UUID
-            if authService.isEarlyAccess {
-                // Early access: one VIN forever – reuse or create and lock
+            if authService.isEarlyAccess, !nav.currentScanData.useBuyerPassForThisScan {
+                // Early access (free scan): one VIN forever – reuse or create and lock
                 try await scanService.loadVehicles(userId: userId)
                 if let existing = scanService.vehicles.first {
                     let currentVin = (vehicleInfo.vin ?? "").trimmingCharacters(in: .whitespaces).uppercased()
@@ -1442,9 +1533,14 @@ struct ContentView: View {
                                 results.warmupsSinceCleared = obdData.warmupCycles
                                 results.fuelType = obdData.fuelType
                                 results.obdStandard = obdData.obdStandard
+                                results.barometricPressure = obdData.barometricPressure
                                 nav.currentScanData.scanResults = results
                                 nav.currentScanData.vinPartial = (obdData.vin != nil && (obdData.vin?.count ?? 0) != 17)
                             }
+                            
+                            // Restore VIN verification flags from database
+                            nav.currentScanData.vinVerified = scanResult.vinVerified
+                            nav.currentScanData.vinMismatch = scanResult.vinMismatch
                             
                             // Convert NHTSA JSON back to history report if available
                             if let nhtsaData = scanResult.nhtsaData {
