@@ -259,26 +259,51 @@ class OBDService: ObservableObject {
         }
         
         let commandData = (command + "\r").data(using: .ascii)!
+        let receiveTimeout: TimeInterval = 5.0
         
         return try await withCheckedThrowingContinuation { continuation in
+            let resumeLock = NSLock()
+            var didResume = false
+            func resumeOnce(_ action: () -> Void) {
+                resumeLock.lock()
+                defer { resumeLock.unlock() }
+                guard !didResume else { return }
+                didResume = true
+                action()
+            }
+            
             connection.send(content: commandData, completion: .contentProcessed { error in
                 if let error = error {
-                    continuation.resume(throwing: OBDError.sendFailed(error.localizedDescription))
+                    resumeOnce {
+                        continuation.resume(throwing: OBDError.sendFailed(error.localizedDescription))
+                    }
                     return
                 }
                 
-                // Wait for response
                 self.queue.asyncAfter(deadline: .now() + delay) {
                     connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, _, error in
                         if let error = error {
-                            continuation.resume(throwing: OBDError.receiveFailed(error.localizedDescription))
+                            resumeOnce {
+                                continuation.resume(throwing: OBDError.receiveFailed(error.localizedDescription))
+                            }
                             return
                         }
                         
                         if let data = data, let response = String(data: data, encoding: .ascii) {
-                            continuation.resume(returning: response)
+                            resumeOnce {
+                                continuation.resume(returning: response)
+                            }
                         } else {
-                            continuation.resume(returning: "")
+                            resumeOnce {
+                                continuation.resume(returning: "")
+                            }
+                        }
+                    }
+                    
+                    // If device doesn't respond within receiveTimeout, fail instead of hanging
+                    self.queue.asyncAfter(deadline: .now() + receiveTimeout) {
+                        resumeOnce {
+                            continuation.resume(throwing: OBDError.receiveFailed("No response from scanner (timed out after \(Int(receiveTimeout))s)."))
                         }
                     }
                 }

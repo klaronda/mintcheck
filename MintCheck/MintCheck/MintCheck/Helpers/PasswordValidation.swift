@@ -26,14 +26,14 @@ enum PasswordRequirement: String, CaseIterable {
         }
     }
 
-    /// Copy for "Add …" when this rule is missing (e.g. "Add at least one number").
+    /// Copy for the red validation message when this rule is missing (sentence case).
     var addPrompt: String {
         switch self {
         case .tooShort: return "Use at least 8 characters"
-        case .missingUppercase: return "Add at least one uppercase letter"
-        case .missingLowercase: return "Add at least one lowercase letter"
-        case .missingNumber: return "Add at least one number"
-        case .missingSpecial: return "Add at least one special character (e.g. !@#$%)"
+        case .missingUppercase: return "add at least one uppercase letter"
+        case .missingLowercase: return "add at least one lowercase letter"
+        case .missingNumber: return "add at least one number"
+        case .missingSpecial: return "add at least one special character (e.g. !@#$%)"
         }
     }
 }
@@ -43,14 +43,17 @@ struct PasswordValidationResult {
     let isValid: Bool
     let failedRequirements: [PasswordRequirement]
 
-    /// Single line listing what's missing (e.g. "Add at least one number and one special character (e.g. !@#$%).").
+    /// Single line listing what's missing; one sentence, only the first character capitalized.
     var failureMessage: String? {
         guard !failedRequirements.isEmpty else { return nil }
         let prompts = failedRequirements.map(\.addPrompt)
         if prompts.count == 1 {
-            return prompts[0] + "."
+            let first = prompts[0]
+            return first.prefix(1).uppercased() + first.dropFirst() + "."
         }
-        return prompts.dropLast().joined(separator: ", ") + ", and " + prompts.last! + "."
+        // Join with " and " — keep all segments as-is (lowercase "add") so no capital "Add" in the middle
+        let combined = prompts.dropLast().joined(separator: ", ") + " and " + prompts.last! + "."
+        return combined.prefix(1).uppercased() + combined.dropFirst()
     }
 }
 

@@ -63,7 +63,7 @@ struct HomeView: View {
                         
                         // Primary CTA
                         Button(action: onStartCheck) {
-                            Text("Start a Vehicle Check")
+                            Text("Sign In")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)

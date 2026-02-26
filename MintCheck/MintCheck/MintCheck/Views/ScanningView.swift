@@ -15,6 +15,7 @@ struct ScanningView: View {
     @State private var currentStatusIndex = 0
     @State private var hasError = false
     @State private var errorMessage: String?
+    @State private var isTimeoutError = false  // Show timeout-specific alert (Allow Now / Local Network copy)
     @State private var isInterrupted = false  // Show recovery UI: Retry / Start Over / Troubleshoot
     @State private var showTroubleshootSheet = false
     
@@ -103,21 +104,31 @@ struct ScanningView: View {
                 scanInterruptedRecoveryOverlay
             }
         }
-        .alert("Scan Error", isPresented: $hasError) {
-            Button("Try Again") {
-                isInterrupted = false
-                startScan()
-            }
-            Button("Cancel", role: .cancel) {
-                onStartOver?()
-            }
-            if onReportIssue != nil {
-                Button("Report this issue") {
-                    onReportIssue?(errorMessage)
+        .alert(isTimeoutError ? "Scanner connection time out." : "Scan Error", isPresented: $hasError) {
+            if isTimeoutError {
+                Button("Allow Now") {
+                    openSettings()
+                }
+                Button("Try Again") {
+                    isInterrupted = false
+                    startScan()
+                }
+                Button("Cancel", role: .cancel) {
+                    onStartOver?()
+                }
+            } else {
+                Button("Try Again") {
+                    isInterrupted = false
+                    startScan()
+                }
+                Button("Cancel", role: .cancel) {
+                    onStartOver?()
                 }
             }
         } message: {
-            Text(errorMessage ?? "An error occurred during the scan.")
+            Text(isTimeoutError
+                 ? "For best results, allow Local Network access in your phone's settings."
+                 : (errorMessage ?? "An error occurred during the scan."))
         }
         .sheet(isPresented: $showTroubleshootSheet) {
             TroubleshootSheet(onDismiss: { showTroubleshootSheet = false })
@@ -161,9 +172,16 @@ struct ScanningView: View {
         .background(Color.deepBackground)
     }
     
+    private func openSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+    }
+    
     private func startScan() {
         hasError = false
         errorMessage = nil
+        isTimeoutError = false
         isInterrupted = false
         
         Task {
@@ -182,6 +200,7 @@ struct ScanningView: View {
                 obdService.disconnect()
                 await MainActor.run {
                     errorMessage = error.localizedDescription
+                    if case OBDError.timeout = error { isTimeoutError = true } else { isTimeoutError = false }
                     hasError = true
                 }
             }

@@ -259,13 +259,13 @@ struct VehicleBasicsView: View {
                 }
             }
             
-            // Decoded Vehicle Info Card
-            if let decoded = decodedInfo {
+            // Vehicle identified (green card) – only when decoder returned year/make/model
+            if let decoded = decodedInfo, decoded.hasIdentifiedVehicle {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.statusSafe)
-                        Text("Vehicle Found!")
+                        Text("Vehicle identified")
                             .font(.system(size: FontSize.bodyLarge, weight: .semibold))
                             .foregroundColor(.statusSafe)
                     }
@@ -301,6 +301,31 @@ struct VehicleBasicsView: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
                         .stroke(Color.statusSafe, lineWidth: 1)
+                )
+            }
+            
+            // VIN not recognized – decoder succeeded but no vehicle data
+            if let decoded = decodedInfo, !decoded.hasIdentifiedVehicle {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundColor(.textSecondary)
+                        Text("VIN not recognized")
+                            .font(.system(size: FontSize.bodyLarge, weight: .semibold))
+                            .foregroundColor(.textPrimary)
+                    }
+                    Text("We couldn't identify this vehicle from the VIN. Enter make, model, and year below.")
+                        .font(.system(size: FontSize.bodyRegular))
+                        .foregroundColor(.textSecondary)
+                        .lineSpacing(4)
+                }
+                .padding(LayoutConstants.padding4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.statusInfoBg)
+                .cornerRadius(LayoutConstants.borderRadius)
+                .overlay(
+                    RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
+                        .stroke(Color.borderColor, lineWidth: 1)
                 )
             }
         }

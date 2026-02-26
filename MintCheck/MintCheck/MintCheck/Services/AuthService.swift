@@ -90,59 +90,48 @@ class AuthService: ObservableObject {
     
     // MARK: - Sign Up
     
-    /// Create a new account
+    /// Create a new account via Edge Function (admin API — no duplicate Supabase email)
     func signUp(data: SignUpData) async throws -> UserProfile {
         isLoading = true
         error = nil
         defer { isLoading = false }
         
         do {
-            // Create auth user
-            let authResponse = try await supabase.auth.signUp(
-                email: data.email,
-                password: data.password
-            )
-            
-            let user = authResponse.user
-            
-            // Check if email confirmation is required (session will be nil)
-            if authResponse.session == nil {
-                // Send confirmation email via Resend (branded template)
-                try? await sendConfirmationEmail(to: data.email, type: "signup")
-                // Still try to update profile with name
-                try? await supabase
-                    .from("profiles")
-                    .update([
-                        "first_name": data.firstName,
-                        "last_name": data.lastName
-                    ])
-                    .eq("id", value: user.id.uuidString)
-                    .execute()
-                
-                throw AuthError.emailConfirmationRequired
+            let baseURL = SupabaseConfig.shared.baseURL
+            guard let url = URL(string: "\(baseURL.absoluteString)/functions/v1/create-account") else {
+                throw AuthError.signUpFailed
             }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(SupabaseConfig.shared.anonKey, forHTTPHeaderField: "apikey")
             
-            // Update profile with name
-            try await supabase
-                .from("profiles")
-                .update([
-                    "first_name": data.firstName,
-                    "last_name": data.lastName
-                ])
-                .eq("id", value: user.id.uuidString)
-                .execute()
+            let payload: [String: String] = [
+                "email": data.email,
+                "password": data.password,
+                "first_name": data.firstName,
+                "last_name": data.lastName
+            ]
+            request.httpBody = try? JSONEncoder().encode(payload)
             
-            // Load the full profile
-            await loadUserProfile(userId: user.id)
-            await AppConfigService.shared.fetch()
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw AuthError.signUpFailed }
             
-            guard let profile = currentUser else {
+            let json = (try? JSONDecoder().decode([String: String].self, from: responseData)) ?? [:]
+            
+            if http.statusCode == 409 {
+                self.error = json["error"] ?? "An account with this email already exists."
                 throw AuthError.signUpFailed
             }
             
-            return profile
+            guard http.statusCode == 200 else {
+                self.error = json["error"] ?? "Failed to create account. Please try again."
+                throw AuthError.signUpFailed
+            }
+            
+            // Account created, confirmation email sent via Resend — no session yet
+            throw AuthError.emailConfirmationRequired
         } catch let authError as AuthError {
-            // Re-throw our custom errors without overwriting
             throw authError
         } catch {
             self.error = error.localizedDescription
@@ -265,6 +254,21 @@ class AuthService: ObservableObject {
         } catch {
             self.error = error.localizedDescription
             throw error
+        }
+    }
+    
+    /// Clear the reset_onboarding flag in profiles after the app has applied it (one-time reset).
+    func clearResetOnboardingFlag() async {
+        guard let userId = currentUser?.id else { return }
+        do {
+            try await supabase
+                .from("profiles")
+                .update(["reset_onboarding": false])
+                .eq("id", value: userId.uuidString)
+                .execute()
+            await loadUserProfile(userId: userId)
+        } catch {
+            print("Failed to clear reset_onboarding: \(error)")
         }
     }
     

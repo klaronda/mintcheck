@@ -27,8 +27,12 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>MintCheck may use Bluetooth to connect to compatible OBD-II scanners. Vehicle scans use Wi‑Fi when available.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>MintCheck needs camera access to scan your vehicle's VIN number.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>MintCheck needs to connect to your OBD-II scanner to read vehicle data.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

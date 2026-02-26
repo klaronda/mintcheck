@@ -12,14 +12,13 @@ const HELP_LINK = "https://mintcheckapp.com/support";
 const PRIVACY_LINK = "https://mintcheckapp.com/privacy";
 const TERMS_LINK = "https://mintcheckapp.com/terms";
 
-// Email confirmation template (aligned with guidelines); variables: actionUrl, userEmail.
 function getEmailConfirmationHtml(actionUrl: string, userEmail: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirm your MintCheck email</title>
+  <title>Confirm your ${APP_NAME} email</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #F8F8F7;">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -62,7 +61,7 @@ function getEmailConfirmationHtml(actionUrl: string, userEmail: string): string 
           </tr>
           <tr>
             <td style="background-color: #F8F8F7; padding: 32px; text-align: center; border-radius: 0 0 4px 4px; border-top: 1px solid #E5E5E5;">
-              <p style="margin: 0 0 16px 0; color: #999999; font-size: 13px; line-height: 1.6;">© 2026 MintCheck. All rights reserved.</p>
+              <p style="margin: 0 0 16px 0; color: #999999; font-size: 13px; line-height: 1.6;">&copy; 2026 ${APP_NAME}. All rights reserved.</p>
               <p style="margin: 0 0 8px 0; color: #999999; font-size: 13px; line-height: 1.6;">
                 <a href="${HELP_LINK}" style="color: #3EB489; text-decoration: none;">Support</a> &bull;
                 <a href="${PRIVACY_LINK}" style="color: #3EB489; text-decoration: none;">Privacy</a> &bull;
@@ -84,13 +83,28 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json().catch(() => ({})) as { email?: string; type?: string };
-    const email = typeof body.email === "string" ? body.email.trim() : "";
-    const type = body.type === "email_change" ? "email_change_new" : "signup";
+    const body = await req.json().catch(() => ({})) as {
+      email?: string;
+      password?: string;
+      first_name?: string;
+      last_name?: string;
+    };
 
-    if (!email) {
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const firstName = typeof body.first_name === "string" ? body.first_name.trim() : "";
+    const lastName = typeof body.last_name === "string" ? body.last_name.trim() : "";
+
+    if (!email || !password) {
       return new Response(
-        JSON.stringify({ error: "Missing email" }),
+        JSON.stringify({ error: "Email and password are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: "Password must be at least 6 characters" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -100,68 +114,90 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const resendFrom = Deno.env.get("RESEND_FROM_EMAIL") || "MintCheck <noreply@mintcheckapp.com>";
 
-    if (!resendApiKey) {
-      console.warn("RESEND_API_KEY not set; confirmation email not sent");
-      return new Response(
-        JSON.stringify({ error: "Email service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Generate link: signup (resend confirmation) or email_change_new
-    const linkType = type === "email_change_new" ? "email_change_new" : "signup";
-    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: linkType,
+    // 1. Create user via admin API — does NOT trigger Supabase's built-in confirmation email
+    const { data: userData, error: createError } = await supabase.auth.admin.createUser({
       email,
-    } as { type: "signup" | "email_change_new"; email: string });
+      password,
+      email_confirm: false,
+    });
 
-    if (linkError || !linkData?.properties) {
-      console.error("generateLink error:", linkError);
+    if (createError) {
+      const msg = createError.message?.toLowerCase() ?? "";
+      if (msg.includes("already") || msg.includes("duplicate") || msg.includes("exists")) {
+        return new Response(
+          JSON.stringify({ error: "An account with this email already exists. Try signing in." }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.error("createUser error:", createError);
       return new Response(
-        JSON.stringify({ error: "Could not generate confirmation link" }),
+        JSON.stringify({ error: "Could not create account. Please try again." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { hashed_token, verification_type } = linkData.properties;
-    const confirmType = verification_type === "email_change_new" ? "email_change" : "signup";
-    const actionUrl = `${DEEP_LINK_BASE}/auth/confirm?token=${encodeURIComponent(hashed_token)}&type=${confirmType}`;
+    const userId = userData.user.id;
 
-    const html = getEmailConfirmationHtml(actionUrl, email);
+    // 2. Update profile with name
+    if (firstName || lastName) {
+      await supabase
+        .from("profiles")
+        .update({ first_name: firstName, last_name: lastName })
+        .eq("id", userId);
+    }
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: resendFrom,
-        to: [email],
-        subject: "Confirm your MintCheck email",
-        html,
-      }),
+    // 3. Generate confirmation link (does not send any email)
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: "signup",
+      email,
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("Resend error:", res.status, errText);
+    if (linkError || !linkData?.properties) {
+      console.error("generateLink error:", linkError);
       return new Response(
-        JSON.stringify({ error: "Could not send email. Try again." }),
+        JSON.stringify({ error: "Account created but couldn't send confirmation email. Tap 'Resend' to try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // 4. Send branded confirmation email via Resend
+    const { hashed_token } = linkData.properties;
+    const actionUrl = `${DEEP_LINK_BASE}/auth/confirm?token=${encodeURIComponent(hashed_token)}&type=signup`;
+    const html = getEmailConfirmationHtml(actionUrl, email);
+
+    if (resendApiKey) {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: [email],
+          subject: "Confirm your MintCheck email",
+          html,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Resend error:", res.status, errText);
+      }
+    } else {
+      console.warn("RESEND_API_KEY not set; confirmation email not sent");
+    }
+
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, user_id: userId, needs_confirmation: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
-    console.error("send-confirmation-email error:", e);
+    console.error("create-account error:", e);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

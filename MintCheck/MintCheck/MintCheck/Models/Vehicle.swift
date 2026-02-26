@@ -89,6 +89,16 @@ struct VINDecodeResult: Codable {
         }
         return size
     }
+    
+    /// True when we have non-empty year, make, and model (vehicle identified by decoder).
+    var hasIdentifiedVehicle: Bool {
+        let y = year?.trimmingCharacters(in: .whitespaces) ?? ""
+        let m = make?.trimmingCharacters(in: .whitespaces) ?? ""
+        let n = model?.trimmingCharacters(in: .whitespaces) ?? ""
+        if y.isEmpty || m.isEmpty || n.isEmpty { return false }
+        if y == "Unknown" || m == "Unknown" || n == "Unknown" { return false }
+        return true
+    }
 }
 
 /// Monitor / Buyer Pass subscription entitlement (per car)

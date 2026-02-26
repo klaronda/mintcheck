@@ -2,10 +2,12 @@
 //  OnboardingView.swift
 //  MintCheck
 //
-//  3-slide onboarding carousel matching Figma design
+//  3-slide onboarding: engine health, Local Network access, trusted results.
 //
 
 import SwiftUI
+import AVKit
+import AVFoundation
 
 struct OnboardingView: View {
     let onComplete: () -> Void
@@ -27,7 +29,6 @@ struct OnboardingView: View {
                             .frame(width: 44, height: 44)
                     }
                     
-                    // Progress bar
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 2)
@@ -54,71 +55,34 @@ struct OnboardingView: View {
                 alignment: .bottom
             )
             
-            // Scrollable content
+            // Scrollable content – align to top
             ScrollView {
-                VStack(spacing: 0) {
-                    // Icon
-                    slideIcon
-                        .padding(.top, 48)
-                        .padding(.bottom, 32)
-                    
-                    // Title
-                    Text(slideTitle)
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                        .multilineTextAlignment(.center)
-                        .tracking(-0.3)
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, 12)
-                    
-                    // Description
-                    Text(slideDescription)
-                        .font(.system(size: FontSize.bodyLarge))
-                        .foregroundColor(.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(4)
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, 40)
-                    
-                    // Recommendation badges (only on last slide)
-                    if currentPage == 2 {
-                        recommendationBadges
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, 40)
-                        
-                        // Disclaimer
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 14))
-                                .foregroundColor(.textSecondary)
-                            
-                            Text("MintCheck helps you decide. It doesn’t replace a professional mechanic inspection.")
-                                .font(.system(size: FontSize.bodySmall))
-                                .foregroundColor(.textSecondary)
-                                .lineSpacing(4)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 32)
-                    }
+                VStack(alignment: .leading, spacing: 0) {
+                    slideContent
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.horizontal, 32)
+                .padding(.top, 24)
+                .padding(.bottom, 40)
             }
             
-            Spacer()
+            Spacer(minLength: 0)
             
-            // Fixed bottom buttons
+            // Sticky bottom buttons
             VStack(spacing: 10) {
-                PrimaryButton(
-                    title: currentPage == totalSlides - 1 ? "Get Started" : "Next",
-                    action: handleNext
-                )
-                
-                if currentPage < totalSlides - 1 {
-                    Button(action: onComplete) {
-                        Text("Skip")
+                if currentPage == 1 {
+                    PrimaryButton(title: "Allow Now", action: openSettings)
+                    Button(action: handleNext) {
+                        Text("Next")
                             .font(.system(size: FontSize.bodyLarge, weight: .semibold))
                             .foregroundColor(.textSecondary)
                     }
                     .frame(height: 48)
+                } else {
+                    PrimaryButton(
+                        title: currentPage == totalSlides - 1 ? "Get Started" : "Next",
+                        action: handleNext
+                    )
                 }
             }
             .padding(.horizontal, 24)
@@ -134,56 +98,107 @@ struct OnboardingView: View {
         .background(Color.deepBackground)
     }
     
-    // MARK: - Slide Content
+    // MARK: - Slide Content (top-aligned)
     
-    private var slideIcon: some View {
-        Group {
-            switch currentPage {
-            case 0:
-                Image(systemName: "checkmark.circle")
-                    .font(.system(size: 64, weight: .light))
-                    .foregroundColor(.textPrimary)
-            case 1:
-                Image(systemName: "wifi")
-                    .font(.system(size: 64, weight: .light))
-                    .foregroundColor(.textPrimary)
-            case 2:
-                Image(systemName: "doc.text")
-                    .font(.system(size: 64, weight: .light))
-                    .foregroundColor(.textPrimary)
-            default:
-                EmptyView()
+    @ViewBuilder
+    private var slideContent: some View {
+        switch currentPage {
+        case 0:
+            // Screen 1: Know before you buy
+            Image("engine-health")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: LayoutConstants.borderRadius))
+                .padding(.bottom, 32)
+            
+            Text("Know before you buy.")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundColor(.textPrimary)
+                .multilineTextAlignment(.leading)
+                .tracking(-0.3)
+                .padding(.bottom, 12)
+            
+            Text("MintCheck does a quick check on the car you're looking at, so you know the health before you buy.")
+                .font(.system(size: FontSize.bodyLarge))
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.leading)
+                .lineSpacing(4)
+            
+        case 1:
+            // Screen 2: Allow Local Network – video then text
+            LoopingVideoPlayerView(filename: "local-network", fileExtension: "mp4")
+                .aspectRatio(16/9, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: LayoutConstants.borderRadius))
+                .padding(.bottom, 32)
+            
+            Text("Allow Local Network access.")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundColor(.textPrimary)
+                .multilineTextAlignment(.leading)
+                .tracking(-0.3)
+                .padding(.bottom, 12)
+            
+            localNetworkBody
+            
+        case 2:
+            // Screen 3: Get trusted results – no icon, title on top
+            Text("Get trusted results.")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundColor(.textPrimary)
+                .multilineTextAlignment(.leading)
+                .tracking(-0.3)
+            
+            Spacer().frame(height: 12)
+            
+            Text("In just a few minutes, MintCheck gives you the recommendation you need to buy—or walk away—with full confidence.")
+                .font(.system(size: FontSize.bodyLarge))
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.leading)
+                .lineSpacing(4)
+                .padding(.bottom, 32)
+            
+            recommendationBadges
+                .padding(.bottom, 40)
+            
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+                
+                Text("MintCheck helps you decide. It doesn't replace a professional mechanic inspection.")
+                    .font(.system(size: FontSize.bodySmall))
+                    .foregroundColor(.textSecondary)
+                    .lineSpacing(4)
             }
-        }
-    }
-    
-    private var slideTitle: String {
-        switch currentPage {
-        case 0:
-            return "Buy a more reliable used car."
-        case 1:
-            return "Plug in and press start."
-        case 2:
-            return "Get trusted results."
+            
         default:
-            return ""
+            EmptyView()
         }
     }
     
-    private var slideDescription: String {
-        switch currentPage {
-        case 0:
-            return "MintCheck does a quick check on the car you’re looking at, so you know the health before you buy.\n\nAnd once it’s yours, you can continue to scan your car regularly to keep it healthy."
-        case 1:
-            return "MintCheck works with a small Wi-Fi (OBD-II) scanner that plugs into the vehicle you’re checking.\n\nIf you don’t have a scanner yet, we’ll help you find a good one for less than $20."
-        case 2:
-            return "In just a few minutes, MintCheck gives you the recommendation you need to buy—or walk away—with full confidence."
-        default:
-            return ""
+    private var localNetworkBody: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("MintCheck works with select Wi-Fi car scanners that plug into the car. Turn on network access for the app to better connect to these devices.")
+                .font(.system(size: FontSize.bodyLarge))
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.leading)
+                .lineSpacing(4)
+            
+            Spacer().frame(height: 12)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Don't have a car scanner yet? ")
+                    .font(.system(size: FontSize.bodyLarge, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                Text("We'll help you find one for less than $15.")
+                    .font(.system(size: FontSize.bodyLarge))
+                    .foregroundColor(.textSecondary)
+            }
+            .lineSpacing(4)
         }
     }
-    
-    // MARK: - Recommendation Badges
     
     private var recommendationBadges: some View {
         VStack(spacing: 10) {
@@ -209,6 +224,12 @@ struct OnboardingView: View {
     
     // MARK: - Actions
     
+    private func openSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+    }
+    
     private func handleBack() {
         if currentPage > 0 {
             currentPage -= 1
@@ -223,6 +244,68 @@ struct OnboardingView: View {
         } else {
             onComplete()
         }
+    }
+}
+
+// MARK: - Looping Video Player
+
+struct LoopingVideoPlayerView: View {
+    let filename: String
+    let fileExtension: String
+    
+    var body: some View {
+        Group {
+            if Bundle.main.url(forResource: filename, withExtension: fileExtension) != nil {
+                LoopingVideoPlayerRepresentable(filename: filename, fileExtension: fileExtension)
+            } else {
+                // Fallback when e.g. local-network.mp4 is not in the app bundle
+                ZStack {
+                    RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
+                        .fill(Color.borderColor.opacity(0.3))
+                    Image(systemName: "wifi")
+                        .font(.system(size: 64, weight: .light))
+                        .foregroundColor(.textSecondary)
+                }
+                .aspectRatio(16/9, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: LayoutConstants.borderRadius))
+            }
+        }
+    }
+}
+
+private struct LoopingVideoPlayerRepresentable: UIViewControllerRepresentable {
+    let filename: String
+    let fileExtension: String
+    
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.showsPlaybackControls = false
+        controller.videoGravity = .resizeAspect
+        
+        guard let url = Bundle.main.url(forResource: filename, withExtension: fileExtension) else {
+            return controller
+        }
+        
+        let player = AVPlayer(url: url)
+        context.coordinator.player = player
+        controller.player = player
+        player.play()
+        
+        // Zoom in 5% so the view is clipped and hides a thin black line at the top of the asset
+        controller.view.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+        
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    class Coordinator {
+        var player: AVPlayer?
     }
 }
 

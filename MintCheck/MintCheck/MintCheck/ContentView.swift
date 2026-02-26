@@ -173,6 +173,7 @@ struct ContentView: View {
     @EnvironmentObject var scanService: ScanService
     @EnvironmentObject var nav: NavigationManager
     @EnvironmentObject var connectionManager: ConnectionManagerService
+    @Environment(\.scenePhase) private var scenePhase
     
     @State private var selectedTab: TabItem = .home
     @State private var isMenuOpen = false
@@ -181,11 +182,28 @@ struct ContentView: View {
     @State private var showVinMismatchBlockAlert = false  // Early Access: block scan when VIN mismatch unresolved
     @State private var showFreeScansMaxedAlert = false  // Free user: all 3 free scans used
     @State private var showBuyerPassDailyLimitAlert = false  // Buyer Pass: 10/day limit reached
-    
+    /// Delay before showing the offline banner so we don't flash it on initial load while network is still coming up.
+    @State private var offlineBannerAllowed = false
     
     /// Screens that show the bottom tab bar
     private var showsTabBar: Bool {
         [.dashboard, .allScans, .support, .settings, .results].contains(nav.currentScreen)
+    }
+    
+    /// Screens where we already handle offline (scan flow, results); don't show global offline banner.
+    private var isScanFlowOrResults: Bool {
+        switch nav.currentScreen {
+        case .scanFlow, .vehicleBasics, .deviceConnection, .scanning, .disconnectReconnect, .quickHumanCheck, .results:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// Show global "No connection" bar when offline and not on a screen that has its own handling.
+    /// Only after a short delay so we don't show it on initial app load while the network is still coming up.
+    private var shouldShowOfflineBanner: Bool {
+        connectionManager.internetStatus == .offline && !isScanFlowOrResults && offlineBannerAllowed
     }
     
     /// Summary for share/save: AI summary when non-empty, otherwise default so report always has text
@@ -278,7 +296,7 @@ struct ContentView: View {
             
             switch nav.currentScreen {
             case .loading:
-                // Native launch screen stays visible - show nothing here
+                // Plain mint only; logo only on native LaunchScreen to avoid logo jump
                 Color.mintGreen
                     .ignoresSafeArea()
                 
@@ -646,7 +664,20 @@ struct ContentView: View {
         .onAppear {
             checkInitialNavigation()
             Task {
+                _ = await connectionManager.checkInternetStatus()
                 await FeedbackService.shared.flushQueueIfOnline(connectionManager: connectionManager)
+            }
+            // Allow offline banner only after a few seconds so we don't show it on initial load
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                offlineBannerAllowed = true
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                Task {
+                    await connectionManager.wifiManager.fetchCurrentSSID()
+                    _ = await connectionManager.checkInternetStatus()
+                }
             }
         }
         .onOpenURL { url in
@@ -686,20 +717,64 @@ struct ContentView: View {
                 }
             }
         }
+        .overlay(alignment: .top) {
+            if shouldShowOfflineBanner {
+                VStack(spacing: 0) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "wifi.slash")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("No connection.")
+                                .font(.system(size: FontSize.bodyLarge, weight: .semibold))
+                                .foregroundColor(.textPrimary)
+                            Text(connectionManager.wifiManager.isConnectedToOBDNetwork
+                                 ? "Looks like we lost internet connection. Make sure you're not connected to your OBD-II scanner's Wi‑Fi."
+                                 : "Looks like we lost internet connection.")
+                                .font(.system(size: FontSize.bodySmall))
+                                .foregroundColor(.textSecondary)
+                                .lineSpacing(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Button(action: {
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            }) {
+                                Text("Open Settings")
+                                    .font(.system(size: FontSize.bodySmall, weight: .semibold))
+                                    .foregroundColor(.mintGreen)
+                            }
+                            .padding(.top, 2)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, LayoutConstants.padding4)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.softBackground)
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundColor(Color.borderColor),
+                        alignment: .bottom
+                    )
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: shouldShowOfflineBanner)
         .overlay {
             if let message = nav.toastMessage {
                 VStack {
                     Spacer()
-                    VStack(spacing: 8) {
-                        HStack {
-                            Text(message)
-                                .font(.system(size: FontSize.bodySmall, weight: .medium))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(Color.textPrimary)
-                                .cornerRadius(LayoutConstants.borderRadius)
-                        }
+                    // Full-width butter bar: error (red) when Report this issue, neutral (gray) otherwise
+                    VStack(spacing: 10) {
+                        Text(message)
+                            .font(.system(size: FontSize.bodySmall, weight: .medium))
+                            .foregroundColor(nav.toastFailureContext != nil ? .white : .textPrimary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
                         if let ctx = nav.toastFailureContext {
                             Button(action: {
                                 nav.feedbackSource = .error_cta
@@ -713,9 +788,26 @@ struct ContentView: View {
                                 Text("Report this issue")
                                     .font(.system(size: FontSize.bodySmall, weight: .semibold))
                                     .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
+                                            .stroke(Color.white, lineWidth: 1.5)
+                                    )
                             }
+                            .buttonStyle(.plain)
                         }
                     }
+                    .padding(.horizontal, LayoutConstants.padding4)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                    .background(nav.toastFailureContext != nil ? Color.statusDanger : Color.softBackground)
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundColor(nav.toastFailureContext != nil ? Color.statusDanger.opacity(0.8) : Color.borderColor),
+                        alignment: .top
+                    )
                     .padding(.bottom, 80)
                 }
                 .transition(.opacity)
@@ -723,14 +815,13 @@ struct ContentView: View {
                     if nav.toastFailureContext == nil { nav.clearToast() }
                 }
                 .onAppear {
-                    // Always auto-dismiss after 2 seconds so toasts don't persist across screens (e.g. scan flow)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) { nav.clearToast() }
                 }
             }
         }
         .animation(.easeInOut(duration: 0.2), value: nav.toastMessage)
         .onChange(of: nav.currentScreen) { _, newScreen in
-            // Sync tab selection when screen changes
+            nav.clearToast()
             switch newScreen {
             case .dashboard, .allScans:
                 selectedTab = .home
@@ -941,27 +1032,23 @@ struct ContentView: View {
     
     /// Check if user is already logged in on app launch
     private func checkInitialNavigation() {
-        // Wait for auth session to be checked, then navigate
         Task {
-            let startTime = Date()
-            
-            // Wait for auth service to finish checking session
             while authService.isLoading {
                 try? await Task.sleep(nanoseconds: 50_000_000) // 0.05 seconds
             }
-            
-            // Ensure launch screen is visible for at least 2 seconds
-            let elapsedTime = Date().timeIntervalSince(startTime)
-            let minimumDisplayTime: TimeInterval = 2.0
-            if elapsedTime < minimumDisplayTime {
-                let remainingTime = minimumDisplayTime - elapsedTime
-                try? await Task.sleep(nanoseconds: UInt64(remainingTime * 1_000_000_000))
-            }
-            
             await MainActor.run {
                 nav.authCheckComplete = true
-                if authService.currentUser != nil {
-                    nav.currentScreen = .dashboard
+                if let user = authService.currentUser {
+                    // Support reset: if profile has reset_onboarding, clear local onboarding and show onboarding again
+                    if user.resetOnboarding == true {
+                        nav.resetOnboarding()
+                        nav.currentScreen = .onboarding
+                        Task {
+                            await authService.clearResetOnboardingFlag()
+                        }
+                    } else {
+                        nav.currentScreen = .dashboard
+                    }
                 } else {
                     nav.currentScreen = .home
                 }

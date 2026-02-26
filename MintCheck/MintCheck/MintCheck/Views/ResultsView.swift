@@ -669,8 +669,8 @@ struct VehicleDetailsCard: View {
                 Divider()
                 VStack(alignment: .leading, spacing: 8) {
                     Text(vehicleInfo.vin != nil
-                        ? "VIN could not be decoded. Details shown are based on user input."
-                        : "VIN was not provided. Details shown are based on user input.")
+                        ? "This VIN couldn't be looked up. Details shown are from your manual entry."
+                        : "VIN was not provided. Details shown are from your manual entry.")
                         .font(.system(size: FontSize.bodySmall))
                         .foregroundColor(.textSecondary)
                 }

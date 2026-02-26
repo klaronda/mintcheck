@@ -336,6 +336,18 @@ class WiFiConnectionManager: ObservableObject {
             stillConnected = await verifyStillConnectedToOBD()
             print("[WiFi Disconnect] After aggressive attempts - still connected: \(stillConnected)")
         }
+        
+        // Give the phone 2–3 more seconds to recognize the new network before showing "still connected"
+        if stillConnected {
+            try? await Task.sleep(nanoseconds: 2_500_000_000) // 2.5 seconds
+            stillConnected = await verifyStillConnectedToOBD()
+            print("[WiFi Disconnect] After 2.5s wait - still connected: \(stillConnected)")
+        }
+        if stillConnected {
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 more seconds
+            stillConnected = await verifyStillConnectedToOBD()
+            print("[WiFi Disconnect] After second wait - still connected: \(stillConnected)")
+        }
 
         await MainActor.run {
             connectedNetworkName = nil

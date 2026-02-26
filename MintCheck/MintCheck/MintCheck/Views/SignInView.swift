@@ -27,20 +27,10 @@ struct SignInView: View {
     @State private var password = ""
     @State private var firstName = ""
     @State private var lastName = ""
-    @State private var birthdate: Date? = defaultBirthdate
-    @State private var showAgeDisclaimer = false
+    @State private var confirmedAge16OrOlder = false
     @State private var errorMessage: String?
     @State private var showEmailConfirmation = false
     @State private var showForgotPassword = false
-    
-    // Default birthdate: January 1, 1996 (OBD-II requirement date)
-    private static var defaultBirthdate: Date {
-        var components = DateComponents()
-        components.year = 1996
-        components.month = 1
-        components.day = 1
-        return Calendar.current.date(from: components) ?? Date()
-    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -83,10 +73,12 @@ struct SignInView: View {
                         errorMessage: isCreatingAccount ? passwordValidationMessage : nil
                     )
                     if isCreatingAccount {
-                        Text(PasswordValidator.requirementsHint)
-                            .font(.system(size: FontSize.bodySmall))
-                            .foregroundColor(.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if passwordValidationMessage == nil {
+                            Text(PasswordValidator.requirementsHint)
+                                .font(.system(size: FontSize.bodySmall))
+                                .foregroundColor(.textSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                     if !isCreatingAccount {
                         Button(action: { showForgotPassword = true }) {
@@ -99,29 +91,17 @@ struct SignInView: View {
                     }
                     
                     if isCreatingAccount {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Birthdate")
-                                .font(.system(size: FontSize.bodyRegular, weight: .medium))
-                                .foregroundColor(.textPrimary)
-                            
-                            DatePicker(
-                                "",
-                                selection: Binding(
-                                    get: { birthdate ?? Self.defaultBirthdate },
-                                    set: { birthdate = $0 }
-                                ),
-                                displayedComponents: .date
-                            )
-                            .datePickerStyle(.compact)
-                            .labelsHidden()
-                            
-                            if showAgeDisclaimer {
-                                Text("We recommend having an adult assist with your vehicle inspection. You can continue, but please involve a parent or guardian in your decision.")
+                        Toggle(isOn: $confirmedAge16OrOlder) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("I confirm that I am at least 16 years old.")
+                                    .font(.system(size: FontSize.bodyRegular, weight: .medium))
+                                    .foregroundColor(.textPrimary)
+                                Text("MintCheck is intended for users of driving age.")
                                     .font(.system(size: FontSize.bodySmall))
-                                    .foregroundColor(.statusDanger)
-                                    .padding(.top, 4)
+                                    .foregroundColor(.textSecondary)
                             }
                         }
+                        .toggleStyle(SwitchToggleStyle(tint: .mintGreen))
                     }
                     
                     // Email confirmation success message
@@ -223,20 +203,12 @@ struct SignInView: View {
     private var isFormValid: Bool {
         if isCreatingAccount {
             return !email.isEmpty && !firstName.isEmpty && !lastName.isEmpty
-                && passwordValidationResult.isValid
+                && passwordValidationResult.isValid && confirmedAge16OrOlder
         }
         return !email.isEmpty && !password.isEmpty
     }
     
     private func handleSubmit() {
-        // Check age for new accounts
-        if isCreatingAccount, let birth = birthdate {
-            let age = Calendar.current.dateComponents([.year], from: birth, to: Date()).year ?? 0
-            if age < 16 {
-                showAgeDisclaimer = true
-            }
-        }
-        
         Task {
             do {
                 if isCreatingAccount {
@@ -244,8 +216,7 @@ struct SignInView: View {
                         email: email,
                         password: password,
                         firstName: firstName,
-                        lastName: lastName,
-                        birthdate: birthdate
+                        lastName: lastName
                     )
                     let user = try await authService.signUp(data: signUpData)
                     onSignIn(user, true)  // true = new signup

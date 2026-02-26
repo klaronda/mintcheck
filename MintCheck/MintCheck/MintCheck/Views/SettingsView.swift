@@ -633,15 +633,6 @@ struct SharedLinkRow: View {
     let onDelete: () -> Void
     let onCopy: () -> Void
     
-    private var scanFreshness: ScanFreshness {
-        // Parse the scan date from report data
-        let dateFormatter = ISO8601DateFormatter()
-        if let scanDate = dateFormatter.date(from: report.reportData.scanDate) {
-            return computeScanFreshness(scanCompletedAt: scanDate)
-        }
-        return .unknown
-    }
-    
     private var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -656,13 +647,9 @@ struct SharedLinkRow: View {
                         .font(.system(size: FontSize.bodyRegular, weight: .medium))
                         .foregroundColor(.textPrimary)
                     
-                    HStack(spacing: 8) {
-                        Text("Shared \(formattedDate)")
-                            .font(.system(size: FontSize.bodySmall))
-                            .foregroundColor(.textSecondary)
-                        
-                        ScanFreshnessBadge(freshness: scanFreshness, compact: true)
-                    }
+                    Text("Shared \(formattedDate)")
+                        .font(.system(size: FontSize.bodySmall))
+                        .foregroundColor(.textSecondary)
                 }
                 
                 Spacer()
@@ -684,12 +671,24 @@ struct SharedLinkRow: View {
                 }
             }
             
-            // Show truncated URL
-            Text(report.shareUrl)
-                .font(.system(size: FontSize.bodySmall))
-                .foregroundColor(.mintGreen)
-                .lineLimit(1)
-                .truncationMode(.middle)
+            // Show truncated URL (tappable — opens in external browser)
+            if let url = URL(string: report.shareUrl) {
+                Button(action: { UIApplication.shared.open(url) }) {
+                    Text(report.shareUrl)
+                        .font(.system(size: FontSize.bodySmall))
+                        .foregroundColor(.mintGreen)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .multilineTextAlignment(.leading)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text(report.shareUrl)
+                    .font(.system(size: FontSize.bodySmall))
+                    .foregroundColor(.mintGreen)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)

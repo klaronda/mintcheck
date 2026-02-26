@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import Network
+import Combine
 
 struct ScanFlowView: View {
     let flowId: Int
@@ -37,6 +39,7 @@ struct ScanFlowView: View {
     @State private var analysisStarted = false
     @State private var showDecodedInfo: Bool = false
     @State private var decodedInfo: VINDecodeResult?
+    @State private var showVinNotRecognized: Bool = false
     @State private var showVinHelpSheet = false
     
     private let vinDecoder = VINDecoderService()
@@ -62,8 +65,16 @@ struct ScanFlowView: View {
                     onConfirmDetails: handleConfirmVehicleDetails,
                     showDecodedInfo: $showDecodedInfo,
                     decodedInfo: $decodedInfo,
+                    showVinNotRecognized: $showVinNotRecognized,
                     isVinLocked: !authService.hasFullAccess && nav.freeUserVehicle?.vin != nil && !vinNumber.isEmpty
                 )
+                .onChange(of: vinNumber) { _, _ in
+                    if step == .enterVin {
+                        decodedInfo = nil
+                        showDecodedInfo = false
+                        showVinNotRecognized = false
+                    }
+                }
                 .sheet(isPresented: $showCamera) {
                     VINCameraView(onVINScanned: { scannedVIN in
                         vinNumber = scannedVIN
@@ -120,7 +131,7 @@ struct ScanFlowView: View {
                     onComplete: { results in
                         nav.currentScanData.scanResults = results
                         nav.currentScanData.recommendation = recommendationFromScan(results: results)
-                        nav.currentScanData.reportStorage = nav.currentScanData.scanMode == .offline_scan ? .local_only : .uploaded
+                        nav.currentScanData.reportStorage = nav.currentScanData.scanMode == .offline_scan ? .local_only : .pending_upload
                         let userVin = (nav.currentScanData.vehicleInfo?.vin ?? "").trimmingCharacters(in: .whitespaces).uppercased()
                         let ecuVin = (results.vin ?? "").trimmingCharacters(in: .whitespaces).uppercased()
                         let ecuVinIsPartial = !ecuVin.isEmpty && ecuVin.count != 17
@@ -411,29 +422,44 @@ struct ScanFlowView: View {
             return
         }
 
-        // If we already decoded, just show it
+        // If we already decoded, show the appropriate card
         if let decoded = decodedInfo {
-            showDecodedInfo = true
+            if decoded.hasIdentifiedVehicle {
+                showDecodedInfo = true
+                showVinNotRecognized = false
+            } else {
+                showDecodedInfo = false
+                showVinNotRecognized = true
+            }
             return
         }
 
-        // Decode VIN and show in green box
+        // Decode VIN and show in green box (or "VIN not recognized" if no vehicle data)
         isDecodingVin = true
         showVinRegionHint = false
+        showVinNotRecognized = false
         Task {
             do {
                 let decoded = try await vinDecoder.decodeVIN(vinNumber)
                 await MainActor.run {
                     isDecodingVin = false
                     decodedInfo = decoded
-                    showDecodedInfo = true
-                    showVinRegionHint = false
+                    if decoded.hasIdentifiedVehicle {
+                        showDecodedInfo = true
+                        showVinNotRecognized = false
+                        showVinRegionHint = false
+                    } else {
+                        showDecodedInfo = false
+                        showVinNotRecognized = true
+                        showVinRegionHint = false
+                    }
                 }
             } catch {
                 await MainActor.run {
                     isDecodingVin = false
                     showVinRegionHint = true
                     showDecodedInfo = false
+                    showVinNotRecognized = false
                 }
             }
         }
@@ -807,6 +833,8 @@ struct ConnectWifiStepView: View {
     @State private var pollTimer: Timer?
     @State private var detectedOBD = false
     @State private var showTroubleshootSheet = false
+    @State private var localNetworkProbed = false
+    @StateObject private var localNetworkDeniedState = LocalNetworkDeniedState()
     
     /// Whether the user is on an OBD scanner network
     private var isOnScannerWifi: Bool {
@@ -862,49 +890,60 @@ struct ConnectWifiStepView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 40)
                     } else {
-                        // Main state: guide user to connect manually
-                        Text("Connect to your scanner's Wi‑Fi")
-                            .font(.system(size: FontSize.h4, weight: .semibold))
-                            .foregroundColor(.textPrimary)
-                        
-                        // Instructions
-                        VStack(alignment: .leading, spacing: 12) {
-                            InstructionRow(number: "1", text: "Open your phone's **Settings** app")
-                            InstructionRow(number: "2", text: "Tap **Wi‑Fi**")
-                            InstructionRow(number: "3", text: "Connect to your scanner's network")
-                            InstructionRow(number: "4", text: "Come back here and tap the button below")
-                        }
-                        
-                        // Open Wi-Fi settings button (opens Settings app; user taps Wi‑Fi there)
-                        Button(action: onOpenSettings) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "wifi")
-                                    .font(.system(size: 16))
-                                Text("Open Wi‑Fi settings")
-                                    .font(.system(size: FontSize.bodyRegular, weight: .medium))
+                        // Main state: guide user to connect manually (variant when Local Network denied vs not)
+                        if localNetworkDeniedState.denied {
+                            // User has denied Local Network – show video and 5 steps (Tap Allow first)
+                            LoopingVideoPlayerView(filename: "local-network", fileExtension: "mp4")
+                                .aspectRatio(16/9, contentMode: .fit)
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: LayoutConstants.borderRadius))
+                                .padding(.bottom, 10)
+                            
+                            Text("Connect to your scanner's Wi‑Fi")
+                                .font(.system(size: FontSize.h4, weight: .semibold))
+                                .foregroundColor(.textPrimary)
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                InstructionRow(number: "1", text: "Tap **Allow** if prompted")
+                                InstructionRow(number: "2", text: "Open your phone's **Settings** app")
+                                InstructionRow(number: "3", text: "Tap **Wi‑Fi**")
+                                InstructionRow(number: "4", text: "Connect to your scanner's network")
+                                InstructionRow(number: "5", text: "Come back here and tap the button below")
                             }
-                            .foregroundColor(.mintGreen)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color.mintGreen.opacity(0.12))
-                            .cornerRadius(LayoutConstants.borderRadius)
+                        } else {
+                            Text("Connect to your scanner's Wi‑Fi")
+                                .font(.system(size: FontSize.h4, weight: .semibold))
+                                .foregroundColor(.textPrimary)
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                InstructionRow(number: "1", text: "Open your phone's **Settings** app")
+                                InstructionRow(number: "2", text: "Tap **Wi‑Fi**")
+                                InstructionRow(number: "3", text: "Connect to your scanner's network")
+                                InstructionRow(number: "4", text: "Come back here and tap the button below")
+                            }
                         }
-                        .buttonStyle(.plain)
                         
-                        // Common network names hint (only scanners we've validated)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Common scanner network names:")
-                                .font(.system(size: FontSize.bodySmall, weight: .medium))
-                                .foregroundColor(.textSecondary)
-                            Text("WiFi_OBDII, OBD2, ELM327")
-                                .font(.system(size: FontSize.bodySmall))
-                                .foregroundColor(.textSecondary)
-                                .italic()
+                        // Common scanner network names (only when not in denied state – saves space for button)
+                        if !localNetworkDeniedState.denied {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Common scanner network names:")
+                                    .font(.system(size: FontSize.bodySmall, weight: .medium))
+                                    .foregroundColor(.textSecondary)
+                                Text("WiFi_OBDII, OBD2, ELM327")
+                                    .font(.system(size: FontSize.bodySmall))
+                                    .foregroundColor(.textSecondary)
+                                    .italic()
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.statusInfoBg)
-                        .cornerRadius(8)
+                        
+                        // Narrower primary button (centered)
+                        HStack {
+                            Spacer()
+                            PrimaryButton(title: "Open Wi‑Fi Settings", action: onOpenSettings)
+                                .frame(maxWidth: 220)
+                            Spacer()
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -977,6 +1016,9 @@ struct ConnectWifiStepView: View {
     
     private func checkInitialState() {
         isChecking = true
+        if !localNetworkProbed {
+            probeLocalNetwork()
+        }
         Task {
             await wifiManager.fetchCurrentSSID()
             let hasInternet = await onCheckInternet()
@@ -989,6 +1031,35 @@ struct ConnectWifiStepView: View {
                     detectedOBD = true
                 }
             }
+        }
+    }
+    
+    /// Trigger a throwaway TCP connection to the scanner IP. This causes iOS to
+    /// show the Local Network permission dialog NOW (while the user is on this
+    /// step) and lets us detect if the user has already denied (path.unsatisfiedReason).
+    private func probeLocalNetwork() {
+        localNetworkProbed = true
+        let deniedState = localNetworkDeniedState
+        let connection = NWConnection(
+            host: "192.168.0.10",
+            port: 35000,
+            using: .tcp
+        )
+        connection.pathUpdateHandler = { path in
+            if path.status == .unsatisfied, path.unsatisfiedReason == .localNetworkDenied {
+                DispatchQueue.main.async { deniedState.denied = true }
+            }
+        }
+        connection.stateUpdateHandler = { state in
+            if case .waiting = state, let path = connection.currentPath,
+               path.status == .unsatisfied, path.unsatisfiedReason == .localNetworkDenied {
+                DispatchQueue.main.async { deniedState.denied = true }
+            }
+        }
+        let q = DispatchQueue(label: "com.mintcheck.localnet.probe")
+        connection.start(queue: q)
+        q.asyncAfter(deadline: .now() + 0.5) {
+            connection.cancel()
         }
     }
     
@@ -1009,6 +1080,11 @@ struct ConnectWifiStepView: View {
         pollTimer?.invalidate()
         pollTimer = nil
     }
+}
+
+/// Holds Local Network denied state so the probe (running on a background queue) can update it.
+private final class LocalNetworkDeniedState: ObservableObject {
+    @Published var denied = false
 }
 
 /// Numbered instruction row for the connect flow
@@ -1297,6 +1373,7 @@ struct EnterVinStepView: View {
     let onConfirmDetails: () -> Void
     @Binding var showDecodedInfo: Bool
     @Binding var decodedInfo: VINDecodeResult?
+    @Binding var showVinNotRecognized: Bool
     var isVinLocked: Bool = false  // Free user scan 2-3: VIN pre-filled and read-only
     
     private var vinCountText: String {
@@ -1411,13 +1488,13 @@ struct EnterVinStepView: View {
                         }
                     }
                     
-                    // Decoded Vehicle Info Card (green box)
-                    if showDecodedInfo, let decoded = decodedInfo {
+                    // Vehicle identified (green box) – only when decoder returned year/make/model
+                    if showDecodedInfo, let decoded = decodedInfo, decoded.hasIdentifiedVehicle {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(.statusSafe)
-                                Text("Vehicle Found!")
+                                Text("Vehicle identified")
                                     .font(.system(size: FontSize.bodyLarge, weight: .semibold))
                                     .foregroundColor(.statusSafe)
                             }
@@ -1453,6 +1530,31 @@ struct EnterVinStepView: View {
                         .overlay(
                             RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
                                 .stroke(Color.statusSafe, lineWidth: 1)
+                        )
+                    }
+                    
+                    // VIN not recognized – decoder succeeded but no vehicle data (e.g. non-US or not in database)
+                    if showVinNotRecognized {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "info.circle.fill")
+                                    .foregroundColor(.textSecondary)
+                                Text("VIN not recognized")
+                                    .font(.system(size: FontSize.bodyLarge, weight: .semibold))
+                                    .foregroundColor(.textPrimary)
+                            }
+                            Text("We couldn't identify this vehicle from the VIN. You'll enter make, model, and year on the next screen.")
+                                .font(.system(size: FontSize.bodyRegular))
+                                .foregroundColor(.textSecondary)
+                                .lineSpacing(4)
+                        }
+                        .padding(LayoutConstants.padding4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.statusInfoBg)
+                        .cornerRadius(LayoutConstants.borderRadius)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: LayoutConstants.borderRadius)
+                                .stroke(Color.borderColor, lineWidth: 1)
                         )
                     }
                     

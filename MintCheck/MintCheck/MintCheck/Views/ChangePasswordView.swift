@@ -54,9 +54,11 @@ struct ChangePasswordView: View {
                         isSecure: true,
                         errorMessage: newPasswordValidationMessage
                     )
-                    Text(PasswordValidator.requirementsHint)
-                        .font(.system(size: FontSize.bodySmall))
-                        .foregroundColor(.textSecondary)
+                    if newPasswordValidationMessage == nil {
+                        Text(PasswordValidator.requirementsHint)
+                            .font(.system(size: FontSize.bodySmall))
+                            .foregroundColor(.textSecondary)
+                    }
                     InputField(
                         label: "Confirm new password",
                         text: $confirmPassword,

@@ -16,6 +16,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
     var createdAt: Date?
     var role: String?
     var earlyAccessGrantedAt: Date?
+    var resetOnboarding: Bool?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -25,6 +26,7 @@ struct UserProfile: Codable, Identifiable, Equatable {
         case createdAt = "created_at"
         case role
         case earlyAccessGrantedAt = "early_access_granted_at"
+        case resetOnboarding = "reset_onboarding"
     }
     
     var displayName: String {
@@ -51,7 +53,6 @@ struct SignUpData {
     var password: String
     var firstName: String
     var lastName: String
-    var birthdate: Date?
 }
 
 /// Sign in request data
