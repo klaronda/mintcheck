@@ -1,0 +1,14 @@
+{
+  "scan_time": "2026-02-26T11:19:28.368958",
+  "device": "BT_KEEPALIVE",
+  "results": {
+    "Trouble Codes (DTCs)": "\u26a0\ufe0f DTCs: ATZ   ELM327 v1.5",
+    "Engine RPM": "\u2014",
+    "Coolant Temperature": "\u2014",
+    "Vehicle Speed": "\u2014",
+    "Throttle Position": "\u2014",
+    "Fuel Level": "\u2014",
+    "Battery Voltage": "\u2014",
+    "Intake Air Temp": "\u2014"
+  }
+}

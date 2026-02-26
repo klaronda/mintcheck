@@ -1,0 +1,14 @@
+{
+  "scan_time": "2026-02-26T09:37:31.191775",
+  "device": "BT_KEEPALIVE",
+  "results": {
+    "Trouble Codes (DTCs)": "\u2014",
+    "Engine RPM": "\u2014",
+    "Coolant Temperature": "\u2014",
+    "Vehicle Speed": "\u2014",
+    "Throttle Position": "\u2014",
+    "Fuel Level": "\u2014",
+    "Battery Voltage": "\u2014",
+    "Intake Air Temp": "\u2014"
+  }
+}

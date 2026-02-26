@@ -1,0 +1,38 @@
+{
+  "session_id": "b912e3d3-6940-4e55-a87d-c56cafe97a46",
+  "scan_id": "00000000-0000-0000-0000-000000000001",
+  "comparisons": [
+    {
+      "field": "vin",
+      "sent": "1HGBH41JXMN109186",
+      "received": "1HGBH41JXMN109186",
+      "match": true,
+      "note": "match"
+    },
+    {
+      "field": "dtcs",
+      "sent": [],
+      "received": [],
+      "match": true,
+      "note": "match"
+    },
+    {
+      "field": "rpm",
+      "sent": 750,
+      "received": 750,
+      "match": true,
+      "note": "match"
+    }
+  ],
+  "missing": [],
+  "correct": 3,
+  "total": 3,
+  "confidence_pct": 100.0,
+  "stability": {
+    "session_duration_sec": 1.019598,
+    "connect_count": 1,
+    "disconnect_count": 1,
+    "completed": true,
+    "commands_seen": 4
+  }
+}
