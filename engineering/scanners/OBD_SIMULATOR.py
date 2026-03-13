@@ -385,6 +385,18 @@ def run_serial_mode(serial_port: str, engine: PayloadEngine, scans_dir: Path):
         ser = serial.Serial(serial_port, 38400, timeout=0.5)
     except Exception as e:
         print(f"Failed to open {serial_port}: {e}")
+        try:
+            import serial.tools.list_ports
+            ports = list(serial.tools.list_ports.comports())
+            if ports:
+                print("Available serial ports:")
+                for p in ports:
+                    print(f"  {p.device}")
+                print("Use: --serial-port", ports[0].device)
+            else:
+                print("No serial ports found. Plug in a USB OBD2 adapter (data-capable, not power-only).")
+        except Exception:
+            pass
         sys.exit(1)
     print(f"OBD Simulator Serial on {serial_port} (session {session_id[:8]})")
     print("Adapter expectation: ELM327-style line protocol. Send one command per line (e.g. ATZ\\r, 010C\\r).")

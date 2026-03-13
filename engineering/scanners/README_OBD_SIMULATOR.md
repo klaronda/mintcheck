@@ -29,9 +29,10 @@ The simulator emulates a car ECU so you can test scanners and the MintCheck app 
 python3 OBD_SIMULATOR.py
 python3 OBD_SIMULATOR.py --port 35000 --scenario healthy
 
-# Serial (scanner in female OBD2)
+# Serial (scanner in female OBD2). Replace with your adapter's port (e.g. ls /dev/cu.*)
 python3 OBD_SIMULATOR.py --mode serial --serial-port /dev/cu.usbserial-XXXX
 ```
+If the port fails, the script prints available ports. You need a **data-capable** USB→female OBD2 adapter (not power-only like the Yeebline).
 
 ## Scenarios and ground truth
 

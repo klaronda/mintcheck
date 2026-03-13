@@ -444,6 +444,21 @@ serve(async (req) => {
       );
     }
 
+    // Ensure scan exists and belongs to user (avoids 500/FK when share is tapped before save completes)
+    const { data: scanRow, error: scanCheckError } = await supabase
+      .from('scans')
+      .select('id')
+      .eq('id', scanId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (scanCheckError || !scanRow) {
+      return new Response(
+        JSON.stringify({ error: 'Scan not found. Save the report first, then try sharing again. If you just finished scanning, wait a moment or close and reopen the report.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     let shareCode: string | undefined;
     let shareUrl: string | undefined;
 
@@ -592,7 +607,9 @@ serve(async (req) => {
 
     const vehicleName = `${reportData.vehicleYear} ${reportData.vehicleMake} ${reportData.vehicleModel}`;
 
-    // Send email via Resend
+    // Send email via Resend (click tracking is domain-level). Our CTA uses a plain absolute URL.
+    // If "View Full Report" redirect fails, try signed-in state (e.g. Gmail); tracking redirects
+    // can misbehave when the recipient is signed out. Otherwise contact Resend with the failing URL.
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {

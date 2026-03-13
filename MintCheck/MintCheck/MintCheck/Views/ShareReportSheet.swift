@@ -478,6 +478,10 @@ struct ShareReportSheet: View {
             return "Our servers are temporarily busy. Please try again in a moment."
         }
         if lower.contains("400") || lower.contains("bad request") {
+            // Show server message when scan not saved yet (share before save completes)
+            if lower.contains("scan not found") || lower.contains("save the report first") {
+                return raw
+            }
             return "We couldn't send the report. Please check the email addresses and try again."
         }
         if lower.contains("401") || lower.contains("unauthorized") {
