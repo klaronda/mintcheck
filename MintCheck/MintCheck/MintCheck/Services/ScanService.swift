@@ -37,6 +37,15 @@ class ScanService: ObservableObject {
         return count
     }
     
+    /// Reset the daily scan counter (e.g. when a new Buyer Pass is activated).
+    func resetScansCompletedToday() {
+        let today = Calendar.current.startOfDay(for: Date())
+        let stored = UserDefaults.standard
+        stored.set(today, forKey: Self.scansTodayDateKey)
+        stored.set(0, forKey: Self.scansTodayCountKey)
+        objectWillChange.send()
+    }
+
     /// Call when a scan is successfully saved so "Scans Today" increments and does not decrease on delete.
     func incrementScansCompletedToday() {
         let calendar = Calendar.current

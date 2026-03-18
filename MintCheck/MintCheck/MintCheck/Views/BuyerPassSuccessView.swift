@@ -9,6 +9,7 @@ import SwiftUI
 
 struct BuyerPassSuccessView: View {
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var scanService: ScanService
     let onDone: () -> Void
 
     @State private var isLoading = true
@@ -85,6 +86,7 @@ struct BuyerPassSuccessView: View {
             if active {
                 await authService.refreshBuyerPassStatus()
                 await MainActor.run {
+                    scanService.resetScansCompletedToday()
                     activated = true
                     isLoading = false
                 }

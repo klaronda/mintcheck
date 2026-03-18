@@ -66,7 +66,7 @@ struct ScanFlowView: View {
                     showDecodedInfo: $showDecodedInfo,
                     decodedInfo: $decodedInfo,
                     showVinNotRecognized: $showVinNotRecognized,
-                    isVinLocked: !authService.hasFullAccess && nav.freeUserVehicle?.vin != nil && !vinNumber.isEmpty
+                    isVinLocked: !authService.hasFullAccess && !nav.isUsingPurchasedScan && nav.freeUserVehicle?.vin != nil && !vinNumber.isEmpty
                 )
                 .onChange(of: vinNumber) { _, _ in
                     if step == .enterVin {

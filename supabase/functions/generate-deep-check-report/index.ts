@@ -282,6 +282,14 @@ serve(async (req) => {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       const resendFrom = Deno.env.get("RESEND_FROM_EMAIL") || "MintCheck <noreply@mintcheckapp.com>";
       if (resendApiKey && email) {
+        const purchaseVin = (purchase as { vin?: string }).vin ?? "";
+        const vinLast6 = String(purchaseVin).trim().slice(-6);
+        const emailSubject = yearMakeModel
+          ? `Your Deep Vehicle Check: ${yearMakeModel} (VIN ***${vinLast6})`
+          : `Your Deep Vehicle Check report is ready (VIN ***${vinLast6})`;
+        const bodyIntro = yearMakeModel
+          ? `Your report for <strong>${yearMakeModel}</strong> (VIN ending in ${vinLast6}) is ready to view. Open the link below to see accident history, title status, and more.`
+          : `Your report for the vehicle you checked (VIN ending in ${vinLast6}) is ready to view. Open the link below to see accident history, title status, and more.`;
         const html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Your Deep Vehicle Check is ready</title></head>
@@ -291,7 +299,7 @@ serve(async (req) => {
 <table role="presentation" style="width:100%;max-width:600px;border-collapse:collapse;">
 <tr><td style="background:#fff;padding:32px;border-radius:4px 4px 0 0;"><div style="color:#3EB489;font-size:24px;font-weight:600;">MintCheck</div><h2 style="margin:0;color:#1A1A1A;font-size:24px;font-weight:600;">Your Deep Vehicle Check is ready</h2></td></tr>
 <tr><td style="background:#fff;padding:0 32px 40px;">
-<p style="margin:0 0 20px;color:#666;font-size:15px;line-height:1.7;">Your vehicle history report is ready to view. Open the link below to see accident history, title status, and more.</p>
+<p style="margin:0 0 20px;color:#666;font-size:15px;line-height:1.7;">${bodyIntro}</p>
 <table role="presentation" style="width:100%;margin:32px 0;"><tr><td align="center"><a href="${reportUrl}" style="display:inline-block;padding:16px 40px;background:#3EB489;color:#fff;text-decoration:none;border-radius:4px;font-size:15px;font-weight:600;">View Report</a></td></tr></table>
 <p style="margin:24px 0 0;color:#999;font-size:13px;">If the button doesn't work: <a href="${reportUrl}" style="color:#3EB489;">${reportUrl}</a></p>
 </td></tr>
@@ -306,7 +314,7 @@ serve(async (req) => {
           body: JSON.stringify({
             from: resendFrom,
             to: [email],
-            subject: "Your Deep Vehicle Check report is ready",
+            subject: emailSubject,
             html,
           }),
         });

@@ -63,7 +63,7 @@ serve(async (req) => {
 
   const { data: reportRow, error: reportErr } = await supabase
     .from("deep_check_reports")
-    .select("id, purchase_id")
+    .select("id, purchase_id, year_make_model")
     .eq("report_code", code)
     .maybeSingle();
 
@@ -75,9 +75,11 @@ serve(async (req) => {
   }
 
   const purchaseId = (reportRow as { purchase_id: string }).purchase_id;
+  const yearMakeModel = (reportRow as { year_make_model?: string | null }).year_make_model?.trim() || null;
+
   const { data: purchaseRow, error: purchaseErr } = await supabase
     .from("deep_check_purchases")
-    .select("user_id")
+    .select("user_id, vin")
     .eq("id", purchaseId)
     .maybeSingle();
 
@@ -98,6 +100,15 @@ serve(async (req) => {
     });
   }
 
+  const vin = (purchaseRow as { vin?: string }).vin ?? "";
+  const vinLast6 = String(vin).trim().slice(-6);
+  const subject = yearMakeModel
+    ? `Your Deep Vehicle Check: ${yearMakeModel} (VIN ***${vinLast6})`
+    : `Your Deep Vehicle Check report is ready (VIN ***${vinLast6})`;
+  const bodyIntro = yearMakeModel
+    ? `Your report for <strong>${yearMakeModel}</strong> (VIN ending in ${vinLast6}) is ready to view. Open the link below to see accident history, title status, and more.`
+    : `Your report for the vehicle you checked (VIN ending in ${vinLast6}) is ready to view. Open the link below to see accident history, title status, and more.`;
+
   const reportUrl = `${REPORT_BASE}/deep-check/report/${encodeURIComponent(code)}`;
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -108,7 +119,7 @@ serve(async (req) => {
 <table role="presentation" style="width:100%;max-width:600px;border-collapse:collapse;">
 <tr><td style="background:#fff;padding:32px;border-radius:4px 4px 0 0;"><div style="color:#3EB489;font-size:24px;font-weight:600;">MintCheck</div><h2 style="margin:0;color:#1A1A1A;font-size:24px;font-weight:600;">Your Deep Vehicle Check is ready</h2></td></tr>
 <tr><td style="background:#fff;padding:0 32px 40px;">
-<p style="margin:0 0 20px;color:#666;font-size:15px;line-height:1.7;">Your vehicle history report is ready to view. Open the link below to see accident history, title status, and more.</p>
+<p style="margin:0 0 20px;color:#666;font-size:15px;line-height:1.7;">${bodyIntro}</p>
 <table role="presentation" style="width:100%;margin:32px 0;"><tr><td align="center"><a href="${reportUrl}" style="display:inline-block;padding:16px 40px;background:#3EB489;color:#fff;text-decoration:none;border-radius:4px;font-size:15px;font-weight:600;">View Report</a></td></tr></table>
 <p style="margin:24px 0 0;color:#999;font-size:13px;">If the button doesn't work: <a href="${reportUrl}" style="color:#3EB489;">${reportUrl}</a></p>
 </td></tr>
@@ -124,7 +135,7 @@ serve(async (req) => {
     body: JSON.stringify({
       from: resendFrom,
       to: [email],
-      subject: "Your Deep Vehicle Check report is ready",
+      subject,
       html,
     }),
   });

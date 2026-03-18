@@ -7,12 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		395FB5D92F64BEAE00A7EB7E /* OneTimeScanProducts.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 395FB5D82F64BEAE00A7EB7E /* OneTimeScanProducts.storekit */; };
 		39AF34002F215BEC00BEC7C8 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 39AF33FF2F215BEC00BEC7C8 /* Auth */; };
 		39AF34022F215BEC00BEC7C8 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 39AF34012F215BEC00BEC7C8 /* PostgREST */; };
 		39AF34052F215D2C00BEC7C8 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 39AF34042F215D2C00BEC7C8 /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		395FB5D82F64BEAE00A7EB7E /* OneTimeScanProducts.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = OneTimeScanProducts.storekit; sourceTree = "<group>"; };
 		39AF33A32F21574200BEC7C8 /* MintCheck.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MintCheck.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		39AF379E2F25B4AE00BEC7C8 /* MintCheck.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MintCheck.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -42,6 +44,7 @@
 		39AF339A2F21574200BEC7C8 = {
 			isa = PBXGroup;
 			children = (
+				395FB5D82F64BEAE00A7EB7E /* OneTimeScanProducts.storekit */,
 				39AF33A52F21574200BEC7C8 /* MintCheck */,
 				39AF34032F215D2C00BEC7C8 /* Frameworks */,
 				39AF379E2F25B4AE00BEC7C8 /* MintCheck.entitlements */,
@@ -134,6 +137,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				395FB5D92F64BEAE00A7EB7E /* OneTimeScanProducts.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

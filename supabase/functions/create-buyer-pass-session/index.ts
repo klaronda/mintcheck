@@ -159,10 +159,15 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("create-buyer-pass-session error:", e);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const errMsg = e instanceof Error ? e.message : String(e);
+    const errType = e?.type ?? e?.code ?? "unknown";
+    console.error("create-buyer-pass-session error:", errType, errMsg, e);
+    return new Response(
+      JSON.stringify({ error: "Internal server error", detail: errMsg, type: errType }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });

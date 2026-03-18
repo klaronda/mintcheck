@@ -36,6 +36,8 @@ class NavigationManager: ObservableObject {
     @Published var deepCheckSessionId: String? = nil
     /// Whether the user has any completed deep check reports (for menu display)
     @Published var hasDeepCheckReports: Bool = false
+    /// When true, the current scan is paid via a one-time scan credit (skip VIN lock, consume credit after save)
+    @Published var isUsingPurchasedScan: Bool = false
     /// User-facing toast message (nil = no toast). Rendered by ContentView overlay.
     @Published var toastMessage: String? = nil
     /// When set, toast shows "Report this issue" and this context is used for feedback modal.
@@ -64,6 +66,7 @@ class NavigationManager: ObservableObject {
     func resetScanData() {
         currentScanData = ScanData()
         freeUserVehicle = nil
+        isUsingPurchasedScan = false
         scanFlowId += 1
     }
     
@@ -540,6 +543,7 @@ struct ContentView: View {
                     }
                 )
                 .environmentObject(authService)
+                .environmentObject(scanService)
             }
         }
         .alert("VIN mismatch detected", isPresented: $showVinMismatchBlockAlert) {
@@ -547,8 +551,8 @@ struct ContentView: View {
         } message: {
             Text("We couldn't confirm the VIN for your last scan. Please contact support to resolve before starting a new scan.")
         }
-        .alert("All free scans used", isPresented: $showFreeScansMaxedAlert) {
-            Button("Get Buyer Pass") {
+        .confirmationDialog("All free scans used", isPresented: $showFreeScansMaxedAlert, titleVisibility: .visible) {
+            Button("Get Buyer Pass — $14.99") {
                 Task {
                     do {
                         let checkoutURL = try await BuyerPassService.shared.createCheckoutSession()
@@ -560,9 +564,30 @@ struct ContentView: View {
                     }
                 }
             }
-            Button("OK", role: .cancel) {}
+            Button("Buy One Scan — $3.99") {
+                Task {
+                    do {
+                        try await OneTimeScanService.shared.purchase()
+                        await MainActor.run {
+                            nav.resetScanData()
+                            nav.isUsingPurchasedScan = true
+                            nav.currentScreen = .scanFlow
+                        }
+                    } catch let error as OneTimeScanError {
+                        if case .purchaseFailed("Purchase was cancelled.") = error { return }
+                        await MainActor.run {
+                            nav.showErrorToast(error.message, errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.message, scanStep: "checkout")
+                        }
+                    } catch {
+                        await MainActor.run {
+                            nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
+                        }
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("You've used all 3 free scans. Add a Buyer Pass to scan unlimited vehicles for 60 days.")
+            Text("You've used all 3 free scans. Buy a single scan or get a Buyer Pass for unlimited scanning.")
         }
         .alert("Daily scan limit reached", isPresented: $showBuyerPassDailyLimitAlert) {
             Button("OK", role: .cancel) {}
@@ -1085,17 +1110,20 @@ struct ContentView: View {
                 }
             }
         } else if !authService.hasFullAccess {
-            // Free user: one VIN, up to 3 scans
+            // Free user: one VIN, up to 3 scans — or purchased credits
             Task {
                 guard let userId = authService.currentUser?.id else { return }
-                // Ensure vehicles and scan history are loaded
                 try? await scanService.loadVehicles(userId: userId)
                 try? await scanService.loadScanHistory(userId: userId)
+                await OneTimeScanService.shared.loadCredits()
                 await MainActor.run {
-                    if scanService.scanHistory.count >= 3 {
+                    if scanService.scanHistory.count >= 3 && OneTimeScanService.shared.scanCredits <= 0 {
                         showFreeScansMaxedAlert = true
+                    } else if scanService.scanHistory.count >= 3 && OneTimeScanService.shared.scanCredits > 0 {
+                        nav.resetScanData()
+                        nav.isUsingPurchasedScan = true
+                        nav.currentScreen = .scanFlow
                     } else {
-                        // Cache the first vehicle for post-scan VIN comparison
                         nav.freeUserVehicle = scanService.vehicles.first
                         nav.resetScanData()
                         nav.currentScreen = .scanFlow
@@ -1399,7 +1427,7 @@ struct ContentView: View {
                     try await scanService.setVehicleVinLocked(vehicleId: savedVehicle.id)
                     vehicleId = savedVehicle.id
                 }
-            } else if !authService.hasFullAccess {
+            } else if !authService.hasFullAccess && !nav.isUsingPurchasedScan {
                 // Free user: reuse existing vehicle or create first one
                 try await scanService.loadVehicles(userId: userId)
                 if let existing = scanService.vehicles.first {
@@ -1495,6 +1523,10 @@ struct ContentView: View {
                         nav.currentScanData.scanId = saved.id
                         nav.currentScanData.reportStorage = .uploaded
                         nav.showErrorToast("Scan saved")
+                    }
+                    if nav.isUsingPurchasedScan {
+                        await OneTimeScanService.shared.consumeCredit()
+                        await MainActor.run { nav.isUsingPurchasedScan = false }
                     }
                     return true
                 } catch {

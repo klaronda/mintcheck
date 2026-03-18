@@ -91,6 +91,8 @@ final class BuyerPassService: ObservableObject {
         }
 
         var (data, http) = try await performRequest()
+        let bodyStr = String(data: data, encoding: .utf8) ?? "(no body)"
+        print("BuyerPassService: status \(http.statusCode) — body: \(bodyStr)")
 
         // Retry once with refreshed session if we get 401
         if http.statusCode == 401 {
@@ -98,6 +100,8 @@ final class BuyerPassService: ObservableObject {
             session = try await SupabaseConfig.shared.client.auth.session
             token = session.accessToken
             (data, http) = try await performRequest()
+            let retryBody = String(data: data, encoding: .utf8) ?? "(no body)"
+            print("BuyerPassService: retry status \(http.statusCode) — body: \(retryBody)")
         }
 
         if http.statusCode == 401 {

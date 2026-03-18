@@ -202,7 +202,8 @@ struct DashboardView: View {
                         FreeUserScanCard(
                             onStartCheck: onStartCheck,
                             scanCount: min(scanService.scanHistory.count, 3),
-                            vehicle: scanService.vehicles.first
+                            vehicle: scanService.vehicles.first,
+                            purchasedCredits: OneTimeScanService.shared.scanCredits
                         )
                         
                         // Show active Buyer Pass card if active; otherwise show upsell
@@ -270,6 +271,27 @@ struct DashboardView: View {
                                         }
                                     }
                                 )
+
+                                if scanService.scanHistory.count >= 1 {
+                                    PlanProductCard(
+                                        imageName: "OneTimeCheck",
+                                        title: "One-time scan.",
+                                        bodyText: "Scan any vehicle once, and know its engine health in seconds.",
+                                        subtextBold: "$3.99",
+                                        ctaTitle: "Buy Now",
+                                        ctaAction: {
+                                            Task {
+                                                do {
+                                                    try await OneTimeScanService.shared.purchase()
+                                                } catch {
+                                                    await MainActor.run {
+                                                        nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         
                             VStack(alignment: .leading, spacing: 16) {
@@ -313,6 +335,7 @@ struct DashboardView: View {
             try? await scanService.loadVehicles(userId: userId)
         }
         await authService.refreshBuyerPassStatus()
+        await OneTimeScanService.shared.loadCredits()
         if let reports = try? await DeepCheckService.shared.getMyDeepChecks() {
             deepCheckReports = reports
             nav.hasDeepCheckReports = !reports.isEmpty
@@ -351,6 +374,7 @@ struct DashboardView: View {
                 try? await scanService.loadVehicles(userId: userId)
             }
             await authService.refreshBuyerPassStatus()
+            await OneTimeScanService.shared.loadCredits()
             if let reports = try? await DeepCheckService.shared.getMyDeepChecks() {
                 deepCheckReports = reports
                 nav.hasDeepCheckReports = !reports.isEmpty
@@ -537,11 +561,11 @@ struct FreeUserScanCard: View {
     let onStartCheck: () -> Void
     let scanCount: Int
     var vehicle: VehicleInfo? = nil
+    var purchasedCredits: Int = 0
     
     private var hasScanned: Bool { vehicle != nil && scanCount > 0 }
     private var isMaxed: Bool { scanCount >= 3 }
     
-    /// Build the vehicle descriptor, e.g. "2018 Honda Accord" or "Honda Accord" if year is unavailable
     private var vehicleDescriptor: String {
         guard let v = vehicle else { return "" }
         let year = (v.year == "(Year N/A)" || v.year.isEmpty) ? nil : v.year
@@ -553,8 +577,21 @@ struct FreeUserScanCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if isMaxed {
-                // All 3 free scans used
+            if isMaxed && purchasedCredits > 0 {
+                Text("You have \(purchasedCredits) purchased \(purchasedCredits == 1 ? "scan" : "scans").")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                
+                Text("Scan any vehicle and know its engine health in seconds.")
+                    .font(.system(size: FontSize.bodyLarge))
+                    .foregroundColor(.textSecondary)
+                    .lineSpacing(4)
+                
+                PrimaryButton(
+                    title: "Start Your Mint Check",
+                    action: onStartCheck
+                )
+            } else if isMaxed {
                 Text("You've used all 3 free scans.")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.textPrimary)
