@@ -56,6 +56,9 @@ export default function Footer() {
             <Link to="/terms" className="hover:text-white transition-colors">
               Terms of Use
             </Link>
+            <Link to="/eula" className="hover:text-white transition-colors">
+              EULA
+            </Link>
             <a href="mailto:support@mintcheckapp.com" className="flex items-center gap-2 hover:text-white transition-colors">
               <Mail className="w-4 h-4 shrink-0" />
               support@mintcheckapp.com

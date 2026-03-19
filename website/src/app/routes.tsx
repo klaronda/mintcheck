@@ -29,6 +29,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <Layout />,
+    errorElement: <NotFound />,
     children: [
       { index: true, element: <Home /> },
       { path: 'download', element: <Download /> },
@@ -47,4 +48,5 @@ export const router = createBrowserRouter([
       { path: '*', element: <NotFound /> },
     ],
   },
+  { path: '*', element: <NotFound /> },
 ]);
