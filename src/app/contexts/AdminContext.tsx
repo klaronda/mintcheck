@@ -28,51 +28,367 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'mintcheck_articles';
+/** Bumped when bundled support articles change — refreshes merged localStorage */
+const STORAGE_KEY = 'mintcheck_articles_v3';
 const AUTH_KEY = 'mintcheck_admin_auth';
 
-// Initialize with some default articles
-const getInitialArticles = (): Article[] => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    return JSON.parse(stored);
+const SUPPORT_HERO_IMAGE = 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1200&h=400&fit=crop';
+const BUYER_PASS_HERO_IMAGE =
+  'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/buyer-pass_help.png';
+
+function isMarkdownListLine(line: string): boolean {
+  return line.startsWith('- ') || line.startsWith('* ');
+}
+
+function listItemInner(line: string): string {
+  if (line.startsWith('- ')) return line.slice(2);
+  if (line.startsWith('* ')) return line.slice(2);
+  return line;
+}
+
+/** Convert app-style markdown (bold, paragraphs, lists) to HTML for article body */
+function markdownToHtml(md: string): string {
+  const escape = (s: string) =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  const bold = (s: string) => s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  const normalized = md.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const blocks = normalized.split(/\n\n+/);
+  const out: string[] = [];
+  for (const block of blocks) {
+    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) continue;
+    const singleLine = lines.length === 1 && lines[0];
+    if (singleLine && /^\*\*[^*]+\*\*$/.test(singleLine)) {
+      out.push(`<h3>${escape(singleLine.slice(2, -2))}</h3>`);
+      continue;
+    }
+    const listLines = lines.filter((l) => isMarkdownListLine(l));
+    const otherLines = lines.filter((l) => !isMarkdownListLine(l));
+    const listItemHtml = (l: string) => `<li>${bold(escape(listItemInner(l)))}</li>`;
+    if (listLines.length === lines.length && listLines.length > 0) {
+      out.push('<ul>' + listLines.map(listItemHtml).join('') + '</ul>');
+      continue;
+    }
+    if (otherLines.length > 0) {
+      const introHtml = otherLines.map((l) => bold(escape(l))).join('\n');
+      out.push('<p>' + introHtml.replace(/\n/g, '</p><p>') + '</p>');
+    }
+    if (listLines.length > 0) {
+      out.push('<ul>' + listLines.map(listItemHtml).join('') + '</ul>');
+    }
   }
-  
+  return out.join('');
+}
+
+function firstSummary(content: string, maxLen = 140): string {
+  const plain = content.replace(/\*\*[^*]*\*\*/g, '').replace(/\n/g, ' ').trim();
+  const match = plain.match(/^[^.!?]+[.!?]?/);
+  const first = match ? match[0].trim() : plain.slice(0, maxLen);
+  return first.length > maxLen ? first.slice(0, maxLen - 3) + '...' : first;
+}
+
+/**
+ * Support articles — parity with iOS `SupportView.swift` + `OBDHelpSheet` in DeviceConnectionView.
+ * Slugs match app `SupportArticle.id` where applicable.
+ */
+const APP_SUPPORT_ARTICLES: Array<{
+  id: string;
+  title: string;
+  content: string;
+  category: 'Device Help' | 'Using the App' | 'Vehicle Support';
+  heroImage?: string;
+}> = [
+  {
+    id: 'obd-port',
+    title: 'Finding your OBD-II port',
+    category: 'Device Help',
+    content: `**Where is the OBD-II Port?**
+
+The OBD-II port is a standardized 16-pin connector found in all cars manufactured after 1996. It's typically located under the dashboard on the driver's side, near the steering column.
+
+**Common Locations**
+
+- **Most Common:** Under the dashboard, left of the steering wheel
+- **Alternative:** Under the dashboard, right of the steering wheel
+- **Less Common:** Near the center console or behind the ashtray area
+- **Rare:** Under the hood near the engine bay
+
+**Tips for Finding It**
+
+- Use a flashlight to look under the dashboard
+- It's usually within arm's reach of the driver's seat
+- Check your vehicle's owner manual for the exact location
+- Some vehicles have a protective cover that needs to be removed
+
+**Need more help?**
+
+If you're having trouble locating the port, ask the seller or check online resources for your specific vehicle make and model.`,
+  },
+  {
+    id: 'where-to-get-scanner',
+    title: 'Where to get an OBD-II WiFi Scanner',
+    category: 'Device Help',
+    content: `To use MintCheck, you need an OBD-II WiFi scanner. It's a small device that plugs into your car's diagnostic port and sends data to your phone over WiFi.
+
+**Our MintCheck-Tested Pick**
+
+WiFi ELM327 Generic Scanner — about $20 on Amazon.
+
+This is the scanner we test with and recommend. It's affordable, reliable, and works great with MintCheck.
+
+Buy it here: https://www.amazon.com/dp/B0BRKJ38ZQ?tag=mintcheck-20
+
+**Will other scanners work?**
+
+Yes. Any ELM327-compatible WiFi OBD-II scanner should work with MintCheck. Just make sure it connects via WiFi (not Bluetooth). You can find them online for $15–30.`,
+  },
+  {
+    id: 'connect-scanner',
+    title: 'How to connect your OBD-II scanner',
+    category: 'Device Help',
+    content: `Follow these steps to connect your OBD-II scanner and start a vehicle scan:
+
+**Step 1: Locate the OBD-II port**
+Find the port under the dashboard on the driver's side. See our "Finding your OBD-II port" article for detailed instructions.
+
+**Step 2: Plug in the scanner**
+Insert your OBD-II scanner firmly into the port. It should click into place.
+
+**Step 3: Turn on the ignition**
+Turn your vehicle's ignition to the "ON" position. The engine does not need to be running for most scans.
+
+**Step 4: Connect to the scanner**
+
+For WiFi scanners:
+- Open your phone's Settings
+- Go to WiFi settings
+- Connect to the scanner's network (usually named "OBDII", "WiFi_OBD", or similar)
+- Return to MintCheck
+
+For Bluetooth scanners:
+- Enable Bluetooth on your phone
+- Pair with the scanner in your phone's Bluetooth settings
+- Return to MintCheck
+
+**Step 5: Start the scan**
+Tap "Start Scan" in MintCheck to begin the diagnostic check. The scan typically takes 30-60 seconds.
+
+**Troubleshooting:**
+- Make sure the scanner is fully inserted
+- Ensure the ignition is on (not just accessories)
+- Try reconnecting to the scanner's WiFi/Bluetooth
+- Restart the scanner by unplugging and re-plugging it`,
+  },
+  {
+    id: 'understanding-results',
+    title: 'Understanding your scan results',
+    category: 'Using the App',
+    content: `After scanning a vehicle, MintCheck provides a comprehensive health report. Here's how to interpret your results:
+
+**Overall Recommendation**
+
+Safe (Green): No significant issues detected. The vehicle's systems appear to be in good working order.
+
+Caution (Yellow): Some concerns were found that warrant attention. Review the details carefully before making a decision.
+
+Walk Away (Red): Significant issues detected. We recommend not purchasing this vehicle without a professional inspection or further investigation.
+
+**What We Found**
+This section summarizes the key findings from the scan, including:
+- Diagnostic trouble codes (DTCs) if any
+- Whether codes were recently cleared
+- Estimated repair costs for any issues
+
+**System Details**
+Detailed information about each vehicle system:
+- Engine: RPM, load, temperatures
+- Fuel System: Fuel trims, fuel system status
+- Emissions: Readiness monitors, oxygen sensors
+- Electrical: Battery voltage, system status
+
+**Vehicle Details**
+Information about the vehicle including:
+- Make, model, and year
+- VIN (if provided)
+- Fuel type and engine specifications
+
+**More Model Details**
+Free safety information from NHTSA including:
+- Active recalls for this vehicle
+- Crash test safety ratings`,
+  },
+  {
+    id: 'buyer-pass',
+    title: 'How the Buyer Pass works',
+    category: 'Using the App',
+    heroImage: BUYER_PASS_HERO_IMAGE,
+    content: `**What it is**
+
+The Buyer Pass is for people shopping for a used car who want to run MintCheck on many vehicles over a period of time—not just one car.
+
+**What you get**
+
+- **60 days** of access starting when your purchase is activated in the app.
+- **Up to 10 full vehicle scans per calendar day.** The count resets each day.
+- You can scan **different VINs**; you're not limited to a single vehicle like the free tier.
+
+**Price**
+
+**$14.99** for the full 60 days. You pay once through secure checkout in the browser, then return to MintCheck.
+
+**Free scans vs Buyer Pass**
+
+- **Free:** Up to **3 scans total**, tied to how the free tier works in the app (typically your first vehicle).
+- **Buyer Pass:** Multiple vehicles, with the **10 scans per day** limit, for **60 days**.
+
+**One-time scan**
+
+If you only need **one** more scan and don't want a pass, you can buy a **single scan** in the app (In-App Purchase).
+
+**After you buy**
+
+When your pass activates, your **"Scans today"** counter resets so you start fresh at **0 / 10** for that day.
+
+**Renewal**
+
+You can renew from the dashboard or Settings when your pass is near the end or after it expires.
+
+**Something wrong?**
+
+If checkout succeeded but the app doesn't show an active pass within a few minutes, email **support@mintcheckapp.com** with the email you used to sign in.`,
+  },
+  {
+    id: 'trouble-codes',
+    title: 'What are trouble codes (DTCs)?',
+    category: 'Vehicle Support',
+    content: `Diagnostic Trouble Codes (DTCs) are standardized codes stored by your vehicle's computer when it detects a malfunction.
+
+**Understanding code prefixes:**
+
+P-codes (Powertrain): Engine, transmission, and drivetrain issues. These are the most common codes.
+
+B-codes (Body): Issues with body systems like airbags, seat belts, and interior electronics.
+
+C-codes (Chassis): Problems with ABS, traction control, and suspension systems.
+
+U-codes (Network): Communication issues between the vehicle's computer modules.
+
+**Code severity:**
+
+Not all codes are equally serious:
+- Some indicate minor issues that don't affect drivability
+- Others point to significant problems requiring immediate attention
+- Multiple related codes may indicate a single underlying issue
+
+**What MintCheck provides:**
+
+When we find trouble codes, we show:
+- The code number and description
+- Estimated repair cost range
+- Severity level (how urgent the repair is)
+
+**Important note:**
+
+A code indicates a system malfunction was detected, but doesn't always pinpoint the exact failed component. Professional diagnosis may be needed for complex issues.`,
+  },
+  {
+    id: 'recently-cleared',
+    title: "Why does it say 'codes recently cleared'?",
+    category: 'Vehicle Support',
+    content: `When MintCheck detects that diagnostic codes were recently cleared, it means someone reset the vehicle's onboard computer memory.
+
+**Why this matters:**
+
+Clearing codes erases the vehicle's diagnostic history, which could hide:
+- Previous warning lights or problems
+- Recurring issues that keep coming back
+- Problems the seller may not have disclosed
+
+**Legitimate reasons for clearing codes:**
+
+- After completing a repair (normal practice)
+- After disconnecting the battery
+- Following a recent service appointment
+
+**Potentially concerning reasons:**
+
+- Hiding problems before a sale
+- Temporarily turning off the check engine light
+- Avoiding disclosure of known issues
+
+**What to do:**
+
+1. Ask the seller directly why codes were cleared
+2. Request service records showing recent repairs
+3. Consider having the vehicle inspected by a mechanic
+4. Drive the vehicle for a few days if possible - problems often resurface
+
+**Our recommendation:**
+
+We flag "recently cleared codes" as a caution because you can't see the full diagnostic history. It's not automatically a red flag, but it warrants additional questions before purchasing.`,
+  },
+  {
+    id: 'faq',
+    title: 'Frequently Asked Questions',
+    category: 'Using the App',
+    content: `**Do I need a special scanner?**
+Any ELM327-compatible OBD-II scanner will work with MintCheck. We recommend WiFi scanners for the easiest connection experience. You can find compatible scanners for $15-30 online.
+
+**Will this work on any car?**
+MintCheck works with all vehicles from 1996 and newer sold in the United States. All these vehicles are required by law to have standardized OBD-II ports.
+
+**How accurate are the scan results?**
+The diagnostic data comes directly from the vehicle's computer, so it's as accurate as what a mechanic would see. The information reflects the current state of the vehicle's systems.
+
+**Can I scan my own car?**
+Absolutely! MintCheck is great for monitoring your own vehicle's health, not just for buying used cars. Regular scans can help you catch issues early.
+
+**How long does a scan take?**
+A typical scan takes 30-60 seconds. Some vehicles may take slightly longer depending on how many systems need to be checked.
+
+**What if the scan finds problems?**
+Review the details carefully. For minor issues, you may choose to proceed with the purchase and address them later. For significant problems, consider negotiating the price or walking away.
+
+**Do scans expire?**
+Scan results are kept for 180 days. After that, they're automatically deleted. You can always run a new scan on a vehicle.
+
+**Can I share my scan results?**
+Coming soon! We're working on the ability to export and share scan reports.`,
+  },
+];
+
+function buildSupportFromApp(): Article[] {
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  return APP_SUPPORT_ARTICLES.map((a) => ({
+    id: a.id,
+    type: 'support' as const,
+    title: a.title,
+    slug: a.id,
+    cardDescription: firstSummary(a.content, 80),
+    summary: firstSummary(a.content),
+    heroImage: a.heroImage ?? SUPPORT_HERO_IMAGE,
+    body: markdownToHtml(a.content),
+    category: a.category,
+    published: true,
+    createdAt: fourteenDaysAgo.toISOString(),
+    updatedAt: fourteenDaysAgo.toISOString(),
+  }));
+}
+
+const DEFAULT_SUPPORT_ARTICLES = buildSupportFromApp();
+const APP_SUPPORT_SLUGS = new Set(APP_SUPPORT_ARTICLES.map((a) => a.id));
+
+const getInitialArticles = (): Article[] => {
   const now = new Date();
   const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-  
-  return [
-    {
-      id: '1',
-      type: 'support',
-      title: 'Getting Started with MintCheck',
-      slug: 'getting-started',
-      cardDescription: 'Learn how to set up and use MintCheck for the first time',
-      summary: 'A comprehensive guide to help you get started with MintCheck and connect your OBD-II scanner.',
-      heroImage: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1200&h=400&fit=crop',
-      body: '<h2>Welcome to MintCheck</h2><p>This guide will help you get started with MintCheck and connect your OBD-II scanner.</p><h3>Step 1: Download the App</h3><p>Download MintCheck from the iOS App Store.</p><h3>Step 2: Connect Your Scanner</h3><p>Turn on your Bluetooth OBD-II scanner and pair it with your iPhone.</p>',
-      category: 'Using the App',
-      published: true,
-      createdAt: sevenDaysAgo.toISOString(),
-      updatedAt: sevenDaysAgo.toISOString(),
-    },
-    {
-      id: '2',
-      type: 'support',
-      title: 'Choosing the Right OBD-II Scanner',
-      slug: 'choosing-scanner',
-      cardDescription: 'Find the perfect scanner for your needs',
-      summary: 'Learn about the different types of OBD-II scanners and which one is right for you.',
-      heroImage: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1200&h=400&fit=crop',
-      body: '<h2>Scanner Types</h2><p>There are three main types of OBD-II scanners compatible with MintCheck:</p><ul><li>Basic Bluetooth scanners</li><li>Advanced diagnostic scanners</li><li>Professional-grade scanners</li></ul>',
-      category: 'Device Help',
-      published: true,
-      createdAt: fourteenDaysAgo.toISOString(),
-      updatedAt: fourteenDaysAgo.toISOString(),
-    },
+
+  const blogArticles: Article[] = [
     {
       id: '3',
       type: 'blog',
@@ -126,6 +442,18 @@ const getInitialArticles = (): Article[] => {
       updatedAt: sevenDaysAgo.toISOString(),
     },
   ];
+
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (!stored) {
+    return [...DEFAULT_SUPPORT_ARTICLES, ...blogArticles];
+  }
+  try {
+    const parsed: Article[] = JSON.parse(stored);
+    const rest = parsed.filter((a) => a.type !== 'support' || !APP_SUPPORT_SLUGS.has(a.slug));
+    return [...DEFAULT_SUPPORT_ARTICLES, ...rest];
+  } catch {
+    return [...DEFAULT_SUPPORT_ARTICLES, ...blogArticles];
+  }
 };
 
 export function AdminProvider({ children }: { children: ReactNode }) {
@@ -142,12 +470,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setArticles(prev => [...prev, newArticle]);
+    setArticles((prev) => [...prev, newArticle]);
   };
 
   const updateArticle = (id: string, updates: Partial<Article>) => {
-    setArticles(prev =>
-      prev.map(article =>
+    setArticles((prev) =>
+      prev.map((article) =>
         article.id === id
           ? { ...article, ...updates, updatedAt: new Date().toISOString() }
           : article
@@ -156,26 +484,26 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteArticle = (id: string) => {
-    setArticles(prev => prev.filter(article => article.id !== id));
+    setArticles((prev) => prev.filter((article) => article.id !== id));
   };
 
   const getArticle = (slug: string) => {
-    return articles.find(article => article.slug === slug && article.published);
+    return articles.find((article) => article.slug === slug && article.published);
   };
 
   const getSupportArticles = () => {
-    return articles.filter(article => article.type === 'support' && article.published);
+    return articles.filter((article) => article.type === 'support' && article.published);
   };
 
   const getBlogArticles = () => {
     return articles
-      .filter(article => article.type === 'blog' && article.published)
+      .filter((article) => article.type === 'blog' && article.published)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   };
 
   const getArticlesByCategory = (category: string) => {
     return articles.filter(
-      article => article.type === 'support' && article.category === category && article.published
+      (article) => article.type === 'support' && article.category === category && article.published
     );
   };
 
@@ -200,7 +528,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 export function useAdmin() {
   const context = useContext(AdminContext);
   if (context === undefined) {
-    throw new Error('useAdmin must be used within AdminProvider');
+    throw new Error('useAdmin must be used within an AdminProvider');
   }
   return context;
 }

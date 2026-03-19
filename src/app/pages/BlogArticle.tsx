@@ -113,11 +113,25 @@ export default function BlogArticle() {
           margin-bottom: 1.25em;
           line-height: 1.75;
         }
+        .prose ul {
+          list-style-type: disc;
+          list-style-position: outside;
+        }
+        .prose ol {
+          list-style-type: decimal;
+          list-style-position: outside;
+        }
         .prose ul, .prose ol {
           margin: 1.25em 0;
           padding-left: 1.625em;
         }
         .prose li {
+          display: list-item;
+          margin-bottom: 0.5em;
+        }
+        .prose ul ul {
+          list-style-type: circle;
+          margin-top: 0.5em;
           margin-bottom: 0.5em;
         }
         .prose a {
