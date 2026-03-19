@@ -7,6 +7,7 @@ import Blog from './pages/Blog';
 import BlogArticle from './pages/BlogArticle';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse';
+import Eula from './pages/Eula';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminFeedback from './pages/AdminFeedback';
@@ -17,6 +18,7 @@ import AuthReset from './pages/AuthReset';
 import DeepCheckSuccess from './pages/DeepCheckSuccess';
 import BuyerPassSuccess from './pages/BuyerPassSuccess';
 import DeepCheckReportPage from './pages/DeepCheckReportPage';
+import NotFound from './pages/NotFound';
 
 export const router = createBrowserRouter([
   // Minimal auth deep-link fallbacks (no Layout)
@@ -36,11 +38,13 @@ export const router = createBrowserRouter([
       { path: 'blog/:slug', element: <BlogArticle /> },
       { path: 'privacy', element: <PrivacyPolicy /> },
       { path: 'terms', element: <TermsOfUse /> },
+      { path: 'eula', element: <Eula /> },
       { path: 'admin/login', element: <AdminLogin /> },
       { path: 'admin/dashboard', element: <AdminDashboard /> },
       { path: 'admin/feedback', element: <AdminFeedback /> },
       { path: 'report/:shareCode', element: <ReportPage /> },
       { path: 'deep-check/report/:code', element: <DeepCheckReportPage /> },
+      { path: '*', element: <NotFound /> },
     ],
   },
 ]);
