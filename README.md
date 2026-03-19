@@ -1,49 +1,41 @@
-# MintCheck OBD-II Communication Layer (Swift)
+# MintCheck (monorepo)
 
-Direct communication with ELM327-based OBD-II devices over Bluetooth Classic (SPP) using Swift.
+This repository contains the **MintCheck iOS app**, the **marketing website** (Vite + React), **Supabase** (Edge Functions & migrations), engineering notes, and internal handoff docs.
 
-## Overview
+## GitHub (correct remote)
 
-This module provides a minimal, reliable OBD-II communication layer for MintCheck. It handles:
-- Bluetooth Classic SPP connection to ELM327 devices
-- AT command initialization and handshake
-- Mode 01 PID queries (read-only diagnostics)
-- Response parsing and normalization
-- Error detection and logging
+**Canonical remote:** [`klaronda/mintcheck`](https://github.com/klaronda/mintcheck) — `origin` should be `https://github.com/klaronda/mintcheck.git`.
 
-## Requirements
+Do **not** push this codebase to a separate **`mintcheck-app`** repo unless you explicitly mean to. See [`docs/GITHUB_REPOSITORY.md`](./docs/GITHUB_REPOSITORY.md).
 
-- macOS 12.0+
-- Xcode 14+ (or Swift 5.9+)
-- ELM327-based OBD-II device (paired via System Preferences)
+## What lives where
 
-## Building
+| Area | Path | Notes |
+|------|------|--------|
+| **iOS app** | `MintCheck/` | Xcode project |
+| **Marketing site** | `src/`, `public/`, `package.json`, `vite.config.ts` | Vite + React (typical Vercel deploy root) |
+| **Legacy / extra web** | `website/` | Older or parallel site tree—confirm with your deploy setup |
+| **Backend** | `supabase/` | Edge functions, SQL migrations |
+| **Docs** | `docs/`, `*.md` at repo root | Handoffs, runbooks |
 
-```bash
-swift build
-```
-
-## Running
+## Marketing website (quick start)
 
 ```bash
-swift run
+npm install
+npm run dev
+npm run build
 ```
 
-Or after building:
+Detailed UI and Cursor-oriented docs: **CURSOR_QUICKSTART.md**, **CURSOR_SETUP.md**, **COMPONENT_LIBRARY.md**, **TAILWIND_REFERENCE.md**.
 
-```bash
-.build/debug/mintcheck-obd2
-```
+## iOS
 
-## Architecture
+Open `MintCheck/MintCheck.xcodeproj` in Xcode.
 
-- **Transport Layer**: Bluetooth serial port connection via IOBluetooth
-- **Command Layer**: AT commands and OBD PID requests
-- **Parser**: Hex response decoding per SAE J1979
-- **Logger**: Raw TX/RX visibility with timestamps
+## Environment (web)
 
-## Phase Status
+Create a `.env` in the repo root for local Vite (see existing handoff docs for variable names, e.g. `VITE_SUPABASE_*`).
 
-- [x] Phase 1: Connection & Handshake
-- [x] Phase 2: Basic OBD Queries
-- [x] Phase 3: Reliability & Guardrails
+## License / contact
+
+Proprietary — **MintCheck**. Support: **support@mintcheckapp.com**.

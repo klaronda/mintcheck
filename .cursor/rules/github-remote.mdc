@@ -1,0 +1,10 @@
+---
+description: Correct GitHub remote for MintCheck monorepo pushes
+alwaysApply: true
+---
+
+# Git remote for this repo
+
+- **Push and pull only to:** `origin` → `https://github.com/klaronda/mintcheck.git` (repo name: **mintcheck**).
+- **Do not** push website or app changes to **mintcheck-app** or any other GitHub repo unless the user explicitly asks for that repo.
+- The git root for this project is the **mintcheck** repository root (the directory that contains `.git`). If the workspace is a parent path, run git commands from that root.
