@@ -594,13 +594,13 @@ export default function ReportPage() {
         <title>Vehicle Report: {vehicleName}</title>
         <meta name="robots" content="noindex, nofollow" />
         <meta property="og:type" content="article" />
-        <meta property="og:title" content={`${vehicleName} — ${getRecommendationStyle(rd.recommendation).headline} | MintCheck`} />
+        <meta property="og:title" content={`${vehicleName} – Vehicle Scan Report`} />
         <meta property="og:description" content={report.summary || rd.summary || `MintCheck vehicle scan: ${getRecommendationStyle(rd.recommendation).headline}. View the full report.`} />
         <meta property="og:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OpenGraph_scan.png" />
         <meta property="og:url" content={`https://mintcheckapp.com/report/${shareCode}`} />
         <meta property="og:site_name" content="MintCheck" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${vehicleName} — ${getRecommendationStyle(rd.recommendation).headline} | MintCheck`} />
+        <meta name="twitter:title" content={`${vehicleName} – Vehicle Scan Report`} />
         <meta name="twitter:description" content={report.summary || rd.summary || `MintCheck vehicle scan: ${getRecommendationStyle(rd.recommendation).headline}. View the full report.`} />
         <meta name="twitter:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OpenGraph_scan.png" />
       </Helmet>

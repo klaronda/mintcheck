@@ -52,8 +52,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const yearMakeModel = rows[0].year_make_model || "";
     const ogTitle = yearMakeModel
-      ? `${yearMakeModel} — Deep Vehicle Check | MintCheck`
-      : "Deep Vehicle Check | MintCheck";
+      ? `${yearMakeModel} – Deep Check Report`
+      : "Deep Check Report | MintCheck";
     const ogDescription = yearMakeModel
       ? `View the full vehicle history report for a ${yearMakeModel}, powered by MintCheck.`
       : "View the full vehicle history report powered by MintCheck.";

@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const label = recommendationLabel(rd.recommendation);
     const summary = rows[0].summary || rd.summary || "";
     const ogTitle = vehicleName
-      ? `${vehicleName} — ${label} | MintCheck`
+      ? `${vehicleName} – Vehicle Scan Report`
       : `Vehicle Scan Report | MintCheck`;
     const ogDescription = summary || `MintCheck vehicle scan: ${label}. View the full report.`;
 
