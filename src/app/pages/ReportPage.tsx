@@ -385,17 +385,24 @@ function ReportContent({ report }: { report: SharedReport }) {
   // Get summary from dedicated column, fallback to report_data.summary
   const summary = report.summary || rd.summary;
 
-  // Calculate total repair costs from dtcAnalyses
-  const totalRepairCost =
-    rd.dtcAnalyses && rd.dtcAnalyses.length > 0
-      ? rd.dtcAnalyses.reduce(
-          (acc, dtc) => ({
-            low: acc.low + (dtc.repairCostLow || 0),
-            high: acc.high + (dtc.repairCostHigh || 0),
-          }),
-          { low: 0, high: 0 }
-        )
-      : null;
+  // Prefer AI totals; otherwise sum per-code rows (legacy snapshots).
+  const totalRepairCost = (() => {
+    const tl = rd.totalRepairCostLow;
+    const th = rd.totalRepairCostHigh;
+    if (typeof tl === 'number' && typeof th === 'number' && (tl > 0 || th > 0)) {
+      return { low: Math.min(tl, th), high: Math.max(tl, th) };
+    }
+    if (!rd.dtcAnalyses?.length) return null;
+    const summed = rd.dtcAnalyses.reduce(
+      (acc, dtc) => ({
+        low: acc.low + (dtc.repairCostLow || 0),
+        high: acc.high + (dtc.repairCostHigh || 0),
+      }),
+      { low: 0, high: 0 }
+    );
+    if (summed.low <= 0 && summed.high <= 0) return null;
+    return summed;
+  })();
 
   // Build findings array with repair cost if available
   let findings: string[] | null = null;
@@ -405,7 +412,7 @@ function ReportContent({ report }: { report: SharedReport }) {
     findings = ['No trouble codes detected'];
   }
 
-  if (totalRepairCost && totalRepairCost.low > 0) {
+  if (totalRepairCost && (totalRepairCost.low > 0 || totalRepairCost.high > 0)) {
     const costText =
       totalRepairCost.low === totalRepairCost.high
         ? `Estimated repair cost: $${totalRepairCost.low.toLocaleString()}`
@@ -586,6 +593,16 @@ export default function ReportPage() {
       <Helmet>
         <title>Vehicle Report: {vehicleName}</title>
         <meta name="robots" content="noindex, nofollow" />
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content={`${vehicleName} — ${getRecommendationStyle(rd.recommendation).headline} | MintCheck`} />
+        <meta property="og:description" content={report.summary || rd.summary || `MintCheck vehicle scan: ${getRecommendationStyle(rd.recommendation).headline}. View the full report.`} />
+        <meta property="og:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OG_mintcheck.png" />
+        <meta property="og:url" content={`https://mintcheckapp.com/report/${shareCode}`} />
+        <meta property="og:site_name" content="MintCheck" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${vehicleName} — ${getRecommendationStyle(rd.recommendation).headline} | MintCheck`} />
+        <meta name="twitter:description" content={report.summary || rd.summary || `MintCheck vehicle scan: ${getRecommendationStyle(rd.recommendation).headline}. View the full report.`} />
+        <meta name="twitter:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OG_mintcheck.png" />
       </Helmet>
       <ReportHeader />
       <ReportContent report={report} />
