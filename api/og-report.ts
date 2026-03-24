@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
 const OG_IMAGE_DEFAULT =
-  "https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OG_mintcheck.png";
+  "https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OpenGraph_scan.png";
 const SITE = "https://mintcheckapp.com";
 
 function esc(s: string): string {

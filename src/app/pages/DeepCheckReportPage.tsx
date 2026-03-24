@@ -141,13 +141,13 @@ export default function DeepCheckReportPage() {
         <meta property="og:type" content="article" />
         <meta property="og:title" content={payload?.yearMakeModel ? `${payload.yearMakeModel} — Deep Vehicle Check | MintCheck` : 'Deep Vehicle Check | MintCheck'} />
         <meta property="og:description" content={payload?.yearMakeModel ? `View the full vehicle history report for a ${payload.yearMakeModel}, powered by MintCheck.` : 'View the full vehicle history report powered by MintCheck.'} />
-        <meta property="og:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OG_mintcheck.png" />
+        <meta property="og:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OpenGraph_deepcheck.png" />
         <meta property="og:url" content={`https://mintcheckapp.com/deep-check/report/${code}`} />
         <meta property="og:site_name" content="MintCheck" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={payload?.yearMakeModel ? `${payload.yearMakeModel} — Deep Vehicle Check | MintCheck` : 'Deep Vehicle Check | MintCheck'} />
         <meta name="twitter:description" content={payload?.yearMakeModel ? `View the full vehicle history report for a ${payload.yearMakeModel}, powered by MintCheck.` : 'View the full vehicle history report powered by MintCheck.'} />
-        <meta name="twitter:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OG_mintcheck.png" />
+        <meta name="twitter:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/OpenGraph_deepcheck.png" />
       </Helmet>
       <header className="bg-white border-b border-border flex-shrink-0">
         <div className="max-w-[900px] mx-auto px-6 py-4 flex items-center justify-between">
