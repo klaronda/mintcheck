@@ -47,7 +47,7 @@ struct DTCRepairCosts {
         "P0308": RepairEstimate(lowCost: 200, highCost: 800, description: "Cylinder 8 misfire - likely spark plug or ignition coil", severity: .minor),
         
         // MARK: - Fuel System (P017x)
-        "P0171": RepairEstimate(lowCost: 100, highCost: 500, description: "System too lean (Bank 1) - vacuum leak, MAF sensor, or fuel pressure issue", severity: .minor),
+        "P0171": RepairEstimate(lowCost: 50, highCost: 800, description: "System too lean (Bank 1)—often vacuum leak, dirty MAF, O2 sensor, or fuel pressure; simple fixes to major parts", severity: .minor),
         "P0172": RepairEstimate(lowCost: 100, highCost: 500, description: "System too rich (Bank 1) - fuel injector or oxygen sensor issue", severity: .minor),
         "P0174": RepairEstimate(lowCost: 100, highCost: 500, description: "System too lean (Bank 2) - vacuum leak, MAF sensor, or fuel pressure issue", severity: .minor),
         "P0175": RepairEstimate(lowCost: 100, highCost: 500, description: "System too rich (Bank 2) - fuel injector or oxygen sensor issue", severity: .minor),

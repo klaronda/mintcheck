@@ -3,7 +3,7 @@
 ## Project Overview
 - **SwiftUI** iOS app for used car buyers
 - **Supabase** backend (auth, database, edge functions)
-- **AWS Bedrock (Claude)** for AI-powered DTC analysis
+- **OpenAI** (via Supabase Edge Function `analyze-dtcs`) for AI-powered DTC analysis
 - **NHTSA API** for free vehicle history (recalls, safety ratings)
 
 ---
@@ -15,7 +15,7 @@
 | `ContentView.swift` | Main navigation hub, `ScanData` struct, all screen routing |
 | `Colors.swift` | Brand colors - `#3EB489` is mint green |
 | `LaunchScreen.storyboard` | Native launch screen (uses inline RGB, not named colors) |
-| `DTCAnalysisService.swift` | AWS Bedrock integration for DTC explanations |
+| `DTCAnalysisService.swift` | Calls `analyze-dtcs` Edge Function (OpenAI) for DTC explanations |
 | `Services/` folder | VIN decoder, valuation, mock OBD, auth |
 
 ---
@@ -47,10 +47,18 @@ Fixed position at bottom of screen, not floating. Icons have no strokes.
 
 ## Supabase Configuration
 
-### Edge Function Secrets (Already Set)
-- `AWS_ACCESS_KEY_ID` - For Bedrock access
-- `AWS_SECRET_ACCESS_KEY` - For Bedrock access
-- Region: `us-east-1`
+### Edge Function Secrets (`analyze-dtcs`)
+- `OPENAI_API_KEY` - OpenAI API key (required)
+- `OPENAI_MODEL` - Optional; defaults to `gpt-4o-mini`
+
+Remove legacy Bedrock secrets (`AWS_*`, `BEDROCK_*`) from Supabase if still present.
+
+### `analyze-dtcs` request (iOS → Edge Function)
+The app sends **`appRecommendation`** on each analysis request: the current `RecommendationType.rawValue` (`safe`, `low-data`, `caution`, `not-recommended`). The model uses it so narrative tone matches the on-screen badge tier without changing Swift recommendation logic.
+
+**AI `summary` (under the tier title):** Edge Function caps at **180 characters** and instructs the model to explain **what is wrong** (issue-first), not to repeat the Healthy/Caution/Not Recommended headline. Tier tone is secondary.
+
+**Repair cost line on results:** When the Edge Function returns **`totalRepairCostLow` / `totalRepairCostHigh`** (non-zero), the results screen shows that range for “all codes.” Prompts ask for **code-specific** shop ranges (not generic $2,500–$5,000). If the AI call fails or omits totals, the UI uses softer tier-based fallback copy (still not a fixed dollar band).
 
 ### Database Tables
 - `profiles` - User profiles
@@ -66,7 +74,7 @@ Fixed position at bottom of screen, not floating. Icons have no strokes.
 - Mock OBD-II scan flow
 - VIN decoding (NHTSA API)
 - Vehicle history (recalls, safety ratings - NHTSA)
-- AI-powered DTC analysis (AWS Bedrock)
+- AI-powered DTC analysis (OpenAI via Edge Function)
 - Vehicle valuation estimates
 - Scan history
 - Help/Support pages
@@ -117,7 +125,7 @@ Fixed position at bottom of screen, not floating. Icons have no strokes.
 
 1. **Free vehicle history** via NHTSA instead of paid services initially
 2. **VinAudit** planned for premium reports ($8.99 to user)
-3. **AWS Bedrock** chosen over OpenAI (user had $101 AWS credits)
+3. **OpenAI** (`gpt-4o-mini` by default) for DTC/valuation JSON via `analyze-dtcs`
 4. **No birthday field** in user profiles (was removed)
 5. **Year is optional** for manual vehicle entry - displays as "(Year N/A)" if unknown
 6. **Make and Model are required** - never show "Unknown"

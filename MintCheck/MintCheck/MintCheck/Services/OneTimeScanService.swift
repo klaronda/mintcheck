@@ -169,8 +169,9 @@ final class OneTimeScanService: ObservableObject {
             return credits
 
         case .userCancelled:
+            // Not an error — user closed the sheet without buying; don't surface a toast.
             print("OneTimeScanService: purchase() — user cancelled")
-            throw OneTimeScanError.purchaseFailed("Purchase was cancelled.")
+            return scanCredits
 
         case .pending:
             print("OneTimeScanService: purchase() — pending approval")

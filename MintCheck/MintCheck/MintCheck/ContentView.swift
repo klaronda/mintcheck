@@ -30,6 +30,8 @@ class NavigationManager: ObservableObject {
     @Published var isSavingScan: Bool = false
     /// Cached first vehicle for free users (loaded before scan flow to compare VIN after scan)
     @Published var freeUserVehicle: VehicleInfo? = nil
+    /// After sign-in/onboarding, open Stripe Checkout for Starter Kit (set from logged-out home).
+    @Published var pendingStarterKitCheckoutAfterAuth: Bool = false
     /// Incremented each time we enter the scan flow to force SwiftUI to recreate ScanFlowView with fresh state
     @Published var scanFlowId: Int = 0
     /// Session ID for Deep Check purchase (from Stripe redirect URL)
@@ -309,6 +311,11 @@ struct ContentView: View {
                     onSignIn: { 
                         nav.startInCreateMode = true
                         nav.currentScreen = .signIn 
+                    },
+                    onBuyStarterKit: {
+                        nav.startInCreateMode = false
+                        nav.pendingStarterKitCheckoutAfterAuth = true
+                        nav.currentScreen = .signIn
                     }
                 )
                 
@@ -316,6 +323,7 @@ struct ContentView: View {
                 SignInView(
                     onBack: { 
                         nav.startInCreateMode = false
+                        nav.pendingStarterKitCheckoutAfterAuth = false
                         nav.currentScreen = .home 
                     },
                     onSignIn: handleSignIn,
@@ -644,6 +652,8 @@ struct ContentView: View {
                     odometerReading: nav.currentScanData.humanCheck?.odometerReading,
                     askingPrice: nav.currentScanData.humanCheck?.askingPrice,
                     dtcAnalyses: nav.currentScanData.dtcAnalysis?.analyses,
+                    totalRepairCostLow: nav.currentScanData.dtcAnalysis?.totalRepairCostLow,
+                    totalRepairCostHigh: nav.currentScanData.dtcAnalysis?.totalRepairCostHigh,
                     nhtsaData: nav.currentScanData.historyReport?.toJSON(),
                     systemStatuses: Self.buildSystemStatuses(from: nav.currentScanData.scanResults),
                     existingShareCode: nav.currentScanData.shareCode,
@@ -1159,6 +1169,7 @@ struct ContentView: View {
             nav.currentScreen = .onboarding
         } else {
             nav.currentScreen = .dashboard
+            completePendingStarterKitCheckoutIfNeeded()
         }
     }
     
@@ -1166,8 +1177,39 @@ struct ContentView: View {
         nav.completeOnboarding()
         if authService.currentUser != nil {
             nav.currentScreen = .dashboard
+            completePendingStarterKitCheckoutIfNeeded()
         } else {
             nav.currentScreen = .signIn
+        }
+    }
+
+    /// Opens Starter Kit Stripe Checkout after the user finishes signing in (from home promo).
+    private func completePendingStarterKitCheckoutIfNeeded() {
+        guard nav.pendingStarterKitCheckoutAfterAuth else { return }
+        nav.pendingStarterKitCheckoutAfterAuth = false
+        Task {
+            do {
+                let checkoutURL = try await StarterKitService.shared.createCheckoutSession()
+                await MainActor.run { UIApplication.shared.open(checkoutURL) }
+            } catch let error as StarterKitError {
+                await MainActor.run {
+                    nav.showErrorToast(
+                        error.message,
+                        errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue,
+                        errorMessage: error.message,
+                        scanStep: "starter_kit_checkout"
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    nav.showErrorToast(
+                        "Something went wrong. Please try again.",
+                        errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue,
+                        errorMessage: error.localizedDescription,
+                        scanStep: "starter_kit_checkout"
+                    )
+                }
+            }
         }
     }
     
@@ -1224,15 +1266,7 @@ struct ContentView: View {
     /// Fetch free NHTSA data (recalls, complaints, safety ratings)
     private func fetchVehicleHistory() async {
         guard let vehicle = nav.currentScanData.vehicleInfo else { return }
-        
-        let historyService = VehicleHistoryService()
-        let report = await historyService.runFreeHistoryCheck(
-            vin: vehicle.vin,
-            make: vehicle.make,
-            model: vehicle.model,
-            year: vehicle.year
-        )
-        
+        let report = await VehicleHistoryService.fetchReport(for: vehicle)
         await MainActor.run {
             nav.currentScanData.historyReport = report
         }
@@ -1271,7 +1305,8 @@ struct ContentView: View {
                     try await DTCAnalysisService.shared.analyzeScanResults(
                         scanResults: scanResults,
                         vehicleInfo: vehicleInfo,
-                        humanCheck: data
+                        humanCheck: data,
+                        recommendation: recommendation
                     )
                 }
                 
@@ -1627,6 +1662,15 @@ struct ContentView: View {
                         .value
                     
                     if let vehicle = vehicles.first {
+                        let resolvedHistory: VehicleHistoryReport?
+                        if let nhtsaData = scanResult.nhtsaData {
+                            resolvedHistory = VehicleHistoryReport.fromJSON(nhtsaData)
+                        } else if VehicleHistoryService.canFetchNHTSA(for: vehicle) {
+                            resolvedHistory = await VehicleHistoryService.fetchReport(for: vehicle)
+                        } else {
+                            resolvedHistory = nil
+                        }
+                        
                         await MainActor.run {
                             // Populate nav data with historical scan
                             nav.currentScanData.scanId = scanUUID  // Store the scan ID for deletion
@@ -1635,6 +1679,7 @@ struct ContentView: View {
                             nav.currentScanData.isHistoricalView = true  // Mark as historical
                             nav.currentScanData.scanDate = scanResult.createdAt  // Restore scan date for freshness badge
                             nav.currentScanData.shareCode = scanResult.shareCode  // Restore share code if exists
+                            nav.currentScanData.historyReport = resolvedHistory
                             
                             // Convert OBD JSON back to results if available
                             if let obdData = scanResult.obdData {
@@ -1660,11 +1705,6 @@ struct ContentView: View {
                             // Restore VIN verification flags from database
                             nav.currentScanData.vinVerified = scanResult.vinVerified
                             nav.currentScanData.vinMismatch = scanResult.vinMismatch
-                            
-                            // Convert NHTSA JSON back to history report if available
-                            if let nhtsaData = scanResult.nhtsaData {
-                                nav.currentScanData.historyReport = VehicleHistoryReport.fromJSON(nhtsaData)
-                            }
                             
                             // Restore valuation data if available
                             if let valuationJSON = scanResult.estimatedValue {

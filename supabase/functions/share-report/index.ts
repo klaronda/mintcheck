@@ -36,12 +36,15 @@ interface ReportData {
   valuationHigh?: number;
   odometerReading?: number;
   askingPrice?: number;
+  /** Combined AI range for all codes (preferred over summing per-code on the web report). */
+  totalRepairCostLow?: number;
+  totalRepairCostHigh?: number;
   dtcAnalyses?: Array<{
     code: string;
     name: string;
     description: string;
-    repairCostLow: number;
-    repairCostHigh: number;
+    repairCostLow?: number;
+    repairCostHigh?: number;
     urgency: string;
   }>;
   nhtsaData?: {
@@ -111,6 +114,25 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/** Prefer AI totals; otherwise sum per-code repair rows (legacy snapshots). */
+function computeRepairCostDisplay(data: ReportData): { low: number; high: number } | null {
+  const tl = data.totalRepairCostLow;
+  const th = data.totalRepairCostHigh;
+  if (typeof tl === 'number' && typeof th === 'number' && (tl > 0 || th > 0)) {
+    return { low: Math.min(tl, th), high: Math.max(tl, th) };
+  }
+  const arr = data.dtcAnalyses;
+  if (!arr?.length) return null;
+  let low = 0;
+  let high = 0;
+  for (const d of arr) {
+    low += d.repairCostLow ?? 0;
+    high += d.repairCostHigh ?? 0;
+  }
+  if (low <= 0 && high <= 0) return null;
+  return { low, high };
+}
+
 // Get status colors based on recommendation
 // Border / icon bg / headline = accent; icon = #FFFFFF; support = #1a1a1a; card bg = bg
 function getStatusColors(recommendation: string): { bg: string; border: string; text: string; icon: string; support: string; label: string; headline: string } {
@@ -159,6 +181,15 @@ function generateEmailHTML(
     findingsHTML = reportData.findings.map(f => `<li style="margin-bottom: 8px; color: #666666;">${f}</li>`).join('');
   } else if (reportData.recommendation === 'safe') {
     findingsHTML = '<li style="margin-bottom: 8px; color: #666666;">No diagnostic trouble codes detected</li>';
+  }
+  const repairDisplay = computeRepairCostDisplay(reportData);
+  if (repairDisplay) {
+    const { low, high } = repairDisplay;
+    const costLine =
+      low === high
+        ? `Estimated repair cost: $${low.toLocaleString()}`
+        : `Estimated repair cost: $${low.toLocaleString()} - $${high.toLocaleString()}`;
+    findingsHTML += `<li style="margin-bottom: 8px; color: #666666;">${costLine}</li>`;
   }
   
   // Build share link button
@@ -592,6 +623,20 @@ serve(async (req) => {
     // Update reportData with fetched summary
     const reportDataWithSummary = { ...reportData, summary };
 
+    // Keep the public web report in sync whenever the user sends again (link may have been created earlier).
+    const { error: refreshSnapshotError } = await supabase
+      .from('shared_reports')
+      .update({
+        report_data: reportDataWithSummary,
+        summary: reportDataWithSummary.summary ?? null,
+      })
+      .eq('scan_id', scanId)
+      .eq('user_id', user.id);
+
+    if (refreshSnapshotError) {
+      console.error('Failed to refresh shared report snapshot:', refreshSnapshotError);
+    }
+
     // Generate email HTML
     const emailHTML = generateEmailHTML(reportDataWithSummary, userName, message, shareUrl);
 
@@ -649,10 +694,11 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in share-report:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', message: error.message }),
+      JSON.stringify({ error: 'Internal server error', message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

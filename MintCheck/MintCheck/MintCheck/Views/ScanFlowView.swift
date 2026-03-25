@@ -590,13 +590,20 @@ struct ScanFlowView: View {
         // Offline scan: skip AI analysis and go straight to results
         if nav.currentScanData.scanMode == .offline_scan {
             nav.isAILoading = false
-            nav.currentScreen = .results
+            Task {
+                let report = await VehicleHistoryService.fetchReport(for: vehicleInfo)
+                await MainActor.run {
+                    nav.currentScanData.historyReport = report
+                    nav.currentScreen = .results
+                }
+            }
             return
         }
 
         nav.isAILoading = true
 
         Task {
+            async let nhtsaReport = VehicleHistoryService.fetchReport(for: vehicleInfo)
             let startTime = Date()
             let maximumWaitTime: TimeInterval = 5.0
 
@@ -604,7 +611,8 @@ struct ScanFlowView: View {
                 try await DTCAnalysisService.shared.analyzeScanResults(
                     scanResults: scanResults,
                     vehicleInfo: vehicleInfo,
-                    humanCheck: nil
+                    humanCheck: nil,
+                    recommendation: nav.currentScanData.recommendation ?? .safe
                 )
             }
 
@@ -640,7 +648,10 @@ struct ScanFlowView: View {
                 try? await Task.sleep(nanoseconds: UInt64(remainingTime * 1_000_000_000))
             }
 
+            let historyReport = await nhtsaReport
+
             await MainActor.run {
+                nav.currentScanData.historyReport = historyReport
                 if let analysis = analysisResult {
                     nav.currentScanData.dtcAnalysis = analysis
 
@@ -1749,7 +1760,6 @@ struct VehicleDetailsStepView: View {
                             }
                         }
                         .pickerStyle(.wheel)
-                        .colorScheme(.light)
                         .frame(height: 120)
                         .background(Color.white)
                         .cornerRadius(LayoutConstants.borderRadius)

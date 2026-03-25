@@ -83,6 +83,8 @@ class DTCAnalysisService {
         let askingPrice: Int?
         let interiorCondition: String?
         let tireCondition: String?
+        /// Matches MintCheck `RecommendationType.rawValue` (safe | low-data | caution | not-recommended)
+        let appRecommendation: String?
     }
     
     // MARK: - Error Types
@@ -119,6 +121,7 @@ class DTCAnalysisService {
     ///   - askingPrice: Asking price (optional)
     ///   - interiorCondition: Interior condition (optional)
     ///   - tireCondition: Tire condition (optional)
+    ///   - appRecommendation: MintCheck tier so AI copy matches the results badge
     /// - Returns: Analysis response with repair estimates and vehicle valuation
     func analyzeDTCs(
         dtcs: [String],
@@ -128,7 +131,8 @@ class DTCAnalysisService {
         odometerReading: Int? = nil,
         askingPrice: Int? = nil,
         interiorCondition: String? = nil,
-        tireCondition: String? = nil
+        tireCondition: String? = nil,
+        appRecommendation: RecommendationType? = nil
     ) async throws -> AnalysisResponse {
         
         // Build request
@@ -140,7 +144,8 @@ class DTCAnalysisService {
             odometerReading: odometerReading,
             askingPrice: askingPrice,
             interiorCondition: interiorCondition,
-            tireCondition: tireCondition
+            tireCondition: tireCondition,
+            appRecommendation: appRecommendation?.rawValue
         )
         
         // Get Edge Function URL
@@ -154,9 +159,10 @@ class DTCAnalysisService {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        // Add auth header (anon key for JWT verification)
+        // Supabase Edge Functions: anon key as Bearer + apikey
         let anonKey = SupabaseConfig.shared.anonKey
         urlRequest.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue(anonKey, forHTTPHeaderField: "apikey")
         
         // Encode body
         let encoder = JSONEncoder()
@@ -206,7 +212,8 @@ class DTCAnalysisService {
     func analyzeScanResults(
         scanResults: OBDScanResults,
         vehicleInfo: VehicleInfo,
-        humanCheck: QuickCheckData?
+        humanCheck: QuickCheckData?,
+        recommendation: RecommendationType
     ) async throws -> AnalysisResponse {
         // Parse year - handle "(Year N/A)" or extract numeric part
         var yearString = vehicleInfo.year.replacingOccurrences(of: "(Year N/A)", with: "")
@@ -230,7 +237,8 @@ class DTCAnalysisService {
             odometerReading: humanCheck?.odometerReading,
             askingPrice: humanCheck?.askingPrice,
             interiorCondition: humanCheck?.interiorCondition,
-            tireCondition: humanCheck?.tireCondition
+            tireCondition: humanCheck?.tireCondition,
+            appRecommendation: recommendation
         )
     }
 }

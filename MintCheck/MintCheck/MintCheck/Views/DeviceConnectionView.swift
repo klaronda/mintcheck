@@ -479,9 +479,19 @@ struct BulletPoint: View {
             Text("•")
                 .foregroundColor(.textSecondary)
             
-            Text(text)
-                .font(.system(size: FontSize.bodyLarge))
-                .foregroundColor(.textSecondary)
+            if let attributed = try? AttributedString(
+                markdown: text,
+                options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+            ) {
+                Text(attributed)
+                    .font(.system(size: FontSize.bodyLarge))
+                    .foregroundColor(.textSecondary)
+                    .tint(.mintGreen)
+            } else {
+                Text(text.replacingOccurrences(of: "**", with: ""))
+                    .font(.system(size: FontSize.bodyLarge))
+                    .foregroundColor(.textSecondary)
+            }
         }
     }
 }

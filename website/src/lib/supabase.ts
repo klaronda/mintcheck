@@ -43,6 +43,9 @@ export interface ReportData {
   valuationHigh?: number;
   odometerReading?: number;
   askingPrice?: number;
+  /** Combined AI range for all codes (preferred over summing per-code rows). */
+  totalRepairCostLow?: number;
+  totalRepairCostHigh?: number;
   dtcAnalyses?: Array<{
     code: string;
     name: string;

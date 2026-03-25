@@ -477,7 +477,6 @@ struct VehicleBasicsView: View {
                     }
                 }
                 .pickerStyle(.wheel)
-                .colorScheme(.light)
                 .frame(height: 120)
                 .background(Color.white)
                 .cornerRadius(LayoutConstants.borderRadius)

@@ -20,6 +20,30 @@ class ShareService {
     
     private init() {}
     
+    /// Builds share payloads with per-code repair dollars, using static estimates when AI returned zeros.
+    private static func sharedDTCAnalyses(from analyses: [DTCAnalysisService.DTCAnalysis]?) -> [SharedDTCAnalysis]? {
+        guard let analyses else { return nil }
+        return analyses.map { analysis in
+            var low = analysis.repairCostLow
+            var high = analysis.repairCostHigh
+            if low <= 0 && high <= 0 {
+                let code = analysis.code.uppercased().trimmingCharacters(in: .whitespaces)
+                if let est = DTCRepairCosts.costs[code] {
+                    low = est.lowCost
+                    high = est.highCost
+                }
+            }
+            return SharedDTCAnalysis(
+                code: analysis.code,
+                name: analysis.name,
+                description: analysis.description,
+                repairCostLow: low > 0 ? low : nil,
+                repairCostHigh: high > 0 ? high : nil,
+                urgency: analysis.urgency
+            )
+        }
+    }
+    
     // MARK: - Share Report Request/Response
     
     /// Minimal DTC analysis payload for sharing with the web report
@@ -62,6 +86,9 @@ class ShareService {
         let valuationHigh: Int?
         let odometerReading: Int?
         let askingPrice: Int?
+        /// Combined AI range for all codes (preferred over summing per-code rows on the web report).
+        let totalRepairCostLow: Int?
+        let totalRepairCostHigh: Int?
         let dtcAnalyses: [SharedDTCAnalysis]?
         let nhtsaData: NHTSADataJSON?
         let systemStatuses: [SystemStatusJSON]?
@@ -117,6 +144,8 @@ class ShareService {
         let valuationHigh: Int?
         let odometerReading: Int?
         let askingPrice: Int?
+        let totalRepairCostLow: Int?
+        let totalRepairCostHigh: Int?
         let dtcAnalyses: [SharedDTCAnalysis]?
         let nhtsaData: NHTSADataJSON?
     }
@@ -138,6 +167,8 @@ class ShareService {
         odometerReading: Int?,
         askingPrice: Int?,
         dtcAnalyses: [DTCAnalysisService.DTCAnalysis]?,
+        totalRepairCostLow: Int?,
+        totalRepairCostHigh: Int?,
         nhtsaData: NHTSADataJSON?,
         systemStatuses: [SystemStatusJSON]?,
         userEmail: String,
@@ -150,17 +181,7 @@ class ShareService {
         let dateFormatter = ISO8601DateFormatter()
         let scanDateString = dateFormatter.string(from: scanDate)
         
-        // Build report data
-        let sharedDtcAnalyses: [SharedDTCAnalysis]? = dtcAnalyses?.map { analysis in
-            SharedDTCAnalysis(
-                code: analysis.code,
-                name: analysis.name,
-                description: analysis.description,
-                repairCostLow: analysis.repairCostLow,
-                repairCostHigh: analysis.repairCostHigh,
-                urgency: analysis.urgency
-            )
-        }
+        let sharedDtcAnalyses = Self.sharedDTCAnalyses(from: dtcAnalyses)
         
         let reportData = ReportData(
             vehicleYear: vehicleInfo.year,
@@ -175,6 +196,8 @@ class ShareService {
             valuationHigh: valuationHigh,
             odometerReading: odometerReading,
             askingPrice: askingPrice,
+            totalRepairCostLow: totalRepairCostLow,
+            totalRepairCostHigh: totalRepairCostHigh,
             dtcAnalyses: sharedDtcAnalyses,
             nhtsaData: nhtsaData,
             systemStatuses: systemStatuses

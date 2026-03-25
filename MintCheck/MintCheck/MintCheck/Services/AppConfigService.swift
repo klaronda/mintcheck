@@ -14,7 +14,7 @@ class AppConfigService: ObservableObject {
     static let shared = AppConfigService()
     
     @Published var earlyAccessEnabled: Bool = false
-    @Published var newUserDefaultRole: String = "tester"
+    @Published var newUserDefaultRole: String = "free"
     @Published var lastFetchedAt: Date?
     
     private init() {}

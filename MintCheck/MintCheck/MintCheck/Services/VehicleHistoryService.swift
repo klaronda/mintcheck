@@ -211,6 +211,32 @@ class VehicleHistoryService {
     }
 }
 
+// MARK: - Shared fetch (ScanFlow, ContentView, history)
+
+extension VehicleHistoryService {
+    /// True when NHTSA APIs can be queried meaningfully (Y/M/M or 17-character VIN).
+    static func canFetchNHTSA(for vehicle: VehicleInfo) -> Bool {
+        let vin = (vehicle.vin ?? "").trimmingCharacters(in: .whitespaces).uppercased()
+        if vin.count == 17 { return true }
+        let y = vehicle.year.trimmingCharacters(in: .whitespaces)
+        let m = vehicle.make.trimmingCharacters(in: .whitespaces)
+        let md = vehicle.model.trimmingCharacters(in: .whitespaces)
+        if m.isEmpty || md.isEmpty { return false }
+        if y.isEmpty || y == "(Year N/A)" { return false }
+        return true
+    }
+    
+    /// Fetches recalls, complaints, and safety ratings for display and Supabase storage.
+    static func fetchReport(for vehicle: VehicleInfo) async -> VehicleHistoryReport {
+        await VehicleHistoryService().runFreeHistoryCheck(
+            vin: vehicle.vin,
+            make: vehicle.make,
+            model: vehicle.model,
+            year: vehicle.year
+        )
+    }
+}
+
 // MARK: - Response Models
 
 private struct RecallsResponse: Decodable {

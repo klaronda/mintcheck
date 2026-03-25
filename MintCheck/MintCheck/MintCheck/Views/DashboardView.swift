@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct DashboardView: View {
+    /// Most recent scans shown on the dashboard for every user (free and paid).
+    private static let recentScansDashboardLimit = 5
+    
     let onStartCheck: () -> Void
     /// When provided and Buyer Pass is active, early-access vehicle card shows a second CTA to scan using Buyer Pass.
     var onStartBuyerPassCheck: (() -> Void)? = nil
@@ -101,25 +104,7 @@ struct DashboardView: View {
                             )
                         }
                         
-                        if !scanService.scanHistory.isEmpty {
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Recent Scans")
-                                        .font(.system(size: FontSize.h4, weight: .semibold))
-                                        .foregroundColor(.textPrimary)
-                                    
-                                    Spacer()
-                                }
-                                
-                                VStack(spacing: 10) {
-                                    ForEach(scanService.scanHistory.prefix(6)) { scan in
-                                        ScanHistoryCard(item: scan) {
-                                            onViewHistory(scan.id.uuidString)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        recentScansSection
                         
                         if !hasOwnScanner {
                             OBDDeviceSection(onDismiss: dismissScannerSection)
@@ -198,13 +183,40 @@ struct DashboardView: View {
                             NeedHelpCard(onVisitSupport: { nav.currentScreen = .support })
                         }
                     } else {
-                        // Free user: Scan card (0/3), OBD, Scan Plans, Add-Ons, Need Help
+                        // Free user: Scan card (0/3), recent scans, OBD, Scan Plans, Add-Ons, Need Help
                         FreeUserScanCard(
                             onStartCheck: onStartCheck,
                             scanCount: min(scanService.scanHistory.count, 3),
                             vehicle: scanService.vehicles.first,
-                            purchasedCredits: OneTimeScanService.shared.scanCredits
+                            purchasedCredits: OneTimeScanService.shared.scanCredits,
+                            onGetBuyerPass: {
+                                Task {
+                                    do {
+                                        let checkoutURL = try await BuyerPassService.shared.createCheckoutSession()
+                                        await MainActor.run {
+                                            UIApplication.shared.open(checkoutURL)
+                                        }
+                                    } catch {
+                                        await MainActor.run {
+                                            nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
+                                        }
+                                    }
+                                }
+                            },
+                            onBuyOneTimeScan: {
+                                Task {
+                                    do {
+                                        try await OneTimeScanService.shared.purchase()
+                                    } catch {
+                                        await MainActor.run {
+                                            nav.showErrorToast("Something went wrong. Please try again.", errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "checkout")
+                                        }
+                                    }
+                                }
+                            }
                         )
+                        
+                        recentScansSection
                         
                         // Show active Buyer Pass card if active; otherwise show upsell
                         if let activeSub = BuyerPassService.shared.activeBuyerPass, activeSub.isActive {
@@ -325,6 +337,27 @@ struct DashboardView: View {
             hasOwnScanner = UserDefaults.standard.bool(forKey: scannerDismissKey())
             loadData()
             Task { await refreshEmailConfirmed() }
+        }
+    }
+    
+    @ViewBuilder
+    private var recentScansSection: some View {
+        if !scanService.scanHistory.isEmpty {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("Recent Scans")
+                        .font(.system(size: FontSize.h4, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                    Spacer()
+                }
+                VStack(spacing: 10) {
+                    ForEach(Array(scanService.scanHistory.prefix(Self.recentScansDashboardLimit))) { scan in
+                        ScanHistoryCard(item: scan) {
+                            onViewHistory(scan.id.uuidString)
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -562,6 +595,8 @@ struct FreeUserScanCard: View {
     let scanCount: Int
     var vehicle: VehicleInfo? = nil
     var purchasedCredits: Int = 0
+    var onGetBuyerPass: () -> Void = {}
+    var onBuyOneTimeScan: () -> Void = {}
     
     private var hasScanned: Bool { vehicle != nil && scanCount > 0 }
     private var isMaxed: Bool { scanCount >= 3 }
@@ -596,7 +631,7 @@ struct FreeUserScanCard: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.textPrimary)
                 
-                Text("To keep scanning, add a Buyer Pass for unlimited scans for 60 days.")
+                Text("Get a Buyer Pass to keep scanning multiple vehicles, or buy a one-time scan if you only need one more check.")
                     .font(.system(size: FontSize.bodyLarge))
                     .foregroundColor(.textSecondary)
                     .lineSpacing(4)
@@ -604,6 +639,18 @@ struct FreeUserScanCard: View {
                 Text("3/3 free scans used")
                     .font(.system(size: FontSize.bodySmall))
                     .foregroundColor(.textSecondary)
+                
+                PrimaryButton(
+                    title: "Get Buyer Pass",
+                    action: onGetBuyerPass
+                )
+                
+                SecondaryButton(
+                    title: "Buy One-Time Scan",
+                    action: onBuyOneTimeScan,
+                    style: .outlined
+                )
+                .padding(.top, 4)
             } else if hasScanned {
                 // Scan 1 or 2: user has a vehicle
                 Text("Scan the same vehicle.")

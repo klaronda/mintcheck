@@ -316,10 +316,23 @@ struct ResultsView: View {
             return nil
         }
         
+        // Prefer AI totals when present (avoids generic tier-only copy)
+        if let dtc = dtcAnalysis {
+            let low = dtc.totalRepairCostLow
+            let high = dtc.totalRepairCostHigh
+            if low > 0 || high > 0 {
+                let a = min(low, high)
+                let b = max(low, high)
+                return "Estimated repair range (all codes): $\(a.formatted()) – $\(b.formatted())"
+            }
+        }
+        
         switch recommendation {
         case .safe, .lowData: return nil
-        case .caution: return "Issues like these typically cost $800 - $2,500 to repair."
-        case .notRecommended: return "Issues like these typically cost $2,500 - $5,000+ to repair."
+        case .caution:
+            return "Repair costs swing a lot by the exact cause—often a few hundred to a couple thousand after diagnosis. Get a quote from a shop."
+        case .notRecommended:
+            return "Serious issues can run from hundreds to several thousand depending on what’s failing. Don’t buy without a mechanic’s estimate."
         }
     }
     

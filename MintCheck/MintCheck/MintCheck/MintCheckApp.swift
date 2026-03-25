@@ -21,6 +21,8 @@ struct MintCheckApp: App {
                 .environmentObject(scanService)
                 .environmentObject(navigationManager)
                 .environmentObject(connectionManager)
+                // Force light mode: UI is designed for light surfaces; avoids mixed dark/light when system is dark.
+                .preferredColorScheme(.light)
         }
     }
 }

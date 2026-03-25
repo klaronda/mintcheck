@@ -70,20 +70,10 @@ struct OnboardingView: View {
             
             // Sticky bottom buttons
             VStack(spacing: 10) {
-                if currentPage == 1 {
-                    PrimaryButton(title: "Allow Now", action: openSettings)
-                    Button(action: handleNext) {
-                        Text("Next")
-                            .font(.system(size: FontSize.bodyLarge, weight: .semibold))
-                            .foregroundColor(.textSecondary)
-                    }
-                    .frame(height: 48)
-                } else {
-                    PrimaryButton(
-                        title: currentPage == totalSlides - 1 ? "Get Started" : "Next",
-                        action: handleNext
-                    )
-                }
+                PrimaryButton(
+                    title: currentPage == totalSlides - 1 ? "Get Started" : "Next",
+                    action: handleNext
+                )
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
@@ -133,7 +123,7 @@ struct OnboardingView: View {
                 .clipShape(RoundedRectangle(cornerRadius: LayoutConstants.borderRadius))
                 .padding(.bottom, 32)
             
-            Text("Allow Local Network access.")
+            Text("When prompted, allow Local Network Access.")
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundColor(.textPrimary)
                 .multilineTextAlignment(.leading)
@@ -180,7 +170,7 @@ struct OnboardingView: View {
     
     private var localNetworkBody: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("MintCheck works with select Wi-Fi car scanners that plug into the car. Turn on network access for the app to better connect to these devices.")
+            Text("MintCheck works with select Wi-Fi car scanners that plug into the car. When you connect one, iOS may ask for Local Network access—allow it so the app can reach your device.")
                 .font(.system(size: FontSize.bodyLarge))
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.leading)
@@ -223,12 +213,6 @@ struct OnboardingView: View {
     }
     
     // MARK: - Actions
-    
-    private func openSettings() {
-        if let url = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(url)
-        }
-    }
     
     private func handleBack() {
         if currentPage > 0 {

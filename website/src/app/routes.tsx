@@ -11,6 +11,7 @@ import Eula from './pages/Eula';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminFeedback from './pages/AdminFeedback';
+import AdminStarterKitOrders from './pages/AdminStarterKitOrders';
 import ReportPage from './pages/ReportPage';
 import Download from './pages/Download';
 import AuthConfirm from './pages/AuthConfirm';
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
       { path: 'admin/login', element: <AdminLogin /> },
       { path: 'admin/dashboard', element: <AdminDashboard /> },
       { path: 'admin/feedback', element: <AdminFeedback /> },
+      { path: 'admin/orders', element: <AdminStarterKitOrders /> },
       { path: 'report/:shareCode', element: <ReportPage /> },
       { path: 'deep-check/report/:code', element: <DeepCheckReportPage /> },
       { path: '*', element: <NotFound /> },

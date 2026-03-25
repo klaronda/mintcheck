@@ -131,6 +131,12 @@ export default function AdminDashboard() {
           </h1>
           <div className="flex items-center gap-4">
             <a
+              href="/admin/orders"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Orders
+            </a>
+            <a
               href="/admin/feedback"
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
             >

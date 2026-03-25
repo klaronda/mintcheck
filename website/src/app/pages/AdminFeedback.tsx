@@ -187,6 +187,12 @@ export default function AdminFeedback() {
             >
               ← Dashboard
             </button>
+            <a
+              href="/admin/orders"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Orders
+            </a>
             <h1 className="text-xl font-semibold">Feedback Inbox</h1>
             <button
               type="button"

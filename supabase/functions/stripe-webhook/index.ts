@@ -2,6 +2,96 @@ import { serve } from "https://deno.land/std@0.194.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
 
+/** Parse client_reference_id as Supabase user UUID when present. */
+function parseUserIdFromSession(session: Stripe.Checkout.Session): string | null {
+  const ref = session.client_reference_id;
+  if (typeof ref !== "string" || !ref.trim()) return null;
+  const uuidRe =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRe.test(ref.trim()) ? ref.trim() : null;
+}
+
+async function handleStarterKitOrder(params: {
+  supabase: ReturnType<typeof createClient>;
+  supabaseUrl: string;
+  session: Stripe.Checkout.Session;
+  sessionId: string;
+}): Promise<void> {
+  const { supabase, supabaseUrl, session, sessionId } = params;
+  const userId = parseUserIdFromSession(session);
+  const email = session.customer_details?.email ?? null;
+  const name = session.customer_details?.name ?? null;
+
+  const { data: prior } = await supabase
+    .from("starter_kit_orders")
+    .select("id, confirmation_email_sent_at")
+    .eq("stripe_session_id", sessionId)
+    .maybeSingle();
+
+  const nowIso = new Date().toISOString();
+  const { error: upsertErr } = await supabase.from("starter_kit_orders").upsert(
+    {
+      stripe_session_id: sessionId,
+      user_id: userId,
+      customer_email: email,
+      customer_name: name,
+      status: "paid_pending_fulfillment",
+      updated_at: nowIso,
+    },
+    { onConflict: "stripe_session_id" }
+  );
+
+  if (upsertErr) {
+    console.error("stripe-webhook starter_kit_orders upsert error:", upsertErr);
+    return;
+  }
+
+  if (prior?.confirmation_email_sent_at) {
+    console.log(`stripe-webhook: starter_kit email already sent, session=${sessionId}`);
+    return;
+  }
+
+  const invokeSecret = Deno.env.get("DEEP_CHECK_INVOKE_SECRET");
+  if (!invokeSecret) {
+    console.error("stripe-webhook: DEEP_CHECK_INVOKE_SECRET not set, skipping starter-kit email");
+    return;
+  }
+
+  const functionsUrl = `${supabaseUrl}/functions/v1/send-starter-kit-confirmation`;
+  try {
+    const res = await fetch(functionsUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": invokeSecret,
+      },
+      body: JSON.stringify({
+        name: session.customer_details?.name ?? null,
+        email: session.customer_details?.email ?? null,
+        phone: session.customer_details?.phone ?? null,
+        billing_address: session.customer_details?.address ?? null,
+        shipping: session.shipping_details ?? null,
+        created: session.created,
+      }),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      console.error("stripe-webhook: send-starter-kit-confirmation failed", res.status, t);
+      return;
+    }
+  } catch (err) {
+    console.error("stripe-webhook: invoke send-starter-kit-confirmation failed", err);
+    return;
+  }
+
+  await supabase
+    .from("starter_kit_orders")
+    .update({ confirmation_email_sent_at: nowIso, updated_at: nowIso })
+    .eq("stripe_session_id", sessionId);
+
+  console.log(`stripe-webhook: starter_kit order recorded + email sent, session=${sessionId}`);
+}
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -45,13 +135,18 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    if (metadataType === "buyer_pass") {
-      // --- Buyer Pass activation (supports stacking renewals) ---
+    const starterKitLinkId = Deno.env.get("STRIPE_STARTER_KIT_PAYMENT_LINK_ID");
+    const isPaymentLinkStarterKit =
+      Boolean(starterKitLinkId && session.payment_link === starterKitLinkId);
+    const isAppStarterKit = metadataType === "starter_kit";
+
+    if (isPaymentLinkStarterKit || isAppStarterKit) {
+      await handleStarterKitOrder({ supabase, supabaseUrl, session, sessionId });
+    } else if (metadataType === "buyer_pass") {
       const now = new Date();
       const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
       const userId = session.client_reference_id;
 
-      // Check if user has an existing active buyer pass with time remaining
       let baseDate = now;
       if (userId) {
         const { data: existingSubs } = await supabase
@@ -68,7 +163,7 @@ serve(async (req) => {
         if (existingSubs && existingSubs.length > 0 && existingSubs[0].ended_at) {
           const existingEnd = new Date(existingSubs[0].ended_at);
           if (existingEnd > now) {
-            baseDate = existingEnd; // Stack onto existing end date
+            baseDate = existingEnd;
             console.log(`stripe-webhook: stacking buyer_pass renewal onto existing end=${existingEnd.toISOString()}`);
           }
         }
@@ -91,7 +186,6 @@ serve(async (req) => {
         console.log(`stripe-webhook: buyer_pass activated, session=${sessionId}, ends=${endedAt.toISOString()}`);
       }
     } else {
-      // --- Deep Check (existing flow) ---
       const { error } = await supabase
         .from("deep_check_purchases")
         .update({ status: "paid" })
@@ -101,7 +195,6 @@ serve(async (req) => {
         console.error("stripe-webhook update deep_check_purchases error:", error);
       }
 
-      // Trigger report generation (fire-and-forget so webhook returns quickly).
       const invokeSecret = Deno.env.get("DEEP_CHECK_INVOKE_SECRET");
       const purchaseId = session.metadata?.purchase_id;
       if (typeof purchaseId === "string" && purchaseId.trim() && invokeSecret) {

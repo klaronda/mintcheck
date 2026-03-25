@@ -20,6 +20,9 @@ struct ShareReportSheet: View {
     let odometerReading: Int?
     let askingPrice: Int?
     let dtcAnalyses: [DTCAnalysisService.DTCAnalysis]?
+    /// Combined AI repair range (all codes); included in shared report JSON for web/email.
+    var totalRepairCostLow: Int? = nil
+    var totalRepairCostHigh: Int? = nil
     let nhtsaData: NHTSADataJSON?
     let systemStatuses: [ShareService.SystemStatusJSON]?  // Authoritative system statuses from in-app results
     let existingShareCode: String?  // Existing share code if report was already shared
@@ -421,6 +424,8 @@ struct ShareReportSheet: View {
                     odometerReading: odometerReading,
                     askingPrice: askingPrice,
                     dtcAnalyses: dtcAnalyses,
+                    totalRepairCostLow: totalRepairCostLow,
+                    totalRepairCostHigh: totalRepairCostHigh,
                     nhtsaData: nhtsaData,
                     systemStatuses: systemStatuses,
                     userEmail: user.email ?? "",

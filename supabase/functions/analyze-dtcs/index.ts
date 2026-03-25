@@ -1,19 +1,21 @@
 import { serve } from "https://deno.land/std@0.194.0/http/server.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// AWS Bedrock configuration
-const AWS_REGION = Deno.env.get('AWS_REGION') || 'us-east-1';
-const AWS_ACCESS_KEY_ID = Deno.env.get('AWS_ACCESS_KEY_ID');
-const AWS_SECRET_ACCESS_KEY = Deno.env.get('AWS_SECRET_ACCESS_KEY');
-const AWS_SESSION_TOKEN = Deno.env.get('AWS_SESSION_TOKEN');
-const BEDROCK_MODEL_ID = Deno.env.get('BEDROCK_MODEL_ID') || 'anthropic.claude-3-5-sonnet-20241022-v2:0';
-const BEDROCK_TIMEOUT_MS = 5000; // 5 second timeout
+// OpenAI Chat Completions — set OPENAI_API_KEY in Supabase Edge Function secrets
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const OPENAI_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
+const OPENAI_TIMEOUT_MS = 30_000;
 
-// Request interface
+/** Max length for the `summary` string returned to the app (Unicode-safe). */
+const SUMMARY_MAX_CHARS = 180;
+
+const VALID_APP_RECOMMENDATIONS = new Set(["safe", "low-data", "caution", "not-recommended"]);
+
+// Request interface (appRecommendation optional; aligns with MintCheck RecommendationType.rawValue)
 interface AnalysisRequest {
   dtcs: string[];
   make: string;
@@ -23,299 +25,323 @@ interface AnalysisRequest {
   askingPrice?: number;
   interiorCondition?: string;
   tireCondition?: string;
+  appRecommendation?: string;
 }
 
-// SigV4 signing helpers
-async function sha256(message: string | Uint8Array): Promise<Uint8Array> {
-  const data = typeof message === 'string' ? new TextEncoder().encode(message) : message;
-  return new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+interface OpenAIChatResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+  error?: { message?: string };
 }
 
-function toHex(arrayBuffer: Uint8Array): string {
-  return Array.from(arrayBuffer).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function hmac(key: Uint8Array, data: string): Promise<Uint8Array> {
-  const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(data));
-  return new Uint8Array(signature);
-}
-
-async function getSignatureKey(key: string, dateStamp: string, region: string, service: string): Promise<Uint8Array> {
-  const kDate = await hmac(new TextEncoder().encode('AWS4' + key), dateStamp);
-  const kRegion = await hmac(kDate, region);
-  const kService = await hmac(kRegion, service);
-  const kSigning = await hmac(kService, 'aws4_request');
-  return kSigning;
-}
-
-function isoDate(date: Date): string {
-  return date.toISOString().replace(/[:-]|\.\d{3}/g, '');
-}
-
-async function signBedrockRequest(
-  method: 'POST',
-  url: URL,
-  body: string,
-  region: string,
-  accessKey: string,
-  secretKey: string,
-  sessionToken?: string
-): Promise<Record<string, string>> {
-  const service = 'bedrock';
-  const amzDate = isoDate(new Date());
-  const dateStamp = amzDate.slice(0, 8);
-  const canonicalUri = url.pathname;
-  const canonicalQuerystring = '';
-  const payloadHash = toHex(await sha256(body));
-
-  const canonicalHeaders = `content-type:application/json\nhost:${url.host}\nx-amz-date:${amzDate}\n`;
-  const signedHeaders = 'content-type;host;x-amz-date';
-  const canonicalRequest = `${method}\n${canonicalUri}\n${canonicalQuerystring}\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
-
-  const algorithm = 'AWS4-HMAC-SHA256';
-  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const stringToSign = `${algorithm}\n${amzDate}\n${credentialScope}\n${toHex(await sha256(canonicalRequest))}`;
-
-  const signingKey = await getSignatureKey(secretKey, dateStamp, region, service);
-  const signature = toHex(await hmac(signingKey, stringToSign));
-
-  const authorizationHeader = `${algorithm} Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'X-Amz-Date': amzDate,
-    Authorization: authorizationHeader,
-  };
-  if (sessionToken) {
-    headers['X-Amz-Security-Token'] = sessionToken;
+/** Truncate so final length ≤ `max` (Unicode code points), including trailing ellipsis. */
+function truncateSummary(text: string, max: number): string {
+  const chars = [...text];
+  if (chars.length <= max) return text;
+  if (max <= 1) return "…".slice(0, max);
+  const limit = max - 1; // one code point for ellipsis
+  let body = chars.slice(0, limit).join("");
+  const lastSpace = body.lastIndexOf(" ");
+  if (lastSpace > limit * 0.6) {
+    body = body.slice(0, lastSpace).trimEnd();
+  } else {
+    body = body.trimEnd();
   }
-  return headers;
+  return body + "…";
 }
 
-async function invokeBedrock(body: Record<string, unknown>): Promise<any | null> {
-  if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_REGION) {
-    console.error('AWS credentials not configured');
-    return null;
+function buildTierInstruction(appRecommendation: string | undefined): string {
+  if (!appRecommendation || !VALID_APP_RECOMMENDATIONS.has(appRecommendation)) {
+    return "";
   }
+  return `
 
-  const url = new URL(`https://bedrock-runtime.${AWS_REGION}.amazonaws.com/model/${BEDROCK_MODEL_ID}/invoke`);
-  const bodyString = JSON.stringify(body);
-  const headers = await signBedrockRequest('POST', url, bodyString, AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN);
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), BEDROCK_TIMEOUT_MS);
-  try {
-    const resp = await fetch(url.toString(), {
-      method: 'POST',
-      headers,
-      body: bodyString,
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      console.error('Bedrock API error:', resp.status, errorText);
-      return null;
-    }
-    return await resp.json();
-  } catch (err) {
-    clearTimeout(timer);
-    console.error('Bedrock invoke error:', err);
-    return null;
-  }
+## MintCheck app tier (tone only — do not repeat the title)
+The results screen **already shows a big title** for this tier (e.g. "Not Recommended" / "Proceed with Caution"). The **summary must not restate that title** or spend most of the text on "we recommend/don't recommend."
+- **safe**: Explain what we saw; stay reassuring.
+- **low-data**: Explain what's missing; suggest a follow-up scan or inspection.
+- **caution**: Flag real concerns without sounding like the headline again.
+- **not-recommended**: Serious tone is OK in a **short closing phrase**, but most words must explain **what is wrong mechanically** and why it matters — not generic "get an inspection" with no substance.
+Do not contradict this tier.`;
 }
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+function buildSharedStyleBlock(): string {
+  return `## Writing style (required)
+- **Reading level**: 10th grade or below. Short sentences. Simple words. If you use a car term, explain it in plain English.
+- **Voice**: MintCheck speaks as "we" — warm, direct, like a trusted friend giving advice.
+- **Summary field (body under the tier title)**: Explain **what is going on** — the problem in plain English (e.g. for a lean code: too much air or too little fuel, common causes like vacuum leak, dirty MAF, low fuel pressure). **Lead with the issue**, not with "we recommend." You may add **one short** closing line about next steps (e.g. have a mechanic verify before buying) that fits the tier — but **do not** merely repeat the tier or fill space with vague "professional inspection" language.
+- **Summary length (strict)**: **At most ${SUMMARY_MAX_CHARS} characters** (count letters/spaces/punctuation). Shorter is fine. Do not exceed this limit.`;
+}
 
-  try {
-    // Parse request body
-    let requestData: AnalysisRequest;
-    try {
-      requestData = await req.json();
-      console.log('Parsed request data:', JSON.stringify(requestData, null, 2));
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid JSON in request body', details: parseError.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { dtcs, make, model, year, odometerReading, askingPrice, interiorCondition, tireCondition } = requestData;
-
-    // Validate required fields
-    if (!make || typeof make !== 'string' || make.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Missing or invalid required field: make' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!model || typeof model !== 'string' || model.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Missing or invalid required field: model' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!year || typeof year !== 'number' || year < 1900 || year > 2100) {
-      return new Response(
-        JSON.stringify({ error: 'Missing or invalid required field: year (must be a number between 1900-2100)' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Ensure dtcs is an array (default to empty if missing)
-    const dtcsArray = Array.isArray(dtcs) ? dtcs : [];
-
-    // Build prompt for Bedrock
-    const vehicleInfo = `${year} ${make} ${model}`;
-    const mileageInfo = odometerReading ? ` with ${odometerReading.toLocaleString()} miles` : '';
-    const conditionInfo = [];
-    if (interiorCondition) conditionInfo.push(`Interior: ${interiorCondition}`);
-    if (tireCondition) conditionInfo.push(`Tires: ${tireCondition}`);
-    const conditionText = conditionInfo.length > 0 ? `\nCondition: ${conditionInfo.join(', ')}` : '';
-    const askingPriceText = askingPrice ? `\nAsking Price: $${askingPrice.toLocaleString()}` : '';
-
-    const hasDTCs = dtcsArray && dtcsArray.length > 0;
-
-    // Build prompt conditionally based on whether DTCs exist
-    let prompt: string;
-    if (hasDTCs) {
-      // Include both DTC analysis and valuation
-      prompt = `You are an automotive diagnostic expert. Analyze the following diagnostic trouble codes (DTCs) for a ${vehicleInfo}${mileageInfo}.${conditionText}${askingPriceText}
-
-DTCs to analyze: ${dtcsArray.join(', ')}
-
-Provide a comprehensive analysis in JSON format with the following structure:
+function buildJsonShapeDTC(): string {
+  return `Return ONLY one JSON object with this exact shape (keys required). **Do not copy placeholder numbers** — pick realistic US shop dollars for **this** vehicle and **this** code.
 
 {
   "dtcAnalyses": [
     {
-      "code": "P0420",
-      "name": "Catalytic Converter Efficiency Below Threshold",
-      "description": "Clear explanation of what this code means in simple terms",
-      "repairCostLow": 500,
-      "repairCostHigh": 2500,
-      "urgency": "high",
-      "commonForVehicle": true
+      "code": "<string>",
+      "name": "<string>",
+      "description": "<string — 2–4 sentences: what this code means, common causes, and what often gets replaced or fixed. This is the detailed explanation; the summary stays short.>",
+      "repairCostLow": <integer>,
+      "repairCostHigh": <integer>,
+      "urgency": "low" | "medium" | "high" | "critical",
+      "commonForVehicle": <boolean>
     }
   ],
-  "totalRepairCostLow": 500,
-  "totalRepairCostHigh": 2500,
-  "overallUrgency": "high",
-  "summary": "Overall summary of the issues found and their impact",
+  "totalRepairCostLow": <integer>,
+  "totalRepairCostHigh": <integer>,
+  "overallUrgency": "low" | "medium" | "high" | "critical",
+  "summary": "<string, max ${SUMMARY_MAX_CHARS} characters>",
   "vehicleValuation": {
-    "lowEstimate": 18400,
-    "highEstimate": 20680,
-    "reasoning": "Brief explanation of the US national average valuation based on age, mileage, condition, and current market conditions"
+    "lowEstimate": <integer>,
+    "highEstimate": <integer>,
+    "reasoning": "<string>"
   }
+}`;
 }
 
-For each DTC:
-- Provide a clear, simple description that a non-mechanic can understand
-- Estimate realistic repair costs (low and high range)
-- Assess urgency: "low", "medium", "high", or "critical"
-- Indicate if this is common for this make/model
-
-For vehicle valuation:
-- Estimate current US national average market value range (low and high) in USD
-- Base the estimate on nationwide market data, not regional prices
-- Consider: vehicle age, mileage, condition, make/model reliability, current market trends
-- Account for any issues found in the DTC analysis
-- Provide brief reasoning for the estimate
-
-Return ONLY valid JSON, no other text.`;
-    } else {
-      // Only request vehicle valuation (no DTCs to analyze)
-      prompt = `You are an automotive valuation expert. Estimate the current market value for a ${vehicleInfo}${mileageInfo}.${conditionText}${askingPriceText}
-
-Provide a vehicle valuation in JSON format with the following structure:
+function buildJsonShapeNoDTC(): string {
+  return `Return ONLY one JSON object with this exact shape:
 
 {
   "dtcAnalyses": [],
   "totalRepairCostLow": 0,
   "totalRepairCostHigh": 0,
   "overallUrgency": "low",
-  "summary": "No diagnostic trouble codes found. Vehicle appears to be in good condition based on the scan.",
+  "summary": "<string, max ${SUMMARY_MAX_CHARS} characters>",
   "vehicleValuation": {
-    "lowEstimate": 18400,
-    "highEstimate": 20680,
-    "reasoning": "Brief explanation of the US national average valuation based on age, mileage, condition, make/model reliability, and current market trends"
+    "lowEstimate": <integer>,
+    "highEstimate": <integer>,
+    "reasoning": "<string>"
+  }
+}`;
+}
+
+async function invokeOpenAI(userPrompt: string): Promise<string | null> {
+  if (!OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY not configured");
+    return null;
+  }
+
+  const body = {
+    model: OPENAI_MODEL,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are MintCheck's automotive assistant. Respond with a single valid JSON object only, no markdown fences or text outside the JSON. The app already shows a tier title—use the summary to explain what is wrong with the vehicle, not to repeat that title.",
+      },
+      { role: "user", content: userPrompt },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 2000,
+    temperature: 0.3,
+  };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+  try {
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    const raw = await resp.text();
+    if (!resp.ok) {
+      console.error("OpenAI API error:", resp.status, raw);
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as OpenAIChatResponse;
+    if (parsed.error?.message) {
+      console.error("OpenAI error field:", parsed.error.message);
+      return null;
+    }
+
+    const text = parsed.choices?.[0]?.message?.content?.trim();
+    if (!text) {
+      console.error("Empty OpenAI response:", raw);
+      return null;
+    }
+    return text;
+  } catch (err) {
+    clearTimeout(timer);
+    console.error("OpenAI invoke error:", err);
+    return null;
   }
 }
 
-For vehicle valuation:
-- Estimate current US national average market value range (low and high) in USD
-- Base the estimate on nationwide market data, not regional prices
-- Consider: vehicle age, mileage, condition, make/model reliability, current market trends
-- If asking price is provided, note whether it's above, below, or within the estimated range
-- Provide brief reasoning for the estimate
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
-Return ONLY valid JSON, no other text.`;
-    }
-
-    // Call Bedrock
-    const bedrockBody = {
-      anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 2000,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    };
-
-    const bedrockResponse = await invokeBedrock(bedrockBody);
-
-    if (!bedrockResponse) {
+  try {
+    let requestData: AnalysisRequest;
+    try {
+      requestData = await req.json();
+      console.log("Parsed request data:", JSON.stringify(requestData, null, 2));
+    } catch (parseError: unknown) {
+      const details = parseError instanceof Error ? parseError.message : String(parseError);
+      console.error("JSON parse error:", parseError);
       return new Response(
-        JSON.stringify({ error: 'Failed to analyze DTCs - AI service unavailable' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Invalid JSON in request body", details }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // Parse response
-    const responseText = bedrockResponse.content?.[0]?.text || '';
-    
-    // Extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('No JSON found in Bedrock response:', responseText);
+    const {
+      dtcs,
+      make,
+      model,
+      year,
+      odometerReading,
+      askingPrice,
+      interiorCondition,
+      tireCondition,
+      appRecommendation,
+    } = requestData;
+
+    if (!make || typeof make !== "string" || make.trim().length === 0) {
+      return new Response(JSON.stringify({ error: "Missing or invalid required field: make" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!model || typeof model !== "string" || model.trim().length === 0) {
+      return new Response(JSON.stringify({ error: "Missing or invalid required field: model" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!year || typeof year !== "number" || year < 1900 || year > 2100) {
       return new Response(
-        JSON.stringify({ error: 'Invalid response from AI service' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: "Missing or invalid required field: year (must be a number between 1900-2100)",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const analysisData = JSON.parse(jsonMatch[0]);
+    if (
+      appRecommendation !== undefined &&
+      appRecommendation !== null &&
+      (typeof appRecommendation !== "string" || !VALID_APP_RECOMMENDATIONS.has(appRecommendation))
+    ) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid appRecommendation (use safe | low-data | caution | not-recommended)",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-    // Format response to match expected structure
+    const dtcsArray = Array.isArray(dtcs) ? dtcs : [];
+
+    const vehicleInfo = `${year} ${make} ${model}`;
+    const mileageInfo = odometerReading ? ` with ${odometerReading.toLocaleString()} miles` : "";
+    const conditionInfo: string[] = [];
+    if (interiorCondition) conditionInfo.push(`Interior: ${interiorCondition}`);
+    if (tireCondition) conditionInfo.push(`Tires: ${tireCondition}`);
+    const conditionText = conditionInfo.length > 0 ? `\nCondition: ${conditionInfo.join(", ")}` : "";
+    const askingPriceText = askingPrice ? `\nAsking Price: $${askingPrice.toLocaleString()}` : "";
+
+    const tierBlock = buildTierInstruction(appRecommendation);
+    const styleBlock = buildSharedStyleBlock();
+
+    const hasDTCs = dtcsArray.length > 0;
+
+    let prompt: string;
+    if (hasDTCs) {
+      prompt = `Analyze diagnostic trouble codes (DTCs) for a ${vehicleInfo}${mileageInfo}.${conditionText}${askingPriceText}
+
+DTCs: ${dtcsArray.join(", ")}
+${tierBlock}
+${styleBlock}
+
+${buildJsonShapeDTC()}
+
+Rules:
+- Each DTC entry: accurate **name** and a **rich description** (see JSON shape) so the user understands causes and fixes—not just one vague sentence.
+- **repairCostLow / repairCostHigh** (per code): Typical **US shop** range to **diagnose and repair** this code on this vehicle for **common root causes** (e.g. lean codes: cheap fixes like hoses/PCV up through MAF/O2/sensors/intake leaks/fuel pump—use a range wide enough to be honest, often tens to hundreds for simple items up to $800–$1,500+ when major parts fail). **Do not** default to generic "$2,500–$5,000" bands unless the code family truly implies major engine or emissions work. **Do not** reuse the same dollar pair for unrelated codes.
+- **totalRepairCostLow / totalRepairCostHigh**: Logical combined range for fixing **all listed codes** (if one repair fixes multiple, totals should reflect that; if independent issues stack, reflect that). Still **code-driven**, not a generic template.
+- **vehicleValuation**: US national average market value range in USD; consider age, mileage, condition, reliability; adjust if issues are serious.
+- **overallUrgency** should reflect combined risk.
+- **summary**: ≤ ${SUMMARY_MAX_CHARS} characters; **issue-first** (see writing style). No tier-title repetition.`;
+    } else {
+      prompt = `Estimate current market value for a ${vehicleInfo}${mileageInfo}.${conditionText}${askingPriceText}
+${tierBlock}
+${styleBlock}
+
+${buildJsonShapeNoDTC()}
+
+Rules:
+- **summary**: Friendly, 10th-grade reading level; if tier is "safe" or "low-data", explain clearly. Must be ≤ ${SUMMARY_MAX_CHARS} characters (hard cap). Do not repeat the tier title as the whole message.
+- **vehicleValuation**: US national average range (USD) and short reasoning.`;
+    }
+
+    const responseText = await invokeOpenAI(prompt);
+
+    if (!responseText) {
+      return new Response(
+        JSON.stringify({ error: "Failed to analyze DTCs - AI service unavailable" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    let analysisData: Record<string, unknown>;
+    try {
+      analysisData = JSON.parse(responseText) as Record<string, unknown>;
+    } catch {
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error("No JSON found in OpenAI response:", responseText);
+        return new Response(JSON.stringify({ error: "Invalid response from AI service" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        analysisData = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+      } catch (e) {
+        console.error("JSON parse failed:", e);
+        return new Response(JSON.stringify({ error: "Invalid response from AI service" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const dtcAnalyses = analysisData.dtcAnalyses;
+    const rawSummary =
+      (analysisData.summary as string) ||
+      (hasDTCs ? "" : "No diagnostic trouble codes found. Vehicle appears to be in good condition.");
     const response = {
-      analyses: analysisData.dtcAnalyses || [],
-      totalRepairCostLow: analysisData.totalRepairCostLow || 0,
-      totalRepairCostHigh: analysisData.totalRepairCostHigh || 0,
-      overallUrgency: analysisData.overallUrgency || (hasDTCs ? 'medium' : 'low'),
-      summary: analysisData.summary || (hasDTCs ? '' : 'No diagnostic trouble codes found. Vehicle appears to be in good condition.'),
-      vehicleValuation: analysisData.vehicleValuation || null
+      analyses: Array.isArray(dtcAnalyses) ? dtcAnalyses : [],
+      totalRepairCostLow: Number(analysisData.totalRepairCostLow) || 0,
+      totalRepairCostHigh: Number(analysisData.totalRepairCostHigh) || 0,
+      overallUrgency: (analysisData.overallUrgency as string) || (hasDTCs ? "medium" : "low"),
+      summary: truncateSummary(rawSummary, SUMMARY_MAX_CHARS),
+      vehicleValuation: analysisData.vehicleValuation ?? null,
     };
 
-    return new Response(
-      JSON.stringify(response),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
-    console.error('Error in analyze-dtcs:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', message: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error in analyze-dtcs:", error);
+    return new Response(JSON.stringify({ error: "Internal server error", message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
