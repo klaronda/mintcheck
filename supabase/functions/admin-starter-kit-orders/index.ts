@@ -9,6 +9,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-admin-secret",
 };
@@ -224,7 +225,51 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ order: updated }), {
+
+      const carrierOut = String(updated.tracking_carrier ?? "").trim();
+      const trackingOut = String(updated.tracking_number ?? "").trim();
+      const emailOut = updated.customer_email as string | null | undefined;
+      const shippingEmailSent = Boolean(updated.shipping_confirmation_sent_at);
+
+      let orderPayload = updated;
+      if (
+        carrierOut &&
+        trackingOut &&
+        emailOut &&
+        !shippingEmailSent
+      ) {
+        const invokeSecret = Deno.env.get("DEEP_CHECK_INVOKE_SECRET");
+        if (invokeSecret) {
+          const shippingUrl = `${supabaseUrl}/functions/v1/send-starter-kit-shipping`;
+          try {
+            const sr = await fetch(shippingUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Internal-Secret": invokeSecret,
+              },
+              body: JSON.stringify({ order_id: id }),
+            });
+            if (!sr.ok) {
+              const t = await sr.text();
+              console.error("admin-starter-kit-orders: send-starter-kit-shipping failed", sr.status, t);
+            } else {
+              const { data: refetched } = await supabase
+                .from("starter_kit_orders")
+                .select("*")
+                .eq("id", id)
+                .single();
+              if (refetched) orderPayload = refetched;
+            }
+          } catch (e) {
+            console.error("admin-starter-kit-orders: send-starter-kit-shipping invoke error", e);
+          }
+        } else {
+          console.warn("admin-starter-kit-orders: DEEP_CHECK_INVOKE_SECRET missing, skip shipping email");
+        }
+      }
+
+      return new Response(JSON.stringify({ order: orderPayload }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Local preview only — not deployed. Mirrors send-starter-kit-shipping Edge Function output.
+  Open this file in a browser to review layout and copy.
+
+  supabase/functions/send-starter-kit-shipping/index.ts is the source of truth for production emails.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview: Starter Kit shipping email</title>
+  <style>
+    .preview-banner {
+      font-family: system-ui, sans-serif;
+      background: #1a1a1a;
+      color: #f5f5f5;
+      padding: 12px 20px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .preview-banner a { color: #7dffc4; }
+    .variant-note {
+      font-family: system-ui, sans-serif;
+      max-width: 640px;
+      margin: 24px auto;
+      padding: 16px 20px;
+      background: #fff8e6;
+      border: 1px solid #e8d4a8;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #4a3c1a;
+    }
+    .variant-note h2 {
+      margin: 0 0 8px 0;
+      font-size: 15px;
+    }
+    .variant-note p { margin: 0; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0;">
+
+  <div class="preview-banner">
+    <strong>PREVIEW</strong> — Sample data. Production email is built by
+    <code style="background:#333;padding:2px 6px;border-radius:4px;">send-starter-kit-shipping</code>
+  </div>
+
+  <div class="variant-note">
+    <h2>When Buyer Pass is not active yet</h2>
+    <p>The block under “Your Buyer Pass &amp; Quick Start” uses this text instead:</p>
+    <p style="margin-top:10px;padding:12px;background:#fff;border-radius:6px;border:1px solid #e5e5e5;color:#666;">
+      Your kit includes a <strong>60-day Buyer Pass</strong> (up to 10 full scans per day). If you don’t see it in the app yet, it may activate shortly—check MintCheck or reply to this email if you need help. Once it’s active, use the Quick Start below after you plug in the scanner.
+    </p>
+  </div>
+
+  <!-- ========== Email body (Buyer Pass active variant) ========== -->
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #F8F8F7;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td align="center" style="padding: 40px 20px;">
+          <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse;">
+
+            <tr>
+              <td style="background-color: #FFFFFF; padding: 32px 32px 24px 32px; border-radius: 4px 4px 0 0;">
+                <div style="color: #3EB489; font-size: 24px; font-weight: 600; margin-bottom: 8px;">MintCheck</div>
+                <h2 style="margin: 0; color: #1A1A1A; font-size: 24px; font-weight: 600;">Your kit is on the way</h2>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background-color: #FFFFFF; padding: 0 32px 32px 32px;">
+                <p style="margin: 0 0 24px 0; color: #666666; font-size: 15px; line-height: 1.7;">
+                  Hi Jane—great news: your <strong>MintCheck Starter Kit</strong> has shipped. Use the button below to track your package. Your order summary and shipping address are below for your records.
+                </p>
+
+                <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #F4FBF8; border: 1px solid #D4EDDF; border-radius: 8px; margin-bottom: 28px;">
+                  <tr>
+                    <td style="padding: 24px;">
+                      <p style="margin: 0 0 6px 0; color: #999999; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Shipment</p>
+                      <p style="margin: 0 0 8px 0; color: #1A1A1A; font-size: 15px; line-height: 1.6;">
+                        <strong>UPS</strong><br>
+                        <span style="color: #666666; font-family: ui-monospace, monospace;">1Z999AA10123456784</span>
+                      </p>
+                      <a href="https://www.ups.com/track?tracknum=1Z999AA10123456784" style="display: inline-block; padding: 12px 28px; background-color: #3EB489; color: #FFFFFF; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600;">Track your package</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+                  <tr><td style="padding: 6px 0; color: #999999; font-size: 14px; vertical-align: top; width: 110px;">Name</td><td style="padding: 6px 0; color: #1A1A1A; font-size: 14px; vertical-align: top;">Jane Doe</td></tr>
+                  <tr><td style="padding: 6px 0; color: #999999; font-size: 14px; vertical-align: top; width: 110px;">Email</td><td style="padding: 6px 0; color: #1A1A1A; font-size: 14px; vertical-align: top;">jane@example.com</td></tr>
+                  <tr><td style="padding: 6px 0; color: #999999; font-size: 14px; vertical-align: top; width: 110px;">Phone</td><td style="padding: 6px 0; color: #1A1A1A; font-size: 14px; vertical-align: top;">+1 555 123 4567</td></tr>
+                  <tr><td style="padding: 6px 0; color: #999999; font-size: 14px; vertical-align: top; width: 110px;">Order date</td><td style="padding: 6px 0; color: #1A1A1A; font-size: 14px; vertical-align: top;">Monday, March 24, 2025</td></tr>
+                </table>
+
+                <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 28px;">
+                  <tr>
+                    <td style="width: 50%; vertical-align: top; padding-right: 12px;">
+                      <p style="margin: 0 0 6px 0; color: #999999; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Shipping address</p>
+                      <p style="margin: 0; color: #1A1A1A; font-size: 14px; line-height: 1.6;">Jane Doe<br>123 Market Street<br>San Francisco, CA<br>94103</p>
+                    </td>
+                    <td style="width: 50%; vertical-align: top; padding-left: 12px;">
+                      <p style="margin: 0 0 6px 0; color: #999999; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Billing address</p>
+                      <p style="margin: 0; color: #1A1A1A; font-size: 14px; line-height: 1.6;">123 Market Street<br>San Francisco, CA<br>94103</p>
+                    </td>
+                  </tr>
+                </table>
+
+                <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #FCFCFB; border: 1px solid #E5E5E5; border-radius: 8px; margin-bottom: 28px;">
+                  <tr>
+                    <td style="padding: 20px; width: 90px; vertical-align: top;">
+                      <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png" alt="MintCheck Scanner" style="width: 80px; height: auto; border-radius: 4px;">
+                    </td>
+                    <td style="padding: 20px 20px 20px 0; vertical-align: top;">
+                      <p style="margin: 0 0 4px 0; color: #1A1A1A; font-size: 16px; font-weight: 600;">MintCheck Starter Kit (MC-01)</p>
+                      <p style="margin: 0; color: #666666; font-size: 14px; line-height: 1.6;">
+                        Includes:<br>
+                        &bull; Wi-Fi OBD-II Scanner<br>
+                        &bull; 60-Day Buyer Pass (scan up to 10 vehicles per day)
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+
+                <h3 style="margin: 0 0 12px 0; color: #1A1A1A; font-size: 18px; font-weight: 600;">Your Buyer Pass &amp; Quick Start</h3>
+                <p style="margin: 0 0 12px 0; color: #666666; font-size: 14px; line-height: 1.7;">
+                  Your <strong>60-day Buyer Pass</strong> is active: scan up to <strong>10 vehicles per day</strong> with full MintCheck reports. When the kit arrives, follow the steps below to connect your scanner and run your first scan.
+                </p>
+
+                <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 10px 12px 10px 0; vertical-align: top; width: 32px;">
+                      <div style="width: 28px; height: 28px; border-radius: 50%; background-color: #3EB489; color: #FFFFFF; font-size: 14px; font-weight: 600; text-align: center; line-height: 28px;">1</div>
+                    </td>
+                    <td style="padding: 10px 0; color: #1A1A1A; font-size: 14px; line-height: 1.6;">
+                      <strong>Download the app</strong><br>
+                      <span style="color: #666666;">Get MintCheck from the <a href="https://apps.apple.com/app/mintcheck-car-health-scanner/id6743753553" style="color: #3EB489; text-decoration: none;">App Store</a> (iPhone only for now).</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 12px 10px 0; vertical-align: top;">
+                      <div style="width: 28px; height: 28px; border-radius: 50%; background-color: #3EB489; color: #FFFFFF; font-size: 14px; font-weight: 600; text-align: center; line-height: 28px;">2</div>
+                    </td>
+                    <td style="padding: 10px 0; color: #1A1A1A; font-size: 14px; line-height: 1.6;">
+                      <strong>Sign in with your account</strong><br>
+                      <span style="color: #666666;">Use the same email you used at checkout so your scans and Buyer Pass stay linked.</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 12px 10px 0; vertical-align: top;">
+                      <div style="width: 28px; height: 28px; border-radius: 50%; background-color: #3EB489; color: #FFFFFF; font-size: 14px; font-weight: 600; text-align: center; line-height: 28px;">3</div>
+                    </td>
+                    <td style="padding: 10px 0; color: #1A1A1A; font-size: 14px; line-height: 1.6;">
+                      <strong>Turn on the car</strong><br>
+                      <span style="color: #666666;">Start the engine or turn the ignition to the ON position.</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 12px 10px 0; vertical-align: top;">
+                      <div style="width: 28px; height: 28px; border-radius: 50%; background-color: #3EB489; color: #FFFFFF; font-size: 14px; font-weight: 600; text-align: center; line-height: 28px;">4</div>
+                    </td>
+                    <td style="padding: 10px 0; color: #1A1A1A; font-size: 14px; line-height: 1.6;">
+                      <strong>Insert your MintCheck scanner</strong><br>
+                      <span style="color: #666666;">Plug it into the OBD-II port (usually under the dash, near the steering column). <a href="https://mintcheckapp.com/support/obd-port" style="color: #3EB489; text-decoration: none;">Help me find it</a></span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 12px 10px 0; vertical-align: top;">
+                      <div style="width: 28px; height: 28px; border-radius: 50%; background-color: #3EB489; color: #FFFFFF; font-size: 14px; font-weight: 600; text-align: center; line-height: 28px;">5</div>
+                    </td>
+                    <td style="padding: 10px 0; color: #1A1A1A; font-size: 14px; line-height: 1.6;">
+                      <strong>Follow the steps in the app</strong><br>
+                      <span style="color: #666666;">Connect to the scanner’s Wi-Fi and tap Scan. You’ll have results in about 30 seconds.</span>
+                    </td>
+                  </tr>
+                </table>
+
+                <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #F4FBF8; border: 1px solid #D4EDDF; border-radius: 8px; margin-top: 32px;">
+                  <tr>
+                    <td style="padding: 24px;">
+                      <p style="margin: 0 0 6px 0; color: #1A1A1A; font-size: 16px; font-weight: 600;">Shopping for a used car?</p>
+                      <p style="margin: 0 0 16px 0; color: #666666; font-size: 14px; line-height: 1.6;">
+                        Get a <strong>Deep Check Report</strong> on any vehicle before you buy. Enter a VIN in the MintCheck app to see accident history, title status, recall notices, and more – all in one report.
+                      </p>
+                      <a href="https://mintcheckapp.com" style="display: inline-block; padding: 12px 28px; background-color: #3EB489; color: #FFFFFF; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600;">Learn More in the App</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background-color: #F8F8F7; padding: 32px; text-align: center; border-radius: 0 0 4px 4px; border-top: 1px solid #E5E5E5;">
+                <p style="margin: 0 0 8px 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                  Questions? Reply to this email or reach us at <a href="mailto:support@mintcheckapp.com" style="color: #3EB489; text-decoration: none;">support@mintcheckapp.com</a>
+                </p>
+                <p style="margin: 0 0 16px 0; color: #999999; font-size: 13px; line-height: 1.6;">© 2026 MintCheck. All rights reserved.</p>
+                <p style="margin: 0; color: #999999; font-size: 13px; line-height: 1.6;">
+                  <a href="https://mintcheckapp.com/support" style="color: #3EB489; text-decoration: none;">Support</a> &bull;
+                  <a href="https://mintcheckapp.com/privacy" style="color: #3EB489; text-decoration: none;">Privacy</a> &bull;
+                  <a href="https://mintcheckapp.com/terms" style="color: #3EB489; text-decoration: none;">Terms</a>
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+</body>
+</html>

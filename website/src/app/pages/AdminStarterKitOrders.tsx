@@ -18,6 +18,7 @@ export interface StarterKitOrderRow {
   tracking_carrier: string | null;
   tracking_number: string | null;
   shipped_at: string | null;
+  shipping_confirmation_sent_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -152,7 +153,11 @@ export default function AdminStarterKitOrders() {
         setActionMessage(data?.error ?? `Save failed (${res.status})`);
         return;
       }
-      setActionMessage('Tracking saved.');
+      if (data?.order?.shipping_confirmation_sent_at) {
+        setActionMessage('Tracking saved. Shipping confirmation email sent to the customer.');
+      } else {
+        setActionMessage('Tracking saved.');
+      }
       await loadOrders();
     } catch (e) {
       setActionMessage(e instanceof Error ? e.message : 'Save failed');
@@ -471,6 +476,10 @@ export default function AdminStarterKitOrders() {
                           <div>
                             <span className="text-muted-foreground">Shipped at</span>
                             <p>{formatDate(row.shipped_at)}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Shipping email sent</span>
+                            <p>{formatDate(row.shipping_confirmation_sent_at)}</p>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Buyer Pass subscription</span>
