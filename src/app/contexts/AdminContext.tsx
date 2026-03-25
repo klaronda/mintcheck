@@ -29,7 +29,7 @@ interface AdminContextType {
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 /** Bumped when bundled support articles change — refreshes merged localStorage */
-const STORAGE_KEY = 'mintcheck_articles_v3';
+const STORAGE_KEY = 'mintcheck_articles_v4';
 const AUTH_KEY = 'mintcheck_admin_auth';
 
 const SUPPORT_HERO_IMAGE = 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1200&h=400&fit=crop';
@@ -46,15 +46,52 @@ function listItemInner(line: string): string {
   return line;
 }
 
+/** Escape HTML entities (for text nodes and attribute values). */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Inline **bold**, `[label](url)` links, and escaped plain text (for paragraph lines). */
+function formatParagraphLine(line: string): string {
+  const escape = escapeHtml;
+  const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let result = '';
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = linkRe.exec(line)) !== null) {
+    result += formatPlainWithBold(line.slice(last, m.index));
+    const href = m[2];
+    const isExternal = /^https?:\/\//.test(href);
+    result += isExternal
+      ? `<a href="${escape(href)}" target="_blank" rel="noopener noreferrer">${escape(m[1])}</a>`
+      : `<a href="${escape(href)}">${escape(m[1])}</a>`;
+    last = linkRe.lastIndex;
+  }
+  result += formatPlainWithBold(line.slice(last));
+  return result;
+}
+
+function formatPlainWithBold(s: string): string {
+  if (!s) return '';
+  const escape = escapeHtml;
+  const parts = s.split(/(\*\*[^*]+\*\*)/g);
+  return parts
+    .map((p) => {
+      if (/^\*\*[^*]+\*\*$/.test(p)) {
+        return `<strong>${escape(p.slice(2, -2))}</strong>`;
+      }
+      return escape(p);
+    })
+    .join('');
+}
+
 /** Convert app-style markdown (bold, paragraphs, lists) to HTML for article body */
 function markdownToHtml(md: string): string {
-  const escape = (s: string) =>
-    s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  const bold = (s: string) => s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  const escape = escapeHtml;
   const normalized = md.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const blocks = normalized.split(/\n\n+/);
   const out: string[] = [];
@@ -68,13 +105,13 @@ function markdownToHtml(md: string): string {
     }
     const listLines = lines.filter((l) => isMarkdownListLine(l));
     const otherLines = lines.filter((l) => !isMarkdownListLine(l));
-    const listItemHtml = (l: string) => `<li>${bold(escape(listItemInner(l)))}</li>`;
+    const listItemHtml = (l: string) => `<li>${formatParagraphLine(listItemInner(l))}</li>`;
     if (listLines.length === lines.length && listLines.length > 0) {
       out.push('<ul>' + listLines.map(listItemHtml).join('') + '</ul>');
       continue;
     }
     if (otherLines.length > 0) {
-      const introHtml = otherLines.map((l) => bold(escape(l))).join('\n');
+      const introHtml = otherLines.map((l) => formatParagraphLine(l)).join('\n');
       out.push('<p>' + introHtml.replace(/\n/g, '</p><p>') + '</p>');
     }
     if (listLines.length > 0) {
@@ -132,19 +169,15 @@ If you're having trouble locating the port, ask the seller or check online resou
     id: 'where-to-get-scanner',
     title: 'Where to get an OBD-II WiFi Scanner',
     category: 'Device Help',
-    content: `To use MintCheck, you need an OBD-II WiFi scanner. It's a small device that plugs into your car's diagnostic port and sends data to your phone over WiFi.
+    content: `To use MintCheck, you need a WiFi OBD-II scanner. It's a small device that plugs into your car's diagnostic port and sends data to your phone over WiFi.
 
-**Our MintCheck-Tested Pick**
+**MintCheck Starter Kit – $30**
 
-WiFi ELM327 Generic Scanner — about $20 on Amazon.
-
-This is the scanner we test with and recommend. It's affordable, reliable, and works great with MintCheck.
-
-Buy it here: https://www.amazon.com/dp/B0BRKJ38ZQ?tag=mintcheck-20
+The easiest way to get started is with the MintCheck Starter Kit. It includes a WiFi OBD-II scanner and a 60-day unlimited scanning pass so you can scan as many vehicles as you want. [Buy the MintCheck Starter Kit](/starter-kit).
 
 **Will other scanners work?**
 
-Yes. Any ELM327-compatible WiFi OBD-II scanner should work with MintCheck. Just make sure it connects via WiFi (not Bluetooth). You can find them online for $15–30.`,
+Yes. Any ELM327-compatible WiFi OBD-II scanner should work with MintCheck. Just make sure it connects via WiFi – Bluetooth scanners are not compatible.`,
   },
   {
     id: 'connect-scanner',
@@ -170,9 +203,7 @@ For WiFi scanners:
 - Return to MintCheck
 
 For Bluetooth scanners:
-- Enable Bluetooth on your phone
-- Pair with the scanner in your phone's Bluetooth settings
-- Return to MintCheck
+- Bluetooth car scanners are not currently supported by the MintCheck app.
 
 **Step 5: Start the scan**
 Tap "Start Scan" in MintCheck to begin the diagnostic check. The scan typically takes 30-60 seconds.
@@ -180,7 +211,8 @@ Tap "Start Scan" in MintCheck to begin the diagnostic check. The scan typically 
 **Troubleshooting:**
 - Make sure the scanner is fully inserted
 - Ensure the ignition is on (not just accessories)
-- Try reconnecting to the scanner's WiFi/Bluetooth
+- Try reconnecting to the scanner's Wi-Fi
+- If MintCheck can't reach your scanner, open **Settings** → **MintCheck**, turn on **Local Network**, or tap **Allow** when iOS asks during a scan
 - Restart the scanner by unplugging and re-plugging it`,
   },
   {
@@ -190,6 +222,8 @@ Tap "Start Scan" in MintCheck to begin the diagnostic check. The scan typically 
     content: `After scanning a vehicle, MintCheck provides a comprehensive health report. Here's how to interpret your results:
 
 **Overall Recommendation**
+
+[[RECOMMENDATION_BADGES]]
 
 Safe (Green): No significant issues detected. The vehicle's systems appear to be in good working order.
 
@@ -357,7 +391,16 @@ Review the details carefully. For minor issues, you may choose to proceed with t
 Scan results are kept for 180 days. After that, they're automatically deleted. You can always run a new scan on a vehicle.
 
 **Can I share my scan results?**
-Coming soon! We're working on the ability to export and share scan reports.`,
+Yes. From your results screen, tap **Share Report** once the scan has finished saving. You can email the report to yourself or anyone else (with an optional message) and optionally create a **shareable link** to a web page at mintcheckapp.com—recipients don't need the MintCheck app to view it. The page shows how fresh the scan is; for sharing with a seller or lender, it's best while the scan is still **current** (about two weeks from the scan date). If sending fails right after a scan, wait a moment and try again. You can manage shared links from **Settings** while signed in.
+
+**What is Buyer Pass?**
+Buyer Pass is a **60-day** subscription for shopping multiple used cars: up to **10 full scans per calendar day** (resets each day) and you can scan **different vehicles**—not limited to one car like the free tier. **$14.99** via secure checkout in the app. When your pass activates, your daily scan count typically starts fresh for that day.
+
+**What is a one-time scan?**
+If you've used your **free scans** and only need **one more** engine health check without a pass, you can buy a **single scan** for **$3.99** (In-App Purchase) from the dashboard. The credit applies the next time you start a scan.
+
+**What is Deep Check?**
+Deep Check is an **add-on** (separate from the OBD scan): you enter a **VIN** and get a **vehicle history–style report** in the browser—things like title signals, accident history, and recalls where data is available. **$9.99.** It complements your MintCheck scan; it doesn't replace a hands-on mechanical inspection.`,
   },
 ];
 

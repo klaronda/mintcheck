@@ -27,8 +27,8 @@ export default function Navbar() {
             <Link to="/#use-cases" className="text-muted-foreground hover:text-foreground transition-colors" style={{ fontWeight: 600 }}>
               Use Cases
             </Link>
-            <Link to="/#scanners" className="text-muted-foreground hover:text-foreground transition-colors" style={{ fontWeight: 600 }}>
-              Get a Scanner
+            <Link to="/starter-kit" className="text-muted-foreground hover:text-foreground transition-colors" style={{ fontWeight: 600 }}>
+              Starter Kit
             </Link>
             <div className="flex flex-col items-end">
               <span className="text-xs text-muted-foreground mb-1">Coming Spring 2026!</span>
@@ -77,12 +77,12 @@ export default function Navbar() {
               Use Cases
             </Link>
             <Link 
-              to="/#scanners" 
+              to="/starter-kit" 
               className="text-muted-foreground hover:text-foreground transition-colors py-2"
               style={{ fontWeight: 600 }}
               onClick={() => setMobileMenuOpen(false)}
             >
-              Get a Scanner
+              Starter Kit
             </Link>
             <div className="mt-2">
               <span className="text-xs text-muted-foreground block mb-1">Coming Spring 2026!</span>

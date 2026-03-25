@@ -1,4 +1,5 @@
-import { Plug, Scan, FileText, Check, X, ExternalLink } from 'lucide-react';
+import { Plug, Scan, FileText, Check, X } from 'lucide-react';
+import { Link } from 'react-router';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import { Helmet } from 'react-helmet-async';
@@ -71,6 +72,48 @@ export default function Home() {
         </div>
       </section>
 
+      {/* MintCheck Scanner Section */}
+      <section id="scanners" className="border-b border-border" style={{ backgroundColor: '#F8F8F7' }}>
+        <div className="max-w-5xl mx-auto px-6 py-16">
+          <div className="text-center space-y-3 mb-12">
+            <h2 className="text-3xl" style={{ fontWeight: 600 }}>
+              Get the MintCheck Starter Kit
+            </h2>
+            <p className="text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+              Everything you need to start scanning. A Wi-Fi OBD-II scanner and a 60-day unlimited pass, ready to go.
+            </p>
+          </div>
+          
+          <div className="flex justify-center">
+            <div className="bg-white border border-border rounded-lg overflow-hidden w-full max-w-sm">
+              <div className="aspect-square bg-secondary/50 flex items-center justify-center p-6">
+                <img 
+                  src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png" 
+                  alt="MintCheck Wi-Fi OBD-II Scanner" 
+                  className="w-full h-full object-contain rounded"
+                />
+              </div>
+              <div className="p-5 space-y-3">
+                <div>
+                  <h3 className="text-lg mb-1" style={{ fontWeight: 600 }}>MintCheck Starter Kit</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Wi-Fi scanner + 60-day pass to scan unlimited vehicles.
+                  </p>
+                </div>
+                <div className="text-xl" style={{ fontWeight: 600 }}>$30</div>
+                <Link 
+                  to="/starter-kit"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-lg transition-opacity hover:opacity-90 text-sm"
+                  style={{ fontWeight: 600 }}
+                >
+                  Buy Starter Kit
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works Section */}
       <section id="how-it-works" className="border-b border-border" style={{ backgroundColor: '#FCFCFB' }}>
         <div className="max-w-5xl mx-auto px-6 py-24">
@@ -86,15 +129,12 @@ export default function Home() {
               <p className="text-muted-foreground leading-relaxed">
                 Plug a WiFi OBD-II scanner into the car’s OBD port. Turn the ignition on, connect your phone, and you’re ready.
               </p>
-              <a
-                href="https://www.amazon.com/dp/B0BRKJ38ZQ?ref=ppx_yo2ov_dt_b_fed_asin_title"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/starter-kit"
                 className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
               >
-                Buy a scanner now on Amazon
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+                Buy a MintCheck scanner
+              </Link>
             </div>
             <div className="space-y-4">
               <div className="w-12 h-12 bg-accent rounded-lg flex items-center justify-center">
@@ -179,51 +219,6 @@ export default function Home() {
                 <p>
                   Your scan history stays in the app, so you can see changes over time.
                 </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* OBD-II Scanners Section */}
-      <section id="scanners" className="border-b border-border" style={{ backgroundColor: '#F8F8F7' }}>
-        <div className="max-w-5xl mx-auto px-6 py-16">
-          <div className="text-center space-y-3 mb-12">
-            <h2 className="text-3xl" style={{ fontWeight: 600 }}>
-              Get an OBD-II Scanner
-            </h2>
-            <p className="text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-              MintCheck works with WiFi OBD-II scanners only. Bluetooth is not supported. This one has been tested and works great.
-            </p>
-          </div>
-          
-          <div className="flex justify-center">
-            <div className="bg-white border border-border rounded-lg overflow-hidden w-full max-w-sm">
-              <div className="aspect-square bg-secondary/50 flex items-center justify-center p-6">
-                <img 
-                  src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/generic-wifi.png" 
-                  alt="WiFi ELM327 OBD-II Scanner (Generic)" 
-                  className="w-full h-full object-cover rounded"
-                />
-              </div>
-              <div className="p-5 space-y-3">
-                <div>
-                  <h3 className="text-lg mb-1" style={{ fontWeight: 600 }}>WiFi ELM327 OBD-II Scanner (Generic)</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Plain-brand Wi-Fi scanner that works well with MintCheck.
-                  </p>
-                </div>
-                <div className="text-xl" style={{ fontWeight: 600 }}>$15.99</div>
-                <a 
-                  href="https://www.amazon.com/dp/B0BRKJ38ZQ?ref=ppx_yo2ov_dt_b_fed_asin_title" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-lg transition-opacity hover:opacity-90 text-sm"
-                  style={{ fontWeight: 600 }}
-                >
-                  Buy on Amazon
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
               </div>
             </div>
           </div>

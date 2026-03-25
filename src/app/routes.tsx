@@ -18,6 +18,8 @@ import AuthReset from './pages/AuthReset';
 import DeepCheckSuccess from './pages/DeepCheckSuccess';
 import BuyerPassSuccess from './pages/BuyerPassSuccess';
 import DeepCheckReportPage from './pages/DeepCheckReportPage';
+import StarterKit from './pages/StarterKit';
+import StarterKitSuccess from './pages/StarterKitSuccess';
 import NotFound from './pages/NotFound';
 
 export const router = createBrowserRouter([
@@ -26,6 +28,7 @@ export const router = createBrowserRouter([
   { path: '/auth/reset', element: <AuthReset /> },
   { path: '/deep-check/success', element: <DeepCheckSuccess /> },
   { path: '/buyer-pass/success', element: <BuyerPassSuccess /> },
+  { path: '/starter-kit/success', element: <StarterKitSuccess /> },
   {
     path: '/',
     element: <Layout />,
@@ -45,6 +48,7 @@ export const router = createBrowserRouter([
       { path: 'admin/feedback', element: <AdminFeedback /> },
       { path: 'report/:shareCode', element: <ReportPage /> },
       { path: 'deep-check/report/:code', element: <DeepCheckReportPage /> },
+      { path: 'starter-kit', element: <StarterKit /> },
       { path: '*', element: <NotFound /> },
     ],
   },
