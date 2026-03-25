@@ -45,8 +45,10 @@ export default function AdminStarterKitOrders() {
     Record<string, { carrier: string; number: string }>
   >({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [linkingUserId, setLinkingUserId] = useState<string | null>(null);
   const [fulfillingId, setFulfillingId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [userLinkDrafts, setUserLinkDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const auth = localStorage.getItem(AUTH_KEY);
@@ -101,6 +103,15 @@ export default function AdminStarterKitOrders() {
         }
         return next;
       });
+      setUserLinkDrafts((prev) => {
+        const next = { ...prev };
+        for (const o of list) {
+          if (next[o.id] === undefined) {
+            next[o.id] = o.user_id ?? '';
+          }
+        }
+        return next;
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Request failed');
       setOrders([]);
@@ -148,6 +159,41 @@ export default function AdminStarterKitOrders() {
     } finally {
       setSavingId(null);
       setTimeout(() => setActionMessage(null), 4000);
+    }
+  };
+
+  const linkUserToOrder = async (orderId: string) => {
+    const cfg = getApiConfig();
+    if (!cfg || !import.meta.env.VITE_ADMIN_FEEDBACK_SECRET) return;
+    const raw = (userLinkDrafts[orderId] ?? '').trim();
+    if (!raw) {
+      setActionMessage('Paste a user UUID first (Supabase → Authentication → Users).');
+      setTimeout(() => setActionMessage(null), 4000);
+      return;
+    }
+    setLinkingUserId(orderId);
+    setActionMessage(null);
+    try {
+      const res = await fetch(cfg.baseUrl, {
+        method: 'PATCH',
+        headers: cfg.headers,
+        body: JSON.stringify({
+          id: orderId,
+          user_id: raw,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionMessage(data?.error ?? `Link failed (${res.status})`);
+        return;
+      }
+      setActionMessage('User linked. You can activate the Buyer Pass when ready.');
+      await loadOrders();
+    } catch (e) {
+      setActionMessage(e instanceof Error ? e.message : 'Link failed');
+    } finally {
+      setLinkingUserId(null);
+      setTimeout(() => setActionMessage(null), 5000);
     }
   };
 
@@ -351,15 +397,54 @@ export default function AdminStarterKitOrders() {
                     {expanded && (
                       <div className="border-t border-border px-4 py-4 space-y-4 bg-muted/20">
                         <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">User ID</span>
-                            <p className="font-mono text-xs break-all">{row.user_id ?? '—'}</p>
-                            {needsUser && (
-                              <p className="text-amber-800 text-xs mt-1">
-                                No user linked (e.g. guest Payment Link). Set{' '}
-                                <code className="bg-white px-1 rounded">user_id</code> in Supabase before fulfilling, or
-                                use app checkout.
-                              </p>
+                          <div className="sm:col-span-2">
+                            <span className="text-muted-foreground">MintCheck account (Auth user UUID)</span>
+                            {row.status === 'paid_pending_fulfillment' ? (
+                              <div className="mt-2 space-y-2">
+                                <input
+                                  type="text"
+                                  value={userLinkDrafts[row.id] ?? row.user_id ?? ''}
+                                  onChange={(e) =>
+                                    setUserLinkDrafts((prev) => ({
+                                      ...prev,
+                                      [row.id]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                  className="w-full px-3 py-2 border border-border rounded-lg text-sm font-mono"
+                                  autoComplete="off"
+                                  spellCheck={false}
+                                />
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => linkUserToOrder(row.id)}
+                                    disabled={linkingUserId === row.id}
+                                    className="px-4 py-2 rounded-lg bg-white border border-border text-sm font-medium hover:bg-muted/50 disabled:opacity-50"
+                                  >
+                                    {linkingUserId === row.id ? 'Saving…' : 'Save linked user'}
+                                  </button>
+                                  {(row.user_id || (userLinkDrafts[row.id] ?? '').trim()) && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        copyText((userLinkDrafts[row.id] ?? row.user_id ?? '').trim())
+                                      }
+                                      className="text-xs text-[#3EB489] font-medium"
+                                    >
+                                      Copy UUID
+                                    </button>
+                                  )}
+                                </div>
+                                {needsUser && (
+                                  <p className="text-amber-800 text-xs">
+                                    Guest checkout (e.g. Payment Link): paste the customer&apos;s Auth user id from
+                                    Supabase, save, then activate the pass. App checkout links this automatically.
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="font-mono text-xs break-all mt-1">{row.user_id ?? '—'}</p>
                             )}
                           </div>
                           <div>

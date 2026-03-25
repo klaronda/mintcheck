@@ -1,5 +1,5 @@
 /**
- * MintCheck Admin: list / update tracking / fulfill Starter Kit orders.
+ * MintCheck Admin: list / update tracking / link user_id / fulfill Starter Kit orders.
  * Auth matches list-feedback: x-admin-secret === ADMIN_FEEDBACK_SECRET, or JWT user with profiles.role = admin.
  *
  * Deploy with verify_jwt: false (same as list-feedback) if using secret-only from the web admin UI.
@@ -14,6 +14,9 @@ const corsHeaders = {
 };
 
 type StarterKitOrderRow = Record<string, unknown>;
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function isAdminAllowed(
   req: Request,
@@ -85,11 +88,7 @@ serve(async (req) => {
     }
 
     if (req.method === "PATCH") {
-      let body: {
-        id?: string;
-        tracking_carrier?: string | null;
-        tracking_number?: string | null;
-      };
+      let body: Record<string, unknown>;
       try {
         body = await req.json();
       } catch {
@@ -106,14 +105,25 @@ serve(async (req) => {
         });
       }
 
-      const carrier =
-        typeof body.tracking_carrier === "string" ? body.tracking_carrier.trim() : null;
-      const tracking =
-        typeof body.tracking_number === "string" ? body.tracking_number.trim() : null;
+      const hasTrackingCarrier = Object.prototype.hasOwnProperty.call(body, "tracking_carrier");
+      const hasTrackingNumber = Object.prototype.hasOwnProperty.call(body, "tracking_number");
+      const hasUserId = Object.prototype.hasOwnProperty.call(body, "user_id");
+
+      if (!hasTrackingCarrier && !hasTrackingNumber && !hasUserId) {
+        return new Response(
+          JSON.stringify({
+            error: "Provide tracking_carrier and/or tracking_number and/or user_id to update",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
 
       const { data: existing, error: fetchErr } = await supabase
         .from("starter_kit_orders")
-        .select("id, shipped_at")
+        .select("id, shipped_at, user_id, status, tracking_carrier, tracking_number")
         .eq("id", id)
         .single();
 
@@ -127,11 +137,77 @@ serve(async (req) => {
       const nowIso = new Date().toISOString();
       const updates: Record<string, unknown> = {
         updated_at: nowIso,
-        tracking_carrier: carrier || null,
-        tracking_number: tracking || null,
       };
-      if (tracking && !existing.shipped_at) {
+
+      if (hasTrackingCarrier) {
+        const c = body.tracking_carrier;
+        updates.tracking_carrier =
+          typeof c === "string" && c.trim() ? c.trim() : null;
+      }
+      if (hasTrackingNumber) {
+        const t = body.tracking_number;
+        updates.tracking_number =
+          typeof t === "string" && t.trim() ? t.trim() : null;
+      }
+
+      const mergedTracking =
+        (hasTrackingNumber
+          ? (typeof body.tracking_number === "string" ? body.tracking_number.trim() : "")
+          : String(existing.tracking_number ?? "")) || "";
+
+      if (mergedTracking && !existing.shipped_at) {
         updates.shipped_at = nowIso;
+      }
+
+      if (hasUserId) {
+        const raw = body.user_id;
+        if (raw === null || raw === "") {
+          return new Response(
+            JSON.stringify({ error: "user_id cannot be cleared; omit the field to leave unchanged" }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+        if (typeof raw !== "string") {
+          return new Response(JSON.stringify({ error: "user_id must be a string UUID" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const uid = raw.trim();
+        if (!UUID_RE.test(uid)) {
+          return new Response(JSON.stringify({ error: "user_id must be a valid UUID" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (existing.status !== "paid_pending_fulfillment") {
+          return new Response(
+            JSON.stringify({
+              error: "user_id can only be set while order status is paid_pending_fulfillment",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+        const { data: authUser, error: authErr } = await supabase.auth.admin.getUserById(uid);
+        if (authErr || !authUser?.user?.id) {
+          console.error("admin-starter-kit-orders getUserById:", authErr?.message);
+          return new Response(
+            JSON.stringify({
+              error: "No Auth user found for that user_id (check Supabase Authentication → Users)",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+        updates.user_id = uid;
       }
 
       const { data: updated, error: updErr } = await supabase
