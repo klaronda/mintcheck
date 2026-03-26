@@ -222,7 +222,10 @@ export default function AdminStarterKitOrders() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setActionMessage(data?.error ?? data?.detail ?? `Fulfill failed (${res.status})`);
+        const parts = [data?.error, data?.detail, data?.hint].filter(
+          (x): x is string => typeof x === 'string' && x.length > 0
+        );
+        setActionMessage(parts.join(' — ') || `Fulfill failed (${res.status})`);
         return;
       }
       setActionMessage(data?.ok ? 'Buyer Pass activated.' : 'Request completed.');

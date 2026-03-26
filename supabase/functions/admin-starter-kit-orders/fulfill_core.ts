@@ -1,92 +1,33 @@
 /**
- * Activate 60-day Buyer Pass for a Starter Kit order (call when hardware ships).
- * Auth: X-Internal-Secret (same as DEEP_CHECK_INVOKE_SECRET / other internal functions).
- *
- * Body: { "order_id": "<uuid>" } or { "stripe_session_id": "cs_..." }
+ * Shared Starter Kit fulfillment (Buyer Pass row + order update).
+ * Bundled with admin-starter-kit-orders to avoid Edge→Edge fetch failures.
  */
-import { serve } from "https://deno.land/std@0.194.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-internal-secret",
-};
+type Supabase = ReturnType<typeof createClient>;
 
-serve(async (req) => {
-  try {
-    if (req.method === "OPTIONS") {
-      return new Response("ok", { headers: corsHeaders });
-    }
+export async function executeFulfillStarterKitOrder(
+  supabase: Supabase,
+  orderId: string,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  let query = supabase.from("starter_kit_orders").select("*").eq("id", orderId);
 
-    if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405,
+  const { data: rows, error: fetchErr } = await query.limit(1);
+  if (fetchErr) {
+    console.error("fulfill_core fetch order error:", fetchErr);
+    return new Response(
+      JSON.stringify({
+        error: "Database error loading order",
+        detail: fetchErr.message,
+        code: fetchErr.code,
+      }),
+      {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const invokeSecret = Deno.env.get("DEEP_CHECK_INVOKE_SECRET");
-    const provided = req.headers.get("X-Internal-Secret");
-    if (!invokeSecret || provided !== invokeSecret) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    let body: { order_id?: string; stripe_session_id?: string };
-    try {
-      body = await req.json();
-    } catch {
-      return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const orderId = typeof body.order_id === "string" ? body.order_id.trim() : "";
-    const sessionId =
-      typeof body.stripe_session_id === "string" ? body.stripe_session_id.trim() : "";
-
-    if (!orderId && !sessionId) {
-      return new Response(
-        JSON.stringify({ error: "Provide order_id or stripe_session_id" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    let query = supabase.from("starter_kit_orders").select("*");
-    if (orderId) {
-      query = query.eq("id", orderId);
-    } else {
-      query = query.eq("stripe_session_id", sessionId);
-    }
-
-    const { data: rows, error: fetchErr } = await query.limit(1);
-    if (fetchErr) {
-      console.error("fulfill-starter-kit-order fetch error:", fetchErr);
-      return new Response(
-        JSON.stringify({
-          error: "Database error loading order",
-          detail: fetchErr.message,
-          code: fetchErr.code,
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+      }
+    );
+  }
 
   const order = rows?.[0];
   if (!order) {
@@ -152,9 +93,7 @@ serve(async (req) => {
     const existingEnd = new Date(existingSubs[0].ended_at as string);
     if (existingEnd > now) {
       baseDate = existingEnd;
-      console.log(
-        `fulfill-starter-kit-order: stacking onto existing buyer_pass end=${existingEnd.toISOString()}`
-      );
+      console.log(`fulfill_core: stacking onto existing buyer_pass end=${existingEnd.toISOString()}`);
     }
   }
 
@@ -168,14 +107,13 @@ serve(async (req) => {
     .maybeSingle();
 
   if (reuseLookupErr) {
-    console.error("fulfill-starter-kit-order reuse lookup error:", reuseLookupErr);
+    console.error("fulfill_core reuse lookup error:", reuseLookupErr);
     return new Response(
       JSON.stringify({
         error: "Database error checking existing subscription",
         detail: reuseLookupErr.message,
         code: reuseLookupErr.code,
-        hint:
-          "Ensure subscriptions.stripe_session_id exists (run migrations) and RLS allows service role.",
+        hint: "Ensure subscriptions.stripe_session_id exists (run migrations).",
       }),
       {
         status: 500,
@@ -187,9 +125,7 @@ serve(async (req) => {
   let subId: string;
   if (existingBySession?.id) {
     subId = existingBySession.id as string;
-    console.log(
-      `fulfill-starter-kit-order: reusing existing subscription ${subId} for ${syntheticSessionId}`
-    );
+    console.log(`fulfill_core: reusing subscription ${subId} for ${syntheticSessionId}`);
   } else {
     const { data: subRow, error: insErr } = await supabase
       .from("subscriptions")
@@ -206,7 +142,7 @@ serve(async (req) => {
       .single();
 
     if (insErr || !subRow) {
-      console.error("fulfill-starter-kit-order subscriptions insert error:", insErr);
+      console.error("fulfill_core subscriptions insert error:", insErr);
       return new Response(
         JSON.stringify({
           error: "Failed to create Buyer Pass subscription",
@@ -234,26 +170,13 @@ serve(async (req) => {
     .eq("id", order.id);
 
   if (updOrderErr) {
-    console.error("fulfill-starter-kit-order order update error:", updOrderErr);
-  }
-
+    console.error("fulfill_core order update error:", updOrderErr);
     return new Response(
       JSON.stringify({
-        ok: true,
+        error: "Pass created but failed to update order row",
+        detail: updOrderErr.message,
+        code: updOrderErr.code,
         buyer_pass_subscription_id: subId,
-        ended_at: endedAt.toISOString(),
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  } catch (e) {
-    console.error("fulfill-starter-kit-order unhandled error:", e);
-    return new Response(
-      JSON.stringify({
-        error: "Internal error in fulfill-starter-kit-order",
-        detail: e instanceof Error ? e.message : String(e),
       }),
       {
         status: 500,
@@ -261,4 +184,16 @@ serve(async (req) => {
       }
     );
   }
-});
+
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      buyer_pass_subscription_id: subId,
+      ended_at: endedAt.toISOString(),
+    }),
+    {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
+}

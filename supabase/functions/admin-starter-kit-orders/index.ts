@@ -6,6 +6,7 @@
  */
 import { serve } from "https://deno.land/std@0.194.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { executeFulfillStarterKitOrder } from "./fulfill_core.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +19,36 @@ type StarterKitOrderRow = Record<string, unknown>;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Headers for invoking another project Edge Function from this function.
+ * Use SUPABASE_ANON_KEY for Authorization/apikey — the gateway validates JWT; service_role
+ * can be rejected or behave inconsistently. App auth still uses X-Internal-Secret.
+ */
+function internalEdgeHeaders(
+  invokeSecret: string,
+  jwtForGateway: string
+): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    "X-Internal-Secret": invokeSecret,
+    Authorization: `Bearer ${jwtForGateway}`,
+    apikey: jwtForGateway,
+  };
+}
+
+function parseEdgeFunctionJsonBody(text: string): unknown {
+  const t = text.trim();
+  if (!t) return { error: "Empty response from edge function" };
+  try {
+    return JSON.parse(t);
+  } catch {
+    return {
+      error: "Non-JSON response from edge function",
+      raw: t.length > 800 ? `${t.slice(0, 800)}…` : t,
+    };
+  }
+}
 
 async function isAdminAllowed(
   req: Request,
@@ -51,6 +82,9 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  /** Prefer anon JWT for function→function calls through the Supabase API gateway. */
+  const gatewayJwt =
+    Deno.env.get("SUPABASE_ANON_KEY")?.trim() || serviceRoleKey;
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -244,10 +278,7 @@ serve(async (req) => {
           try {
             const sr = await fetch(shippingUrl, {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Internal-Secret": invokeSecret,
-              },
+              headers: internalEdgeHeaders(invokeSecret, gatewayJwt),
               body: JSON.stringify({ order_id: id }),
             });
             if (!sr.ok) {
@@ -299,34 +330,23 @@ serve(async (req) => {
         });
       }
 
-      const invokeSecret = Deno.env.get("DEEP_CHECK_INVOKE_SECRET");
-      if (!invokeSecret) {
-        return new Response(JSON.stringify({ error: "DEEP_CHECK_INVOKE_SECRET not configured" }), {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const fulfillUrl = `${supabaseUrl}/functions/v1/fulfill-starter-kit-order`;
-      const fr = await fetch(fulfillUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Internal-Secret": invokeSecret,
-        },
-        body: JSON.stringify({ order_id: orderId }),
-      });
-      const text = await fr.text();
-      let payload: unknown;
+      // Fulfill in-process (same service-role Supabase client) — avoids Edge→Edge fetch
+      // issues with JWT gateway / empty error bodies that surfaced as opaque 500s.
       try {
-        payload = JSON.parse(text);
-      } catch {
-        payload = { raw: text };
+        return await executeFulfillStarterKitOrder(supabase, orderId, corsHeaders);
+      } catch (fulfillErr) {
+        console.error("admin-starter-kit-orders: fulfill_core error", fulfillErr);
+        return new Response(
+          JSON.stringify({
+            error: "Fulfill failed unexpectedly",
+            detail: fulfillErr instanceof Error ? fulfillErr.message : String(fulfillErr),
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
-      return new Response(JSON.stringify(payload), {
-        status: fr.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
