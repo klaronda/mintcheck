@@ -14,7 +14,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How long does shipping take?',
-    a: 'Orders typically ship within 2–3 business days. Standard delivery within the US is 5–7 business days after shipment. Shipping is $4.99.',
+    a: 'Orders typically ship within 2–3 business days. Standard delivery within the US is 5–7 business days after shipment. Shipping is included in the price ($34.99).',
   },
   {
     q: 'Can I return it?',
@@ -58,7 +58,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   );
 }
 
-const CHECKOUT_URL = 'https://buy.stripe.com/aFa4gzgXSbmV4hL5dhdby02';
+const CHECKOUT_URL = 'https://buy.stripe.com/aFaaEXcHC0Ih7tX215dby03';
 
 export default function StarterKit() {
   const buyButton = (extraClass = '') => (
@@ -67,22 +67,22 @@ export default function StarterKit() {
       className={`inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-lg transition-opacity hover:opacity-90 ${extraClass}`}
       style={{ fontWeight: 600 }}
     >
-      Buy Starter Kit – $30
+      Buy Starter Kit – $34.99
     </a>
   );
 
   return (
     <div className="min-h-screen bg-white">
       <Helmet>
-        <title>MintCheck Starter Kit – Scanner + 60-Day Pass | $30</title>
+        <title>MintCheck Starter Kit – Scanner + 60-Day Pass | $34.99</title>
         <meta
           name="description"
-          content="Get a Wi-Fi OBD-II scanner and 60-day unlimited scanning pass. Know the real health of any car in about 30 seconds. $30, shipped."
+          content="Get a Wi-Fi OBD-II scanner and 60-day unlimited scanning pass. Know the real health of any car in about 30 seconds. $34.99 with US shipping included."
         />
         <link rel="canonical" href="https://mintcheckapp.com/starter-kit" />
         <meta property="og:url" content="https://mintcheckapp.com/starter-kit" />
         <meta property="og:type" content="product" />
-        <meta property="og:title" content="MintCheck Starter Kit – $30" />
+        <meta property="og:title" content="MintCheck Starter Kit – $34.99" />
         <meta
           property="og:description"
           content="Wi-Fi scanner + 60-day unlimited scanning pass. Know the real health of any car."
@@ -92,7 +92,7 @@ export default function StarterKit() {
           content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png"
         />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="MintCheck Starter Kit – $30" />
+        <meta name="twitter:title" content="MintCheck Starter Kit – $34.99" />
         <meta name="twitter:description" content="Wi-Fi scanner + 60-day unlimited scanning pass. Know the real health of any car." />
         <meta name="twitter:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png" />
       </Helmet>
@@ -110,11 +110,11 @@ export default function StarterKit() {
               <p className="text-xl text-muted-foreground leading-relaxed">
                 Wi-Fi scanner + 60-day pass – scan unlimited vehicles. Know the real health of any car in about 30 seconds.
               </p>
-              <div className="text-3xl" style={{ fontWeight: 700 }}>$30</div>
+              <div className="text-3xl" style={{ fontWeight: 700 }}>$34.99</div>
               <div className="space-y-3">
                 {buyButton()}
                 <p className="text-sm text-muted-foreground">
-                  Ships to the US. Shipping is $4.99.
+                  Ships to the US. One price covers the kit and standard shipping.
                 </p>
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground pt-2">
@@ -303,7 +303,7 @@ export default function StarterKit() {
             Know before you buy
           </h2>
           <p className="text-xl text-muted-foreground leading-relaxed">
-            Everything you need to scan any car – starting at $30.
+            Everything you need to scan any car – $34.99 with US shipping included.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             {buyButton()}
@@ -330,7 +330,7 @@ export default function StarterKit() {
           className="block w-full bg-primary text-primary-foreground py-3.5 rounded-lg transition-opacity hover:opacity-90 text-center"
           style={{ fontWeight: 600 }}
         >
-          Buy Starter Kit – $30
+          Buy Starter Kit – $34.99
         </a>
       </div>
     </div>

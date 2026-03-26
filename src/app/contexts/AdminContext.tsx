@@ -171,7 +171,7 @@ If you're having trouble locating the port, ask the seller or check online resou
     category: 'Device Help',
     content: `To use MintCheck, you need a WiFi OBD-II scanner. It's a small device that plugs into your car's diagnostic port and sends data to your phone over WiFi.
 
-**MintCheck Starter Kit – $30**
+**MintCheck Starter Kit – $34.99** (US shipping included)
 
 The easiest way to get started is with the MintCheck Starter Kit. It includes a WiFi OBD-II scanner and a 60-day unlimited scanning pass so you can scan as many vehicles as you want. [Buy the MintCheck Starter Kit](/starter-kit).
 

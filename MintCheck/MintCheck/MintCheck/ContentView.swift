@@ -30,8 +30,6 @@ class NavigationManager: ObservableObject {
     @Published var isSavingScan: Bool = false
     /// Cached first vehicle for free users (loaded before scan flow to compare VIN after scan)
     @Published var freeUserVehicle: VehicleInfo? = nil
-    /// After sign-in/onboarding, open Stripe Checkout for Starter Kit (set from logged-out home).
-    @Published var pendingStarterKitCheckoutAfterAuth: Bool = false
     /// Incremented each time we enter the scan flow to force SwiftUI to recreate ScanFlowView with fresh state
     @Published var scanFlowId: Int = 0
     /// Session ID for Deep Check purchase (from Stripe redirect URL)
@@ -313,9 +311,9 @@ struct ContentView: View {
                         nav.currentScreen = .signIn 
                     },
                     onBuyStarterKit: {
-                        nav.startInCreateMode = false
-                        nav.pendingStarterKitCheckoutAfterAuth = true
-                        nav.currentScreen = .signIn
+                        if let url = URL(string: "https://mintcheckapp.com/starter-kit") {
+                            UIApplication.shared.open(url)
+                        }
                     }
                 )
                 
@@ -323,7 +321,6 @@ struct ContentView: View {
                 SignInView(
                     onBack: { 
                         nav.startInCreateMode = false
-                        nav.pendingStarterKitCheckoutAfterAuth = false
                         nav.currentScreen = .home 
                     },
                     onSignIn: handleSignIn,
@@ -631,6 +628,8 @@ struct ContentView: View {
                 ScannerHelpArticleView(article: article) {
                     selectedSupportArticle = nil
                 }
+                .environmentObject(authService)
+                .environmentObject(nav)
             } else {
                 SupportArticleDetailView(article: article) {
                     selectedSupportArticle = nil
@@ -1030,13 +1029,29 @@ struct ContentView: View {
     private struct ScannerHelpArticleView: View {
         let article: SupportArticle
         let onDone: () -> Void
-        
-        private let device = OBDDevice(
-            name: "WiFi ELM327 Generic Scanner",
-            description: "Works great with MintCheck and is about $20.",
-            url: "https://www.amazon.com/dp/B0BRKJ38ZQ?tag=mintcheck-20",
-            imageName: "generic-scanner"
-        )
+
+        @EnvironmentObject private var authService: AuthService
+        @EnvironmentObject private var nav: NavigationManager
+
+        private var device: OBDDevice {
+            let web = "https://mintcheckapp.com/starter-kit"
+            if authService.currentUser != nil {
+                return OBDDevice(
+                    name: "MintCheck Starter Kit",
+                    description: "Wi-Fi scanner plus a 60-day Buyer Pass.",
+                    url: web,
+                    imageName: "starter-kit-scanner",
+                    purchaseButtonTitle: "Buy Starter Kit"
+                )
+            }
+            return OBDDevice(
+                name: "MintCheck Starter Kit",
+                description: "Wi-Fi scanner plus a 60-day Buyer Pass. Order on the web.",
+                url: web,
+                imageName: "starter-kit-scanner",
+                purchaseButtonTitle: "Shop Starter Kit"
+            )
+        }
         
         var body: some View {
             NavigationView {
@@ -1047,7 +1062,37 @@ struct ContentView: View {
                             .foregroundColor(.textSecondary)
                             .lineSpacing(4)
                         
-                        OBDDeviceCard(device: device)
+                        OBDDeviceCard(
+                            device: device,
+                            onPurchaseTap: authService.currentUser != nil
+                                ? {
+                                    Task {
+                                        do {
+                                            let checkoutURL = try await StarterKitService.shared.createCheckoutSession()
+                                            await MainActor.run { UIApplication.shared.open(checkoutURL) }
+                                        } catch let error as StarterKitError {
+                                            await MainActor.run {
+                                                nav.showErrorToast(
+                                                    error.message,
+                                                    errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue,
+                                                    errorMessage: error.message,
+                                                    scanStep: "starter_kit_checkout"
+                                                )
+                                            }
+                                        } catch {
+                                            await MainActor.run {
+                                                nav.showErrorToast(
+                                                    "Something went wrong. Please try again.",
+                                                    errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue,
+                                                    errorMessage: error.localizedDescription,
+                                                    scanStep: "starter_kit_checkout"
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                : nil
+                        )
                     }
                     .padding(24)
                 }
@@ -1169,7 +1214,6 @@ struct ContentView: View {
             nav.currentScreen = .onboarding
         } else {
             nav.currentScreen = .dashboard
-            completePendingStarterKitCheckoutIfNeeded()
         }
     }
     
@@ -1177,42 +1221,11 @@ struct ContentView: View {
         nav.completeOnboarding()
         if authService.currentUser != nil {
             nav.currentScreen = .dashboard
-            completePendingStarterKitCheckoutIfNeeded()
         } else {
             nav.currentScreen = .signIn
         }
     }
 
-    /// Opens Starter Kit Stripe Checkout after the user finishes signing in (from home promo).
-    private func completePendingStarterKitCheckoutIfNeeded() {
-        guard nav.pendingStarterKitCheckoutAfterAuth else { return }
-        nav.pendingStarterKitCheckoutAfterAuth = false
-        Task {
-            do {
-                let checkoutURL = try await StarterKitService.shared.createCheckoutSession()
-                await MainActor.run { UIApplication.shared.open(checkoutURL) }
-            } catch let error as StarterKitError {
-                await MainActor.run {
-                    nav.showErrorToast(
-                        error.message,
-                        errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue,
-                        errorMessage: error.message,
-                        scanStep: "starter_kit_checkout"
-                    )
-                }
-            } catch {
-                await MainActor.run {
-                    nav.showErrorToast(
-                        "Something went wrong. Please try again.",
-                        errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue,
-                        errorMessage: error.localizedDescription,
-                        scanStep: "starter_kit_checkout"
-                    )
-                }
-            }
-        }
-    }
-    
     private func handleVehicleBasicsNext(vehicleInfo: VehicleInfo) {
         nav.currentScanData.vehicleInfo = vehicleInfo
         nav.currentScanData.vin = vehicleInfo.vin

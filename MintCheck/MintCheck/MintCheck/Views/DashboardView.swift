@@ -952,20 +952,52 @@ struct DeepCheckEntryView: View {
 struct OBDDeviceSection: View {
     var onDismiss: (() -> Void)? = nil
 
+    @EnvironmentObject private var nav: NavigationManager
+
     private let device = OBDDevice(
-        name: "WiFi ELM327 Generic Scanner",
-        description: "Works great with MintCheck and is about $20.",
-        url: "https://www.amazon.com/dp/B0BRKJ38ZQ?tag=mintcheck-20",
-        imageName: "generic-scanner"
+        name: "MintCheck Starter Kit",
+        description: "Wi-Fi scanner plus a 60-day Buyer Pass.",
+        url: "https://mintcheckapp.com/starter-kit",
+        imageName: "starter-kit-scanner",
+        purchaseButtonTitle: "Buy Starter Kit"
     )
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("MintCheck-Tested Car Scanners")
+            Text("Get a MintCheck Car Scanner")
                 .font(.system(size: FontSize.h4, weight: .semibold))
                 .foregroundColor(.textPrimary)
             
-            OBDDeviceCard(device: device, onDismiss: onDismiss)
+            OBDDeviceCard(
+                device: device,
+                onDismiss: onDismiss,
+                onPurchaseTap: {
+                    Task {
+                        do {
+                            let checkoutURL = try await StarterKitService.shared.createCheckoutSession()
+                            await MainActor.run { UIApplication.shared.open(checkoutURL) }
+                        } catch let error as StarterKitError {
+                            await MainActor.run {
+                                nav.showErrorToast(
+                                    error.message,
+                                    errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue,
+                                    errorMessage: error.message,
+                                    scanStep: "starter_kit_checkout"
+                                )
+                            }
+                        } catch {
+                            await MainActor.run {
+                                nav.showErrorToast(
+                                    "Something went wrong. Please try again.",
+                                    errorCode: ErrorEventCode.ERR_CHECKOUT_FAIL.rawValue,
+                                    errorMessage: error.localizedDescription,
+                                    scanStep: "starter_kit_checkout"
+                                )
+                            }
+                        }
+                    }
+                }
+            )
         }
     }
 }
@@ -978,20 +1010,32 @@ struct OBDDevice: Identifiable {
     let description: String?
     let url: String
     let imageName: String?
+    let purchaseButtonTitle: String
     
-    init(name: String, rating: String? = nil, reviews: String? = nil, description: String? = nil, url: String, imageName: String? = nil) {
+    init(
+        name: String,
+        rating: String? = nil,
+        reviews: String? = nil,
+        description: String? = nil,
+        url: String,
+        imageName: String? = nil,
+        purchaseButtonTitle: String = "Buy Now"
+    ) {
         self.name = name
         self.rating = rating
         self.reviews = reviews
         self.description = description
         self.url = url
         self.imageName = imageName
+        self.purchaseButtonTitle = purchaseButtonTitle
     }
 }
 
 struct OBDDeviceCard: View {
     let device: OBDDevice
     var onDismiss: (() -> Void)? = nil
+    /// When set (e.g. logged-in Starter Kit), runs instead of opening `device.url`.
+    var onPurchaseTap: (() -> Void)? = nil
     
     var body: some View {
         VStack(spacing: 0) {
@@ -1033,11 +1077,13 @@ struct OBDDeviceCard: View {
                     Spacer()
                     
                     Button(action: {
-                        if let url = URL(string: device.url) {
+                        if let onPurchaseTap {
+                            onPurchaseTap()
+                        } else if let url = URL(string: device.url) {
                             UIApplication.shared.open(url)
                         }
                     }) {
-                        Text("Buy Now")
+                        Text(device.purchaseButtonTitle)
                             .font(.system(size: FontSize.bodyRegular, weight: .semibold))
                             .foregroundColor(.textPrimary)
                             .frame(maxWidth: .infinity)

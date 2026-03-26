@@ -64,7 +64,7 @@ serve(async (req) => {
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
     const priceId =
       Deno.env.get("STRIPE_STARTER_KIT_PRICE_ID") ??
-      "price_1TExrdI2Le6kJlyub5rqvka5";
+      "price_1TFKoXI2Le6kJlyuKQMfZa4f";
     if (!stripeSecretKey || !priceId) {
       console.error(
         "create-starter-kit-session: missing STRIPE_SECRET_KEY or STRIPE_STARTER_KIT_PRICE_ID"

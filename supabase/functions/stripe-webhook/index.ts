@@ -28,6 +28,10 @@ async function handleStarterKitOrder(params: {
     .eq("stripe_session_id", sessionId)
     .maybeSingle();
 
+  const shipAddr = session.shipping_details?.address ?? session.customer_details?.address;
+  const shippingCountry = shipAddr?.country ?? null;
+  const shippingState = shipAddr?.state ?? null;
+
   const nowIso = new Date().toISOString();
   const { error: upsertErr } = await supabase.from("starter_kit_orders").upsert(
     {
@@ -35,6 +39,8 @@ async function handleStarterKitOrder(params: {
       user_id: userId,
       customer_email: email,
       customer_name: name,
+      shipping_country: shippingCountry,
+      shipping_state: shippingState,
       status: "paid_pending_fulfillment",
       updated_at: nowIso,
     },
@@ -45,6 +51,27 @@ async function handleStarterKitOrder(params: {
     console.error("stripe-webhook starter_kit_orders upsert error:", upsertErr);
     return;
   }
+
+  // Generate order number if not already set
+  const { error: onErr } = await supabase.rpc("generate_order_number_for_order", {
+    p_session_id: sessionId,
+  });
+  if (onErr) {
+    // Fallback: call generate_order_number directly via raw SQL
+    console.error("stripe-webhook: rpc generate_order_number_for_order failed, trying direct SQL", onErr);
+    await supabase.from("starter_kit_orders")
+      .update({ order_number: null })
+      .eq("stripe_session_id", sessionId)
+      .is("order_number", null);
+  }
+
+  // Fetch the order to get order_number for the email subject
+  const { data: orderRow } = await supabase
+    .from("starter_kit_orders")
+    .select("order_number")
+    .eq("stripe_session_id", sessionId)
+    .maybeSingle();
+  const orderNumber = orderRow?.order_number as string | null;
 
   if (prior?.confirmation_email_sent_at) {
     console.log(`stripe-webhook: starter_kit email already sent, session=${sessionId}`);
@@ -72,6 +99,7 @@ async function handleStarterKitOrder(params: {
         billing_address: session.customer_details?.address ?? null,
         shipping: session.shipping_details ?? null,
         created: session.created,
+        order_number: orderNumber,
       }),
     });
     if (!res.ok) {

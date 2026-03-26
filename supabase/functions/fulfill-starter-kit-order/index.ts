@@ -137,19 +137,35 @@ serve(async (req) => {
   const now = new Date();
   const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000;
 
-  let baseDate = now;
-  const { data: existingSubs } = await supabase
+  const { data: activeRows, error: activeLookupErr } = await supabase
     .from("subscriptions")
     .select("id, ended_at")
     .eq("user_id", userId)
     .eq("plan", "buyer_pass")
     .eq("status", "active")
-    .gt("ended_at", now.toISOString())
     .order("ended_at", { ascending: false })
     .limit(1);
 
-  if (existingSubs && existingSubs.length > 0 && existingSubs[0].ended_at) {
-    const existingEnd = new Date(existingSubs[0].ended_at as string);
+  if (activeLookupErr) {
+    console.error("fulfill-starter-kit-order active subscription lookup error:", activeLookupErr);
+    return new Response(
+      JSON.stringify({
+        error: "Database error loading subscriptions",
+        detail: activeLookupErr.message,
+        code: activeLookupErr.code,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+
+  const activeRow = activeRows?.[0];
+
+  let baseDate = now;
+  if (activeRow?.ended_at) {
+    const existingEnd = new Date(activeRow.ended_at as string);
     if (existingEnd > now) {
       baseDate = existingEnd;
       console.log(
@@ -161,10 +177,11 @@ serve(async (req) => {
   const endedAt = new Date(baseDate.getTime() + sixtyDaysMs);
   const syntheticSessionId = `starter_kit_order:${order.id}`;
 
-  const { data: existingBySession, error: reuseLookupErr } = await supabase
+  const { data: syntheticRow, error: reuseLookupErr } = await supabase
     .from("subscriptions")
-    .select("id")
+    .select("id, status")
     .eq("stripe_session_id", syntheticSessionId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (reuseLookupErr) {
@@ -184,12 +201,58 @@ serve(async (req) => {
     );
   }
 
+  const updateSubEndedAt = (subscriptionId: string) =>
+    supabase
+      .from("subscriptions")
+      .update({ ended_at: endedAt.toISOString() })
+      .eq("id", subscriptionId);
+
+  const existingBySession =
+    syntheticRow?.id && syntheticRow.status === "active" ? syntheticRow : null;
+
   let subId: string;
   if (existingBySession?.id) {
     subId = existingBySession.id as string;
     console.log(
       `fulfill-starter-kit-order: reusing existing subscription ${subId} for ${syntheticSessionId}`
     );
+    const { error: updErr } = await updateSubEndedAt(subId);
+    if (updErr) {
+      console.error("fulfill-starter-kit-order subscription update error (reuse):", updErr);
+      return new Response(
+        JSON.stringify({
+          error: "Failed to update Buyer Pass subscription",
+          detail: updErr.message,
+          code: updErr.code,
+          hint: updErr.hint,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+  } else if (activeRow?.id) {
+    subId = activeRow.id as string;
+    console.log(
+      `fulfill-starter-kit-order: extending existing active buyer_pass row ${subId} (only one active row allowed per user)`
+    );
+    const { error: updErr } = await updateSubEndedAt(subId);
+    if (updErr) {
+      console.error("fulfill-starter-kit-order subscription update error (extend):", updErr);
+      return new Response(
+        JSON.stringify({
+          error: "Failed to update Buyer Pass subscription",
+          detail: updErr.message,
+          code: updErr.code,
+          hint: updErr.hint,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
   } else {
     const { data: subRow, error: insErr } = await supabase
       .from("subscriptions")
@@ -235,19 +298,31 @@ serve(async (req) => {
 
   if (updOrderErr) {
     console.error("fulfill-starter-kit-order order update error:", updOrderErr);
-  }
-
     return new Response(
       JSON.stringify({
-        ok: true,
+        error: "Pass updated but failed to update order row",
+        detail: updOrderErr.message,
+        code: updOrderErr.code,
         buyer_pass_subscription_id: subId,
-        ended_at: endedAt.toISOString(),
       }),
       {
-        status: 200,
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
+  }
+
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      buyer_pass_subscription_id: subId,
+      ended_at: endedAt.toISOString(),
+    }),
+    {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
   } catch (e) {
     console.error("fulfill-starter-kit-order unhandled error:", e);
     return new Response(

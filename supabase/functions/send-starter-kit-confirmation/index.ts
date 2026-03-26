@@ -27,6 +27,7 @@ interface RequestBody {
   billing_address?: StripeAddress | null;
   shipping?: { name?: string | null; address?: StripeAddress | null } | null;
   created?: number | null;
+  order_number?: string | null;
 }
 
 function esc(s: string | null | undefined): string {
@@ -103,7 +104,7 @@ function buildEmailHtml(data: RequestBody): string {
           <tr>
             <td style="background-color: #FFFFFF; padding: 0 32px 32px 32px;">
               <p style="margin: 0 0 24px 0; color: #666666; font-size: 15px; line-height: 1.7;">
-                Thanks, ${name}! Your MintCheck Starter Kit order has been placed. Here\u2019s a summary of your purchase.
+                Your MintCheck Starter Kit order has been placed. Here\u2019s a summary of your purchase.
               </p>
 
               <!-- Order details -->
@@ -257,8 +258,7 @@ serve(async (req) => {
   }
 
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const resendFrom =
-    Deno.env.get("RESEND_FROM_EMAIL") || "MintCheck <noreply@mintcheckapp.com>";
+  const resendFrom = "MintCheck Orders <orders@mintcheckapp.com>";
 
   if (!resendApiKey) {
     console.error("send-starter-kit-confirmation: RESEND_API_KEY not set");
@@ -280,6 +280,11 @@ serve(async (req) => {
 
   const html = buildEmailHtml(body);
 
+  const orderNum = body.order_number;
+  const subject = orderNum
+    ? `MintCheck Order #${orderNum} Confirmed`
+    : "Your MintCheck Starter Kit order is confirmed";
+
   const emailRes = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -291,7 +296,7 @@ serve(async (req) => {
       to: [toEmail],
       bcc: ["contact@mintcheckapp.com"],
       reply_to: SUPPORT_EMAIL,
-      subject: "Your MintCheck Starter Kit order is confirmed",
+      subject,
       html,
     }),
   });

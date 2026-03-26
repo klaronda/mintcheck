@@ -80,7 +80,7 @@ export default function Home() {
               Get the MintCheck Starter Kit
             </h2>
             <p className="text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-              Everything you need to start scanning. A Wi-Fi OBD-II scanner and a 60-day unlimited pass, ready to go.
+              Everything you need to start scanning. A Wi-Fi OBD-II scanner and a 60-day unlimited pass, ready to go. $34.99 with US shipping included.
             </p>
           </div>
           
@@ -100,13 +100,13 @@ export default function Home() {
                     Wi-Fi scanner + 60-day pass to scan unlimited vehicles.
                   </p>
                 </div>
-                <div className="text-xl" style={{ fontWeight: 600 }}>$30</div>
+                <div className="text-xl" style={{ fontWeight: 600 }}>$34.99</div>
                 <Link 
                   to="/starter-kit"
                   className="w-full inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-lg transition-opacity hover:opacity-90 text-sm"
                   style={{ fontWeight: 600 }}
                 >
-                  Buy Starter Kit
+                  Shop Now
                 </Link>
               </div>
             </div>
