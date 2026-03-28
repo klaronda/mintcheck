@@ -14,7 +14,9 @@ struct HomeView: View {
     
     @EnvironmentObject var nav: NavigationManager
     @State private var showToast = false
-    @AppStorage("hideStarterKitHomePromo") private var hideStarterKitHomePromo = false
+    /// Bump key when the promo should show again for everyone who dismissed (e.g. new pricing).
+    /// Old key `hideStarterKitHomePromo` is ignored after this change.
+    @AppStorage("hideStarterKitHomePromo_v2") private var hideStarterKitHomePromo = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -235,7 +237,7 @@ private struct StarterKitPromoCard: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.9)
                 
-                Text("$30")
+                Text("$34.99")
                     .font(.system(size: 22, weight: .bold))
                     .foregroundColor(.mintGreen)
                 

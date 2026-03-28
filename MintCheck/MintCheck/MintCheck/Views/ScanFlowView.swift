@@ -13,6 +13,8 @@ struct ScanFlowView: View {
     let flowId: Int
     let onExit: () -> Void
     let onExitToScannerHelp: (SupportArticle) -> Void
+    /// When set, called after analysis + NHTSA data are ready and before navigating to results (online scans only).
+    var saveScanBeforeShowingResults: (() async -> Bool)? = nil
     
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var connectionManager: ConnectionManagerService
@@ -594,6 +596,7 @@ struct ScanFlowView: View {
                 let report = await VehicleHistoryService.fetchReport(for: vehicleInfo)
                 await MainActor.run {
                     nav.currentScanData.historyReport = report
+                    nav.currentScanData.scanDate = nav.currentScanData.scanDate ?? Date()
                     nav.currentScreen = .results
                 }
             }
@@ -674,6 +677,14 @@ struct ScanFlowView: View {
                 }
 
                 nav.isAILoading = false
+                nav.currentScanData.scanDate = nav.currentScanData.scanDate ?? Date()
+            }
+
+            if let save = saveScanBeforeShowingResults {
+                _ = await save()
+            }
+
+            await MainActor.run {
                 nav.currentScreen = .results
             }
         }
@@ -1846,7 +1857,7 @@ struct AnalyzingResultsView: View {
                 .scaleEffect(1.4)
                 .tint(.mintGreen)
             
-            Text("We’re analyzing your results. Just a few more seconds.")
+            Text("We’re analyzing your results and saving your report. This usually takes a few more seconds.")
                 .font(.system(size: FontSize.bodyLarge, weight: .medium))
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)

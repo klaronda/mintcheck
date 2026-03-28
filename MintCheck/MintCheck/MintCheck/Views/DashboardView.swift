@@ -376,9 +376,10 @@ struct DashboardView: View {
         await refreshEmailConfirmed()
     }
     
+    /// Bump suffix when the Starter Kit / scanner promo should show again for users who dismissed it.
     private func scannerDismissKey() -> String {
         let uid = authService.currentUser?.id.uuidString ?? ""
-        return "hasOwnScanner_\(uid)"
+        return "hasOwnScanner_v2_\(uid)"
     }
 
     private func dismissScannerSection() {

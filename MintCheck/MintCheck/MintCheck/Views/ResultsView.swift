@@ -19,6 +19,11 @@ struct ResultsView: View {
     let scanDate: Date?
     var reportStorage: ReportStorage = .uploaded
     var scanMode: ScanMode = .online_scan
+    /// When nil, the scan is not persisted to the cloud yet (show sync / retry UI).
+    var cloudScanId: UUID? = nil
+    var isOffline: Bool = false
+    /// Past scans from history always have a cloud id; hide sync UI.
+    var isHistoricalView: Bool = false
     let onViewDetails: (String, String) -> Void  // section, status
     let onShare: () -> Void
     let onClose: () -> Void
@@ -31,6 +36,7 @@ struct ResultsView: View {
     var vinPartial: Bool? = nil
     
     @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var nav: NavigationManager
     @State private var expandedSections: Set<String> = []
     @State private var showDeleteAlert = false
     @State private var enteredVINForDeepCheck: String? = nil
@@ -40,12 +46,8 @@ struct ResultsView: View {
         computeScanFreshness(scanCompletedAt: scanDate)
     }
     
-    private var reportStorageStatus: ReportStorageStatus {
-        switch reportStorage {
-        case .local_only: return .localOnly
-        case .pending_upload: return .pendingUpload
-        case .uploaded: return .uploaded
-        }
+    private var needsCloudSync: Bool {
+        !isHistoricalView && cloudScanId == nil
     }
 
     /// VIN used for Deep Check block: from scan or user entry.
@@ -98,22 +100,52 @@ struct ResultsView: View {
                         Spacer()
                     }
                     
-                    // Not uploaded yet + Upload now (when pending or local only)
-                    if reportStorage == .pending_upload || reportStorage == .local_only {
+                    // Cloud sync: in progress, offline notice, or retry (no success toast — status is inline)
+                    if needsCloudSync {
                         VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "arrow.clockwise.circle")
-                                    .foregroundColor(.statusCaution)
-                                Text(reportStorage == .local_only ? "Scan completed offline. We'll upload when you're back online." : "Not uploaded yet.")
+                            if isOffline {
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "wifi.slash")
+                                        .foregroundColor(.statusCaution)
+                                    Text(
+                                        reportStorage == .local_only
+                                        ? "Scan completed offline. We'll sync this report when you're back online."
+                                        : "You're offline. Connect to the internet to sync this report."
+                                    )
                                     .font(.system(size: FontSize.bodyRegular, weight: .medium))
                                     .foregroundColor(.textSecondary)
-                            }
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.statusCautionBg)
-                            .cornerRadius(LayoutConstants.borderRadius)
-                            if let upload = onUploadNow {
-                                PrimaryButton(title: "Upload now", action: upload)
+                                }
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.statusCautionBg)
+                                .cornerRadius(LayoutConstants.borderRadius)
+                            } else if nav.isSavingScan || !nav.reportInitialSyncFinished {
+                                HStack(spacing: 12) {
+                                    ProgressView()
+                                        .tint(.mintGreen)
+                                    Text("Syncing report…")
+                                        .font(.system(size: FontSize.bodyRegular, weight: .medium))
+                                        .foregroundColor(.textSecondary)
+                                }
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.statusInfoBg)
+                                .cornerRadius(LayoutConstants.borderRadius)
+                            } else if let upload = onUploadNow {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Image(systemName: "exclamationmark.circle")
+                                            .foregroundColor(.statusCaution)
+                                        Text("We couldn't sync this report. Check your connection and try again.")
+                                            .font(.system(size: FontSize.bodyRegular, weight: .medium))
+                                            .foregroundColor(.textSecondary)
+                                    }
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.statusCautionBg)
+                                    .cornerRadius(LayoutConstants.borderRadius)
+                                    PrimaryButton(title: "Retry upload", action: upload)
+                                }
                             }
                         }
                     }
@@ -1304,10 +1336,14 @@ struct SafetyRatingRow: View {
         dtcAnalysis: nil,
         aiNetworkError: false,
         scanDate: Calendar.current.date(byAdding: .day, value: -3, to: Date()),
+        cloudScanId: UUID(),
+        isOffline: false,
+        isHistoricalView: false,
         onViewDetails: { _, _ in },
         onShare: {},
         onClose: {},
         onDelete: {},
         onUploadNow: nil
     )
+    .environmentObject(NavigationManager())
 }

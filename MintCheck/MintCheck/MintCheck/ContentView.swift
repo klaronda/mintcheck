@@ -28,6 +28,8 @@ class NavigationManager: ObservableObject {
     @Published var returnToScreenAfterDeepCheckReport: Screen? = nil
     /// Prevents duplicate save when close/tab/return trigger save concurrently
     @Published var isSavingScan: Bool = false
+    /// After first auto-save pass on results (or pre-results save), controls whether we show "Retry" vs initial syncing.
+    @Published var reportInitialSyncFinished: Bool = false
     /// Cached first vehicle for free users (loaded before scan flow to compare VIN after scan)
     @Published var freeUserVehicle: VehicleInfo? = nil
     /// Incremented each time we enter the scan flow to force SwiftUI to recreate ScanFlowView with fresh state
@@ -67,6 +69,7 @@ class NavigationManager: ObservableObject {
         currentScanData = ScanData()
         freeUserVehicle = nil
         isUsingPurchasedScan = false
+        reportInitialSyncFinished = false
         scanFlowId += 1
     }
     
@@ -138,6 +141,18 @@ enum ReportStorage: String, Codable {
     case local_only     // Offline scan, not yet uploaded
     case pending_upload // Save/upload failed or deferred
     case uploaded       // Successfully saved to cloud
+}
+
+/// Retry policy and toasts when saving a scan to the cloud.
+struct ScanSaveOptions {
+    var showSuccessToast: Bool = false
+    var maxAttempts: Int
+    var delayBetweenAttemptsNs: UInt64
+
+    /// Full retries for flaky connections (manual retry, leaving results, tab switch).
+    static let standard = ScanSaveOptions(maxAttempts: 3, delayBetweenAttemptsNs: 20_000_000_000)
+    /// Shorter spacing while the user waits on the analyzing screen.
+    static let whileAnalyzing = ScanSaveOptions(maxAttempts: 3, delayBetweenAttemptsNs: 5_000_000_000)
 }
 
 /// Data collected during a scan session
@@ -356,6 +371,9 @@ struct ContentView: View {
                     onExitToScannerHelp: { article in
                         nav.currentScreen = .dashboard
                         selectedSupportArticle = article
+                    },
+                    saveScanBeforeShowingResults: {
+                        await saveScanToSupabase(options: .whileAnalyzing)
                     }
                 )
                 .id(nav.scanFlowId)
@@ -412,6 +430,9 @@ struct ContentView: View {
                         scanDate: nav.currentScanData.scanDate ?? Date(),
                         reportStorage: nav.currentScanData.reportStorage,
                         scanMode: nav.currentScanData.scanMode,
+                        cloudScanId: nav.currentScanData.scanId,
+                        isOffline: connectionManager.internetStatus == .offline,
+                        isHistoricalView: nav.currentScanData.isHistoricalView,
                         onViewDetails: handleViewSystemDetail,
                         onShare: handleShare,
                         onClose: handleCloseResults,
@@ -427,6 +448,17 @@ struct ContentView: View {
                         vinMismatch: nav.currentScanData.vinMismatch,
                         vinPartial: nav.currentScanData.vinPartial
                     )
+                    .environmentObject(nav)
+                    .task {
+                        await tryAutoSavePendingReport()
+                    }
+                    .onChange(of: connectionManager.internetStatus) { _, newStatus in
+                        guard newStatus != .offline else { return }
+                        guard nav.currentScreen == .results,
+                              !nav.currentScanData.isHistoricalView,
+                              nav.currentScanData.scanId == nil else { return }
+                        Task { await tryAutoSavePendingReport() }
+                    }
                 } else {
                     // Fallback: missing data - this should not happen
                     VStack(spacing: 16) {
@@ -875,7 +907,7 @@ struct ContentView: View {
         // If we're on results screen and navigating away, save the scan first
         if nav.currentScreen == .results && !nav.currentScanData.isHistoricalView {
             Task {
-                let saved = await saveScanToSupabase()
+                let saved = await saveScanToSupabase(options: .standard)
                 await MainActor.run {
                     if saved {
                         nav.resetScanData()
@@ -1413,7 +1445,7 @@ struct ContentView: View {
         } else {
             // Save scan to Supabase before returning
             Task {
-                await saveScanToSupabase()
+                await saveScanToSupabase(options: .standard)
                 await MainActor.run {
                     nav.resetScanData()
                     nav.currentScreen = .dashboard
@@ -1424,16 +1456,31 @@ struct ContentView: View {
     
     private func handleUploadNow() {
         Task {
-            await saveScanToSupabase()
-            await MainActor.run {
-                if nav.currentScanData.reportStorage == .uploaded {
-                    nav.showErrorToast("Upload complete")
-                }
-            }
+            _ = await saveScanToSupabase(options: .standard)
         }
     }
     
-    private func saveScanToSupabase() async -> Bool {
+    /// Auto-upload when results appear or when connectivity returns (offline → online).
+    private func tryAutoSavePendingReport() async {
+        if nav.currentScanData.isHistoricalView {
+            await MainActor.run { nav.reportInitialSyncFinished = true }
+            return
+        }
+        if nav.currentScanData.scanId != nil {
+            await MainActor.run { nav.reportInitialSyncFinished = true }
+            return
+        }
+        _ = await connectionManager.checkInternetStatus()
+        let offline = await MainActor.run { connectionManager.internetStatus == .offline }
+        if offline {
+            await MainActor.run { nav.reportInitialSyncFinished = true }
+            return
+        }
+        _ = await saveScanToSupabase(options: .standard)
+        await MainActor.run { nav.reportInitialSyncFinished = true }
+    }
+    
+    private func saveScanToSupabase(options: ScanSaveOptions = .standard) async -> Bool {
         // Already saved — don't create a duplicate
         if nav.currentScanData.scanId != nil { return true }
         
@@ -1545,9 +1592,8 @@ struct ContentView: View {
             let aiSummary = aiSummaryRaw.map { $0.trimmingCharacters(in: .whitespaces) }.flatMap { $0.isEmpty ? nil : $0 }
             let summaryToSave = aiSummary ?? Self.defaultSummaryText
             
-            // Retry save up to 3 times over ~1 minute (0s, ~20s, ~40s) for flaky connectivity
-            let maxAttempts = 3
-            let delayBetweenAttempts: UInt64 = 20_000_000_000 // 20 seconds in nanoseconds
+            let maxAttempts = options.maxAttempts
+            let delayBetweenAttempts = options.delayBetweenAttemptsNs
             var lastError: Error?
             for attempt in 1...maxAttempts {
                 do {
@@ -1570,7 +1616,9 @@ struct ContentView: View {
                     await MainActor.run {
                         nav.currentScanData.scanId = saved.id
                         nav.currentScanData.reportStorage = .uploaded
-                        nav.showErrorToast("Scan saved")
+                        if options.showSuccessToast {
+                            nav.showErrorToast("Scan saved")
+                        }
                     }
                     if nav.isUsingPurchasedScan {
                         await OneTimeScanService.shared.consumeCredit()
@@ -1588,7 +1636,7 @@ struct ContentView: View {
         } catch {
             await MainActor.run {
                 nav.currentScanData.reportStorage = .pending_upload
-                nav.showErrorToast("Couldn't upload. Tap \"Upload now\" when you're back online.", errorCode: ErrorEventCode.ERR_SAVE_UPLOAD_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "results")
+                nav.showErrorToast("Couldn't sync your report. Tap Retry upload below or try again when you're online.", errorCode: ErrorEventCode.ERR_SAVE_UPLOAD_FAIL.rawValue, errorMessage: error.localizedDescription, scanStep: "results")
             }
             ErrorEventLogger.shared.log(
                 screen: "results",
@@ -1619,7 +1667,7 @@ struct ContentView: View {
             selectedTab = .home
         } else {
             Task {
-                await saveScanToSupabase()
+                await saveScanToSupabase(options: .standard)
                 await MainActor.run {
                     nav.resetScanData()
                     nav.currentScreen = .dashboard

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 import { Bold, Italic, Underline, List, ListOrdered, Link as LinkIcon, Image as ImageIcon, Heading1, Heading2, Heading3, Type } from 'lucide-react';
 
 interface RichTextEditorProps {
@@ -9,27 +9,36 @@ interface RichTextEditorProps {
 
 export default function RichTextEditor({ value, onChange, placeholder = 'Start writing...' }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [isUserTyping, setIsUserTyping] = useState(false);
-  const previousValueRef = useRef(value);
+  const isFocusedRef = useRef(false);
+  const internalHtmlRef = useRef(value);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (editorRef.current && !isUserTyping && previousValueRef.current !== value) {
-      editorRef.current.innerHTML = value;
-      previousValueRef.current = value;
+    if (editorRef.current && !initializedRef.current) {
+      editorRef.current.innerHTML = value || `<p>${placeholder}</p>`;
+      internalHtmlRef.current = value;
+      initializedRef.current = true;
     }
-  }, [value, isUserTyping]);
+  }, []);
+
+  useEffect(() => {
+    if (editorRef.current && !isFocusedRef.current && value !== internalHtmlRef.current) {
+      editorRef.current.innerHTML = value;
+      internalHtmlRef.current = value;
+    }
+  }, [value]);
 
   const handleInput = () => {
     if (editorRef.current) {
       const html = editorRef.current.innerHTML;
-      previousValueRef.current = html;
+      internalHtmlRef.current = html;
       onChange(html);
     }
   };
 
-  const handleFocus = () => setIsUserTyping(true);
+  const handleFocus = () => { isFocusedRef.current = true; };
   const handleBlur = () => {
-    setIsUserTyping(false);
+    isFocusedRef.current = false;
     if (editorRef.current) {
       onChange(editorRef.current.innerHTML);
     }
@@ -191,7 +200,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Start w
         style={{
           lineHeight: '1.6',
         }}
-        dangerouslySetInnerHTML={{ __html: value || `<p>${placeholder}</p>` }}
+        suppressContentEditableWarning
       />
 
       <style>{`

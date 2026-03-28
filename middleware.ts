@@ -133,7 +133,7 @@ export default function middleware(request: Request) {
 
   if (pathname === "/starter-kit") {
     return ogResponse(
-      "MintCheck Starter Kit \u2013 $30",
+      "MintCheck Starter Kit \u2013 $34.99",
       "Wi-Fi scanner + 60-day unlimited scanning pass. Know the real health of any car.",
       "https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png",
       `${SITE}/starter-kit`,
