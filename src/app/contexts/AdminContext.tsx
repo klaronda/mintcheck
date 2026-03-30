@@ -1,5 +1,14 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { APP_STORE_URL } from '@/app/constants/appStore';
+import { supabase } from '@/lib/supabase';
+import {
+  bootstrapSiteArticles,
+  deleteSiteArticleDb,
+  fetchSiteArticlesFromDb,
+  insertSiteArticle,
+  mapSiteRowToArticle,
+  updateSiteArticleDb,
+} from '@/lib/siteArticlesApi';
 
 export interface Article {
   id: string;
@@ -18,9 +27,11 @@ export interface Article {
 
 interface AdminContextType {
   articles: Article[];
-  addArticle: (article: Omit<Article, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateArticle: (id: string, article: Partial<Article>) => void;
-  deleteArticle: (id: string) => void;
+  /** True while first fetch from Supabase (or bootstrap) is in progress */
+  articlesLoading: boolean;
+  addArticle: (article: Omit<Article, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateArticle: (id: string, article: Partial<Article>) => Promise<void>;
+  deleteArticle: (id: string) => Promise<void>;
   getArticle: (slug: string) => Article | undefined;
   getSupportArticles: () => Article[];
   getBlogArticles: () => Article[];
@@ -29,9 +40,9 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-/** Bumped when bundled support articles change — refreshes merged localStorage */
-const STORAGE_KEY = 'mintcheck_articles_v4';
 const AUTH_KEY = 'mintcheck_admin_auth';
+
+const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL ?? 'contact@mintcheckapp.com').toLowerCase();
 
 const SUPPORT_HERO_IMAGE = 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1200&h=400&fit=crop';
 const BUYER_PASS_HERO_IMAGE =
@@ -486,9 +497,9 @@ function buildSupportFromApp(): Article[] {
 }
 
 const DEFAULT_SUPPORT_ARTICLES = buildSupportFromApp();
-const APP_SUPPORT_SLUGS = new Set(APP_SUPPORT_ARTICLES.map((a) => a.id));
 
-const getInitialArticles = (): Article[] => {
+/** Bundled defaults when `site_articles` is empty or unreachable (also used for admin bootstrap). */
+function getBundledFallbackArticles(): Article[] {
   const now = new Date();
   const oneDayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
@@ -549,47 +560,102 @@ const getInitialArticles = (): Article[] => {
     },
   ];
 
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    return [...DEFAULT_SUPPORT_ARTICLES, ...blogArticles];
-  }
-  try {
-    const parsed: Article[] = JSON.parse(stored);
-    const rest = parsed.filter((a) => a.type !== 'support' || !APP_SUPPORT_SLUGS.has(a.slug));
-    return [...DEFAULT_SUPPORT_ARTICLES, ...rest];
-  } catch {
-    return [...DEFAULT_SUPPORT_ARTICLES, ...blogArticles];
-  }
-};
+  return [...DEFAULT_SUPPORT_ARTICLES, ...blogArticles];
+}
+
+async function isLikelyAdminSession(): Promise<boolean> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return (session?.user?.email ?? '').toLowerCase() === ADMIN_EMAIL;
+}
 
 export function AdminProvider({ children }: { children: ReactNode }) {
-  const [articles, setArticles] = useState<Article[]>(getInitialArticles);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(true);
+
+  const refreshArticles = useCallback(async () => {
+    setArticlesLoading(true);
+    const { rows, error } = await fetchSiteArticlesFromDb();
+
+    if (error) {
+      console.warn('site_articles fetch failed, using bundled fallback:', error);
+      setArticles(getBundledFallbackArticles());
+      setArticlesLoading(false);
+      return;
+    }
+
+    if (rows && rows.length > 0) {
+      setArticles(rows.map(mapSiteRowToArticle));
+      setArticlesLoading(false);
+      return;
+    }
+
+    const canBootstrap = await isLikelyAdminSession();
+    if (canBootstrap) {
+      const defaults = getBundledFallbackArticles();
+      const boot = await bootstrapSiteArticles(defaults);
+      if (!boot.ok) {
+        console.error('site_articles bootstrap failed:', boot.error);
+        setArticles(defaults);
+        setArticlesLoading(false);
+        return;
+      }
+      const again = await fetchSiteArticlesFromDb();
+      if (again.rows && again.rows.length > 0) {
+        setArticles(again.rows.map(mapSiteRowToArticle));
+      } else {
+        setArticles(defaults);
+      }
+      setArticlesLoading(false);
+      return;
+    }
+
+    setArticles(getBundledFallbackArticles());
+    setArticlesLoading(false);
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(articles));
-  }, [articles]);
+    void refreshArticles();
+  }, [refreshArticles]);
 
-  const addArticle = (article: Omit<Article, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newArticle: Article = {
-      ...article,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setArticles((prev) => [...prev, newArticle]);
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      void refreshArticles();
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [refreshArticles]);
+
+  const addArticle = async (article: Omit<Article, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const full: Article = { ...article, id, createdAt: now, updatedAt: now };
+    const { row, error } = await insertSiteArticle(full);
+    if (error) {
+      console.error('insert site_article:', error);
+      return;
+    }
+    if (row) setArticles((prev) => [...prev, mapSiteRowToArticle(row)]);
   };
 
-  const updateArticle = (id: string, updates: Partial<Article>) => {
+  const updateArticle = async (id: string, updates: Partial<Article>) => {
+    const err = await updateSiteArticleDb(id, updates);
+    if (err) {
+      console.error('update site_article:', err);
+      return;
+    }
+    const now = new Date().toISOString();
     setArticles((prev) =>
       prev.map((article) =>
-        article.id === id
-          ? { ...article, ...updates, updatedAt: new Date().toISOString() }
-          : article
-      )
+        article.id === id ? { ...article, ...updates, updatedAt: now } : article,
+      ),
     );
   };
 
-  const deleteArticle = (id: string) => {
+  const deleteArticle = async (id: string) => {
+    const { error } = await deleteSiteArticleDb(id);
+    if (error) {
+      console.error('delete site_article:', error);
+      return;
+    }
     setArticles((prev) => prev.filter((article) => article.id !== id));
   };
 
@@ -617,6 +683,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     <AdminContext.Provider
       value={{
         articles,
+        articlesLoading,
         addArticle,
         updateArticle,
         deleteArticle,

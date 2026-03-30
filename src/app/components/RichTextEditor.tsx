@@ -226,8 +226,15 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Start w
           margin: 1em 0;
           padding-left: 2em;
         }
+        [contenteditable] ul {
+          list-style-type: disc;
+        }
+        [contenteditable] ol {
+          list-style-type: decimal;
+        }
         [contenteditable] li {
           margin: 0.5em 0;
+          display: list-item;
         }
         [contenteditable] a {
           color: #3EB489;

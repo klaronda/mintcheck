@@ -74,26 +74,26 @@ export default function AdminDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (editingId) {
-      updateArticle(editingId, formData);
+      await updateArticle(editingId, formData);
     } else {
-      addArticle(formData);
+      await addArticle(formData);
     }
     
     resetForm();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this article?')) {
-      deleteArticle(id);
+      await deleteArticle(id);
     }
   };
 
-  const togglePublished = (id: string, published: boolean) => {
-    updateArticle(id, { published: !published });
+  const togglePublished = async (id: string, published: boolean) => {
+    await updateArticle(id, { published: !published });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

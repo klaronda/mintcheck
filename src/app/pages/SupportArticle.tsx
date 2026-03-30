@@ -7,9 +7,21 @@ import { useAdmin } from '@/app/contexts/AdminContext';
 
 export default function SupportArticle() {
   const { slug } = useParams<{ slug: string }>();
-  const { getArticle } = useAdmin();
-  
+  const { getArticle, articlesLoading } = useAdmin();
+
   const article = slug ? getArticle(slug) : null;
+
+  if (articlesLoading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="max-w-4xl mx-auto px-6 py-24 text-center text-muted-foreground">
+          Loading article…
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!article || article.type !== 'support') {
     return (
