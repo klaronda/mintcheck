@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { ShieldCheck, Zap, Plug, Scan, FileText, ChevronDown, Apple, Wifi } from 'lucide-react';
+import { ShieldCheck, Zap, Plug, Scan, FileText, ChevronDown, Wifi } from 'lucide-react';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
+import { APP_STORE_URL, APPLE_LOGO_SVG_URL } from '@/app/constants/appStore';
 
 const SCANNER_IMG =
   'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png';
@@ -122,7 +123,13 @@ export default function StarterKit() {
                   <Wifi className="w-4 h-4 text-primary" /> Wi-Fi OBD-II
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Apple className="w-4 h-4 text-primary" /> Works with MintCheck on iPhone
+                  <img
+                    src={APPLE_LOGO_SVG_URL}
+                    alt=""
+                    className="w-4 h-4 shrink-0"
+                    aria-hidden
+                  />
+                  Works with MintCheck on iPhone
                 </span>
               </div>
             </div>
@@ -308,13 +315,13 @@ export default function StarterKit() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             {buyButton()}
             <a
-              href="https://apps.apple.com/app/mintcheck"
+              href={APP_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 border border-border px-6 py-3.5 rounded-lg transition-colors hover:bg-muted/50"
               style={{ fontWeight: 600 }}
             >
-              <Apple className="w-5 h-5" />
+              <img src={APPLE_LOGO_SVG_URL} alt="" className="w-5 h-5 shrink-0" aria-hidden />
               Get the iOS App
             </a>
           </div>

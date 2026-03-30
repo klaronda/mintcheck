@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { APP_STORE_URL } from '@/app/constants/appStore';
 
 export interface Article {
   id: string;
@@ -175,9 +176,71 @@ If you're having trouble locating the port, ask the seller or check online resou
 
 The easiest way to get started is with the MintCheck Starter Kit. It includes a WiFi OBD-II scanner and a 60-day unlimited scanning pass so you can scan as many vehicles as you want. [Buy the MintCheck Starter Kit](/starter-kit).
 
+[Full specs and setup for the MintCheck scanner (MC-01)](/support/starter-kit-scanner)
+
 **Will other scanners work?**
 
 Yes. Any ELM327-compatible WiFi OBD-II scanner should work with MintCheck. Just make sure it connects via WiFi – Bluetooth scanners are not compatible.`,
+  },
+  {
+    id: 'starter-kit-scanner',
+    title: 'MintCheck MC-01 scanner (Starter Kit)',
+    category: 'Device Help',
+    heroImage:
+      'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png',
+    content: `**At a glance**
+
+The MintCheck Starter Kit includes the **MC-01**, a Wi-Fi OBD-II adapter based on the ELM327 command set. It plugs into your car’s diagnostic port and talks to your phone over Wi-Fi.
+
+**Dimensions**
+
+- **87 mm (L) × 46 mm (W) × 25 mm (D)**
+- **~3.43 × 1.81 × 0.98 in** (approximate imperial equivalent)
+
+**Chip and hardware**
+
+- **ELM327 Wi-Fi V1.5** firmware stack with **Microchip PIC18F25K80** processor (same class as common ELM327 Wi-Fi adapters)
+- Powered from the vehicle’s **12 V** OBD-II port while connected
+
+**Connectivity**
+
+- The adapter creates a **Wi-Fi hotspot**; join it from your phone while scanning (you may not have internet on cellular while connected—this is normal)
+- The hardware works with **iOS and Android** devices over Wi-Fi; **MintCheck is currently iPhone-only** (App Store). Other ELM327 Wi-Fi apps may work on Android, but MintCheck does not support them yet
+
+**Protocols**
+
+Supports standard **OBD-II** protocols used by most light-duty vehicles (including common CAN, ISO 9141-2, KWP2000, and J1850 variants where the vehicle exposes them)
+
+**Regulatory**
+
+Designed to meet **FCC and CE** requirements.
+
+**Vehicle compatibility**
+
+- **United States:** Gasoline (gas) vehicles with an OBD-II port, **model year 1996 and newer**
+- **European Union:** Gasoline passenger cars with OBD-II, generally **2001 and newer** (varies by member state and vehicle category)
+
+Heavy-duty trucks, some diesels, and vehicles without a standard OBD-II port may not be supported. If you’re unsure, confirm your vehicle has a 16-pin OBD-II connector under the dash.
+
+**How to use (Quick Start)**
+
+1. **Download the app**: [MintCheck from the App Store](${APP_STORE_URL}) (iPhone only for now).
+2. **Create your account**: Sign up with your email to get started.
+3. **Turn on the car**: Start the engine or turn the ignition to the **ON** position.
+4. **Insert your MintCheck scanner**: Plug it into the OBD-II port (usually under the dash, near the steering column). [Help finding your OBD-II port](/support/obd-port)
+5. **Follow the steps in the app**: Connect to the scanner’s Wi-Fi and tap **Scan**. You’ll have results in about 30 seconds.
+
+**Where to find the OBD port**
+
+For typical locations and tips, see [Finding your OBD-II port](/support/obd-port).
+
+**Troubleshooting**
+
+- **Unplug the adapter and plug it back in** firmly until it seats
+- On **iPhone:** Open **Settings → MintCheck** and turn on **Local Network** (or tap **Allow** when iOS asks during a scan)
+- Make sure the **ignition is ON** (not only accessory)
+- **Forget and rejoin** the scanner’s Wi-Fi network if your phone won’t stay connected
+- If the scan fails, disconnect from the scanner Wi-Fi, reconnect, and try again`,
   },
   {
     id: 'connect-scanner',

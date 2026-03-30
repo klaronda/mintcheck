@@ -27,7 +27,7 @@ const PRIVACY_LINK = "https://mintcheckapp.com/privacy";
 const TERMS_LINK = "https://mintcheckapp.com/terms";
 const OBD_PORT_LINK = "https://mintcheckapp.com/support/obd-port";
 const APP_STORE_LINK =
-  "https://apps.apple.com/app/mintcheck-car-health-scanner/id6743753553";
+  "https://apps.apple.com/us/app/mintcheck/id6759132070";
 const PRODUCT_IMG =
   "https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png";
 

@@ -11,12 +11,10 @@ import {
 } from '@/app/utils/reportUtils';
 import { CheckCircle, AlertCircle, XCircle, ChevronDown, ChevronUp, FileSearch, Star } from 'lucide-react';
 import Footer from '@/app/components/Footer';
+import { APP_STORE_URL, APPLE_LOGO_SVG_URL } from '@/app/constants/appStore';
 
 const LOGO_SRC =
   'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Logo/SVGs/logo-text/lockup-mint.svg';
-const APPLE_LOGO_SRC =
-  'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/3P-content/logos/Apple_logo_black.svg';
-
 // Recommendation icon (white icon on colored square, 8px radius)
 function RecommendationIcon({ recommendation }: { recommendation: 'safe' | 'caution' | 'not-recommended' }) {
   const recoStyle = getRecommendationStyle(recommendation);
@@ -518,14 +516,14 @@ function ReportContent({ report }: { report: SharedReport }) {
             Get your own vehicle scanned with MintCheck
           </p>
           <a
-            href="https://apps.apple.com/app/mintcheck"
+            href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 px-8 py-4 rounded-lg transition-opacity hover:opacity-90"
             style={{ backgroundColor: '#3EB489', color: '#fff', fontWeight: 600 }}
           >
             <img
-              src={APPLE_LOGO_SRC}
+              src={APPLE_LOGO_SVG_URL}
               alt=""
               className="w-5 h-5"
               style={{ filter: 'brightness(0) invert(1)' }}

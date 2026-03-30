@@ -28,6 +28,12 @@ const SUPPORT_ARTICLES: Record<string, ArticleMeta> = {
     desc: "To use MintCheck, you need a WiFi OBD-II scanner that plugs into your car\u2019s diagnostic port.",
     image: SUPPORT_HERO,
   },
+  "starter-kit-scanner": {
+    title: "MintCheck MC-01 scanner (Starter Kit)",
+    desc: "Specs, compatibility, and setup for the Wi-Fi OBD-II adapter included in the MintCheck Starter Kit.",
+    image:
+      "https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png",
+  },
   "connect-scanner": {
     title: "How to connect your OBD-II scanner",
     desc: "Follow these steps to connect your OBD-II scanner and start a vehicle scan.",

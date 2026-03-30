@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { Helmet } from 'react-helmet-async';
-import { CheckCircle, Apple } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
+import { APP_STORE_URL, APPLE_LOGO_SVG_URL } from '@/app/constants/appStore';
 
 export default function StarterKitSuccess() {
   return (
@@ -30,13 +31,18 @@ export default function StarterKitSuccess() {
 
         <div className="flex flex-col gap-3 pt-2">
           <a
-            href="https://apps.apple.com/app/mintcheck"
+            href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-primary-foreground hover:opacity-90 w-full"
             style={{ fontWeight: 600 }}
           >
-            <Apple className="w-5 h-5" />
+            <img
+              src={APPLE_LOGO_SVG_URL}
+              alt=""
+              className="w-5 h-5 shrink-0 brightness-0 invert"
+              aria-hidden
+            />
             Get the iOS App
           </a>
 

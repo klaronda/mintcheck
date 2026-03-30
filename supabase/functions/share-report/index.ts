@@ -12,6 +12,9 @@ const RESEND_FROM_EMAIL = Deno.env.get('RESEND_FROM_EMAIL') || 'MintCheck App <r
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+const APPLE_LOGO_SVG_URL =
+  'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/3P-content/logos/Apple_logo_black.svg';
+
 // Request interface
 interface ShareRequest {
   scanId: string;
@@ -382,7 +385,7 @@ function generateEmailHTML(
                 <tr>
                   <td style="background-color: #3EB489; border-radius: 8px;">
                     <a href="https://mintcheckapp.com/download" style="display: inline-block; padding: 12px 24px; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600;">
-                      <img src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/3P-content/logos/apple-logo-wh.png" alt="" style="height: 18px; vertical-align: middle; margin-right: 8px;" />
+                      <img src="${APPLE_LOGO_SVG_URL}" alt="" style="height: 18px; vertical-align: middle; margin-right: 8px; filter: brightness(0) invert(1);" />
                       Get the MintCheck App on iOS
                     </a>
                   </td>

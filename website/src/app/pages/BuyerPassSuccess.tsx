@@ -1,4 +1,5 @@
 import { Helmet } from 'react-helmet-async';
+import { APP_STORE_URL } from '@/app/constants/appStore';
 
 const OPEN_IN_APP_URL = 'mintcheck://buyer-pass/success';
 
@@ -26,7 +27,7 @@ export default function BuyerPassSuccess() {
         </a>
         <p className="text-gray-500 text-sm">
           Don't have the app?{' '}
-          <a href="https://apps.apple.com/app/mintcheck" className="text-primary font-medium hover:underline">
+          <a href={APP_STORE_URL} className="text-primary font-medium hover:underline">
             Get MintCheck on the App Store
           </a>
         </p>

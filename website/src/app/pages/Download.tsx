@@ -1,7 +1,7 @@
-import { Apple } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
+import { APP_STORE_URL, APPLE_LOGO_SVG_URL } from '@/app/constants/appStore';
 
 export default function Download() {
   return (
@@ -23,13 +23,18 @@ export default function Download() {
             Download MintCheck from the App Store. Know the real health of any car in about 30 seconds.
           </p>
           <a
-            href="https://apps.apple.com/app/mintcheck"
+            href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-lg transition-opacity hover:opacity-90"
             style={{ fontWeight: 600 }}
           >
-            <Apple className="w-5 h-5" />
+            <img
+              src={APPLE_LOGO_SVG_URL}
+              alt=""
+              className="w-5 h-5 shrink-0 brightness-0 invert"
+              aria-hidden
+            />
             Get the iOS App
           </a>
         </div>

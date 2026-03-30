@@ -2,6 +2,7 @@ import { Plug, Scan, FileText, Check, X, ExternalLink } from 'lucide-react';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import { Helmet } from 'react-helmet-async';
+import { APP_STORE_URL, APPLE_LOGO_SVG_URL } from '@/app/constants/appStore';
 
 export default function Home() {
   return (
@@ -41,20 +42,21 @@ export default function Home() {
                 MintCheck connects to a car’s OBD port and reads what the vehicle knows about itself. Get a clear health check, understand trouble codes in simple terms, and see if problems were recently hidden.
               </p>
               <div className="pt-2">
-                <p className="text-sm text-muted-foreground mb-2">Coming Spring 2026!</p>
-                <span 
-                  className="inline-flex items-center gap-2 bg-primary/40 text-primary-foreground/70 px-8 py-4 rounded-lg cursor-not-allowed opacity-70"
+                <a
+                  href={APP_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-lg transition-opacity hover:opacity-90"
                   style={{ fontWeight: 600 }}
-                  aria-disabled
                 >
-                  <img 
-                    src="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/3P-content/logos/Apple_logo_black.svg" 
-                    alt="" 
-                    className="w-5 h-5 brightness-0 invert opacity-70" 
-                    aria-hidden 
+                  <img
+                    src={APPLE_LOGO_SVG_URL}
+                    alt=""
+                    className="w-5 h-5 brightness-0 invert"
+                    aria-hidden
                   />
                   Get the iOS App
-                </span>
+                </a>
                 <p className="text-sm text-muted-foreground mt-6">
                   Real-time scans. Clear results. No car knowledge needed.
                 </p>
