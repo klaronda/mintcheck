@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router';
 import { useEffect, useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
+import * as Sentry from '@sentry/react';
 import { stripBrandingAndApplyMintCheckStyle } from '@/app/utils/deepCheckReportHtml';
 import { extractCarfaxVhrFromHtml } from '@/app/utils/extractCarfaxVhrFromHtml';
 import { VehicleHistoryReport } from '@/app/components/VehicleHistoryReport';
@@ -47,7 +48,10 @@ export default function DeepCheckReportPage() {
           setState('not_found');
         }
       })
-      .catch(() => setState('error'));
+      .catch((err) => {
+        Sentry.captureException(err);
+        setState('error');
+      });
   }, [code]);
 
   const styledHtml = useMemo(

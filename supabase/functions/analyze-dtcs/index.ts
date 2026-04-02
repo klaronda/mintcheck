@@ -1,4 +1,22 @@
 import { serve } from "https://deno.land/std@0.194.0/http/server.ts";
+import * as Sentry from "https://deno.land/x/sentry/index.mjs";
+
+const _SENTRY_DSN = Deno.env.get("SENTRY_DSN");
+let _sentryReady = false;
+function _ensureSentry() {
+  if (_sentryReady) return;
+  _sentryReady = true;
+  if (!_SENTRY_DSN) return;
+  Sentry.init({ dsn: _SENTRY_DSN, defaultIntegrations: false, tracesSampleRate: 1.0, environment: Deno.env.get("SENTRY_ENVIRONMENT") || "production" });
+  Sentry.setTag("region", Deno.env.get("SB_REGION") ?? "unknown");
+  Sentry.setTag("execution_id", Deno.env.get("SB_EXECUTION_ID") ?? "unknown");
+}
+function captureException(err: unknown, context?: Record<string, unknown>) {
+  _ensureSentry();
+  if (!_SENTRY_DSN) return;
+  Sentry.withScope((scope: { setExtras: (extras: Record<string, unknown>) => void }) => { if (context) scope.setExtras(context); Sentry.captureException(err); });
+}
+async function sentryFlush() { if (!_SENTRY_DSN) return; await Sentry.flush(2000); }
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -119,6 +137,7 @@ function buildJsonShapeNoDTC(): string {
 async function invokeOpenAI(userPrompt: string): Promise<string | null> {
   if (!OPENAI_API_KEY) {
     console.error("OPENAI_API_KEY not configured");
+    captureException(new Error("OPENAI_API_KEY not configured"), { fn: "analyze-dtcs" });
     return null;
   }
 
@@ -154,24 +173,28 @@ async function invokeOpenAI(userPrompt: string): Promise<string | null> {
     const raw = await resp.text();
     if (!resp.ok) {
       console.error("OpenAI API error:", resp.status, raw);
+      captureException(new Error(`OpenAI API ${resp.status}`), { fn: "analyze-dtcs", step: "openai_response", status: resp.status });
       return null;
     }
 
     const parsed = JSON.parse(raw) as OpenAIChatResponse;
     if (parsed.error?.message) {
       console.error("OpenAI error field:", parsed.error.message);
+      captureException(new Error(`OpenAI error: ${parsed.error.message}`), { fn: "analyze-dtcs", step: "openai_error_field" });
       return null;
     }
 
     const text = parsed.choices?.[0]?.message?.content?.trim();
     if (!text) {
       console.error("Empty OpenAI response:", raw);
+      captureException(new Error("Empty OpenAI response"), { fn: "analyze-dtcs", step: "empty_response" });
       return null;
     }
     return text;
   } catch (err) {
     clearTimeout(timer);
     console.error("OpenAI invoke error:", err);
+    captureException(err, { fn: "analyze-dtcs", step: "openai_invoke" });
     return null;
   }
 }
@@ -290,6 +313,7 @@ Rules:
     const responseText = await invokeOpenAI(prompt);
 
     if (!responseText) {
+      await sentryFlush();
       return new Response(
         JSON.stringify({ error: "Failed to analyze DTCs - AI service unavailable" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -332,6 +356,7 @@ Rules:
       vehicleValuation: analysisData.vehicleValuation ?? null,
     };
 
+    await sentryFlush();
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -339,6 +364,8 @@ Rules:
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Error in analyze-dtcs:", error);
+    captureException(error, { fn: "analyze-dtcs", step: "unhandled" });
+    await sentryFlush();
     return new Response(JSON.stringify({ error: "Internal server error", message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

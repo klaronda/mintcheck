@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet-async';
+import * as Sentry from '@sentry/react';
 import { AUTH_KEY } from '@/app/contexts/AdminContext';
 import { supabase } from '@/lib/supabase';
 
@@ -31,7 +32,8 @@ export default function AdminLogin() {
       }
       localStorage.setItem(AUTH_KEY, 'true');
       navigate('/admin/dashboard');
-    } catch {
+    } catch (err) {
+      Sentry.captureException(err);
       setError('Invalid email or password');
     } finally {
       setLoading(false);

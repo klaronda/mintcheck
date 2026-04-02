@@ -1,5 +1,23 @@
 import { serve } from "https://deno.land/std@0.194.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import * as Sentry from "https://deno.land/x/sentry/index.mjs";
+
+const _SENTRY_DSN = Deno.env.get("SENTRY_DSN");
+let _sentryReady = false;
+function _ensureSentry() {
+  if (_sentryReady) return;
+  _sentryReady = true;
+  if (!_SENTRY_DSN) return;
+  Sentry.init({ dsn: _SENTRY_DSN, defaultIntegrations: false, tracesSampleRate: 1.0, environment: Deno.env.get("SENTRY_ENVIRONMENT") || "production" });
+  Sentry.setTag("region", Deno.env.get("SB_REGION") ?? "unknown");
+  Sentry.setTag("execution_id", Deno.env.get("SB_EXECUTION_ID") ?? "unknown");
+}
+function captureException(err: unknown, context?: Record<string, unknown>) {
+  _ensureSentry();
+  if (!_SENTRY_DSN) return;
+  Sentry.withScope((scope: { setExtras: (extras: Record<string, unknown>) => void }) => { if (context) scope.setExtras(context); Sentry.captureException(err); });
+}
+async function sentryFlush() { if (!_SENTRY_DSN) return; await Sentry.flush(2000); }
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -419,6 +437,8 @@ serve(async (req) => {
     // Validate environment
     if (!RESEND_API_KEY) {
       console.error('RESEND_API_KEY not configured');
+      captureException(new Error("RESEND_API_KEY not configured"), { fn: "share-report" });
+      await sentryFlush();
       return new Response(
         JSON.stringify({ error: 'Email service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -427,6 +447,8 @@ serve(async (req) => {
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       console.error('Supabase credentials not configured');
+      captureException(new Error("Supabase credentials not configured"), { fn: "share-report" });
+      await sentryFlush();
       return new Response(
         JSON.stringify({ error: 'Database service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -537,6 +559,8 @@ serve(async (req) => {
 
           if (updateError) {
             console.error('Error updating shared report:', updateError);
+            captureException(updateError, { fn: "share-report", step: "update_shared_report" });
+            await sentryFlush();
             return new Response(
               JSON.stringify({ error: 'Failed to update shared report' }),
               { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -557,6 +581,8 @@ serve(async (req) => {
 
           if (insertError) {
             console.error('Error creating shared report:', insertError);
+            captureException(insertError, { fn: "share-report", step: "insert_shared_report_vin" });
+            await sentryFlush();
             return new Response(
               JSON.stringify({ error: 'Failed to create shared report' }),
               { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -578,6 +604,8 @@ serve(async (req) => {
 
         if (insertError) {
           console.error('Error creating shared report:', insertError);
+          captureException(insertError, { fn: "share-report", step: "insert_shared_report_no_vin" });
+          await sentryFlush();
           return new Response(
             JSON.stringify({ error: 'Failed to create shared report' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -677,6 +705,8 @@ serve(async (req) => {
     if (!emailResponse.ok) {
       const errorText = await emailResponse.text();
       console.error('Resend API error:', emailResponse.status, errorText);
+      captureException(new Error(`Resend API ${emailResponse.status}`), { fn: "share-report", step: "resend_email", status: emailResponse.status });
+      await sentryFlush();
       return new Response(
         JSON.stringify({ error: 'Failed to send email', details: errorText }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -686,6 +716,7 @@ serve(async (req) => {
     const emailResult = await emailResponse.json();
     console.log('Email sent successfully:', emailResult);
 
+    await sentryFlush();
     return new Response(
       JSON.stringify({
         success: true,
@@ -699,6 +730,8 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Error in share-report:', error);
+    captureException(error, { fn: "share-report", step: "unhandled" });
+    await sentryFlush();
     const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', message }),

@@ -2,6 +2,7 @@ import { useState, useEffect, Fragment, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet-async';
 import { LogOut, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import * as Sentry from '@sentry/react';
 import { AUTH_KEY } from '@/app/contexts/AdminContext';
 import { supabase } from '@/lib/supabase';
 
@@ -89,6 +90,7 @@ export default function AdminFeedback() {
       const data = await res.json();
       setFeedback(data.feedback ?? []);
     } catch (e) {
+      Sentry.captureException(e);
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
       setLoading(false);
@@ -124,6 +126,7 @@ export default function AdminFeedback() {
         setError(data?.error ?? `Failed to update status: ${res.status}`);
       }
     } catch (e) {
+      Sentry.captureException(e);
       setFeedback((f) => f.map((r) => (r.id === rowId && prev != null ? { ...r, status: prev } : r)));
       setError(e instanceof Error ? e.message : 'Failed to update status');
     } finally {
@@ -151,6 +154,7 @@ export default function AdminFeedback() {
         setResendStatus({ id: rowId, ok: false, message: data?.error ?? `Failed: ${res.status}` });
       }
     } catch (e) {
+      Sentry.captureException(e);
       setResendStatus({ id: rowId, ok: false, message: e instanceof Error ? e.message : 'Request failed' });
     }
     setTimeout(() => setResendStatus(null), 4000);

@@ -6,6 +6,24 @@
  */
 import { serve } from "https://deno.land/std@0.194.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import * as Sentry from "https://deno.land/x/sentry/index.mjs";
+
+const _SENTRY_DSN = Deno.env.get("SENTRY_DSN");
+let _sentryReady = false;
+function _ensureSentry() {
+  if (_sentryReady) return;
+  _sentryReady = true;
+  if (!_SENTRY_DSN) return;
+  Sentry.init({ dsn: _SENTRY_DSN, defaultIntegrations: false, tracesSampleRate: 1.0, environment: Deno.env.get("SENTRY_ENVIRONMENT") || "production" });
+  Sentry.setTag("region", Deno.env.get("SB_REGION") ?? "unknown");
+  Sentry.setTag("execution_id", Deno.env.get("SB_EXECUTION_ID") ?? "unknown");
+}
+function captureException(err: unknown, context?: Record<string, unknown>) {
+  _ensureSentry();
+  if (!_SENTRY_DSN) return;
+  Sentry.withScope((scope: { setExtras: (extras: Record<string, unknown>) => void }) => { if (context) scope.setExtras(context); Sentry.captureException(err); });
+}
+async function sentryFlush() { if (!_SENTRY_DSN) return; await Sentry.flush(2000); }
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,6 +93,7 @@ serve(async (req) => {
     const { data: rows, error: fetchErr } = await query.limit(1);
     if (fetchErr) {
       console.error("fulfill-starter-kit-order fetch error:", fetchErr);
+      captureException(fetchErr, { fn: "fulfill-starter-kit-order", step: "fetch_order" });
       return new Response(
         JSON.stringify({
           error: "Database error loading order",
@@ -148,6 +167,7 @@ serve(async (req) => {
 
   if (activeLookupErr) {
     console.error("fulfill-starter-kit-order active subscription lookup error:", activeLookupErr);
+    captureException(activeLookupErr, { fn: "fulfill-starter-kit-order", step: "active_subscription_lookup" });
     return new Response(
       JSON.stringify({
         error: "Database error loading subscriptions",
@@ -186,6 +206,7 @@ serve(async (req) => {
 
   if (reuseLookupErr) {
     console.error("fulfill-starter-kit-order reuse lookup error:", reuseLookupErr);
+    captureException(reuseLookupErr, { fn: "fulfill-starter-kit-order", step: "reuse_lookup" });
     return new Response(
       JSON.stringify({
         error: "Database error checking existing subscription",
@@ -219,6 +240,7 @@ serve(async (req) => {
     const { error: updErr } = await updateSubEndedAt(subId);
     if (updErr) {
       console.error("fulfill-starter-kit-order subscription update error (reuse):", updErr);
+      captureException(updErr, { fn: "fulfill-starter-kit-order", step: "subscription_update_reuse" });
       return new Response(
         JSON.stringify({
           error: "Failed to update Buyer Pass subscription",
@@ -240,6 +262,7 @@ serve(async (req) => {
     const { error: updErr } = await updateSubEndedAt(subId);
     if (updErr) {
       console.error("fulfill-starter-kit-order subscription update error (extend):", updErr);
+      captureException(updErr, { fn: "fulfill-starter-kit-order", step: "subscription_update_extend" });
       return new Response(
         JSON.stringify({
           error: "Failed to update Buyer Pass subscription",
@@ -270,6 +293,7 @@ serve(async (req) => {
 
     if (insErr || !subRow) {
       console.error("fulfill-starter-kit-order subscriptions insert error:", insErr);
+      captureException(insErr, { fn: "fulfill-starter-kit-order", step: "subscription_insert" });
       return new Response(
         JSON.stringify({
           error: "Failed to create Buyer Pass subscription",
@@ -298,6 +322,7 @@ serve(async (req) => {
 
   if (updOrderErr) {
     console.error("fulfill-starter-kit-order order update error:", updOrderErr);
+    captureException(updOrderErr, { fn: "fulfill-starter-kit-order", step: "order_status_update" });
     return new Response(
       JSON.stringify({
         error: "Pass updated but failed to update order row",
@@ -312,6 +337,7 @@ serve(async (req) => {
     );
   }
 
+  await sentryFlush();
   return new Response(
     JSON.stringify({
       ok: true,
@@ -325,6 +351,8 @@ serve(async (req) => {
   );
   } catch (e) {
     console.error("fulfill-starter-kit-order unhandled error:", e);
+    captureException(e, { fn: "fulfill-starter-kit-order", step: "unhandled" });
+    await sentryFlush();
     return new Response(
       JSON.stringify({
         error: "Internal error in fulfill-starter-kit-order",

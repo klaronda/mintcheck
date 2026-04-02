@@ -1,6 +1,24 @@
 import { serve } from "https://deno.land/std@0.194.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+import * as Sentry from "https://deno.land/x/sentry/index.mjs";
+
+const _SENTRY_DSN = Deno.env.get("SENTRY_DSN");
+let _sentryReady = false;
+function _ensureSentry() {
+  if (_sentryReady) return;
+  _sentryReady = true;
+  if (!_SENTRY_DSN) return;
+  Sentry.init({ dsn: _SENTRY_DSN, defaultIntegrations: false, tracesSampleRate: 1.0, environment: Deno.env.get("SENTRY_ENVIRONMENT") || "production" });
+  Sentry.setTag("region", Deno.env.get("SB_REGION") ?? "unknown");
+  Sentry.setTag("execution_id", Deno.env.get("SB_EXECUTION_ID") ?? "unknown");
+}
+function captureException(err: unknown, context?: Record<string, unknown>) {
+  _ensureSentry();
+  if (!_SENTRY_DSN) return;
+  Sentry.withScope((scope: { setExtras: (extras: Record<string, unknown>) => void }) => { if (context) scope.setExtras(context); Sentry.captureException(err); });
+}
+async function sentryFlush() { if (!_SENTRY_DSN) return; await Sentry.flush(2000); }
 
 /** Parse client_reference_id as Supabase user UUID when present. */
 function parseUserIdFromSession(session: Stripe.Checkout.Session): string | null {
@@ -49,6 +67,7 @@ async function handleStarterKitOrder(params: {
 
   if (upsertErr) {
     console.error("stripe-webhook starter_kit_orders upsert error:", upsertErr);
+    captureException(upsertErr, { fn: "stripe-webhook", step: "starter_kit_orders_upsert", sessionId });
     return;
   }
 
@@ -59,6 +78,7 @@ async function handleStarterKitOrder(params: {
   if (onErr) {
     // Fallback: call generate_order_number directly via raw SQL
     console.error("stripe-webhook: rpc generate_order_number_for_order failed, trying direct SQL", onErr);
+    captureException(onErr, { fn: "stripe-webhook", step: "generate_order_number_rpc", sessionId });
     await supabase.from("starter_kit_orders")
       .update({ order_number: null })
       .eq("stripe_session_id", sessionId)
@@ -81,6 +101,7 @@ async function handleStarterKitOrder(params: {
   const invokeSecret = Deno.env.get("DEEP_CHECK_INVOKE_SECRET");
   if (!invokeSecret) {
     console.error("stripe-webhook: DEEP_CHECK_INVOKE_SECRET not set, skipping starter-kit email");
+    captureException(new Error("DEEP_CHECK_INVOKE_SECRET not set"), { fn: "stripe-webhook", step: "starter_kit_email_secret" });
     return;
   }
 
@@ -105,10 +126,12 @@ async function handleStarterKitOrder(params: {
     if (!res.ok) {
       const t = await res.text();
       console.error("stripe-webhook: send-starter-kit-confirmation failed", res.status, t);
+      captureException(new Error(`send-starter-kit-confirmation HTTP ${res.status}`), { fn: "stripe-webhook", step: "send_confirmation_email", status: res.status, body: t });
       return;
     }
   } catch (err) {
     console.error("stripe-webhook: invoke send-starter-kit-confirmation failed", err);
+    captureException(err, { fn: "stripe-webhook", step: "send_confirmation_invoke" });
     return;
   }
 
@@ -121,6 +144,7 @@ async function handleStarterKitOrder(params: {
 }
 
 serve(async (req) => {
+  try {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -129,6 +153,8 @@ serve(async (req) => {
   const signature = req.headers.get("Stripe-Signature");
   if (!webhookSecret || !signature) {
     console.error("stripe-webhook: missing STRIPE_WEBHOOK_SECRET or Stripe-Signature");
+    captureException(new Error("Missing STRIPE_WEBHOOK_SECRET or Stripe-Signature"), { fn: "stripe-webhook" });
+    await sentryFlush();
     return new Response("Bad request", { status: 400 });
   }
 
@@ -142,6 +168,8 @@ serve(async (req) => {
   const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
   if (!stripeSecretKey) {
     console.error("stripe-webhook: STRIPE_SECRET_KEY not set");
+    captureException(new Error("STRIPE_SECRET_KEY not set"), { fn: "stripe-webhook" });
+    await sentryFlush();
     return new Response("Server error", { status: 500 });
   }
 
@@ -150,6 +178,8 @@ serve(async (req) => {
     event = await Stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
   } catch (err) {
     console.error("stripe-webhook signature verification failed:", err);
+    captureException(err, { fn: "stripe-webhook", step: "signature_verification" });
+    await sentryFlush();
     return new Response("Invalid signature", { status: 400 });
   }
 
@@ -210,6 +240,7 @@ serve(async (req) => {
 
       if (error) {
         console.error("stripe-webhook update subscriptions (buyer_pass) error:", error);
+        captureException(error, { fn: "stripe-webhook", step: "buyer_pass_update", sessionId });
       } else {
         console.log(`stripe-webhook: buyer_pass activated, session=${sessionId}, ends=${endedAt.toISOString()}`);
       }
@@ -221,6 +252,7 @@ serve(async (req) => {
 
       if (error) {
         console.error("stripe-webhook update deep_check_purchases error:", error);
+        captureException(error, { fn: "stripe-webhook", step: "deep_check_update", sessionId });
       }
 
       const invokeSecret = Deno.env.get("DEEP_CHECK_INVOKE_SECRET");
@@ -234,15 +266,29 @@ serve(async (req) => {
             "X-Internal-Secret": invokeSecret,
           },
           body: JSON.stringify({ purchase_id: purchaseId.trim() }),
-        }).catch((err) => console.error("stripe-webhook: invoke generate-deep-check-report failed", err));
+        }).catch((err) => {
+          console.error("stripe-webhook: invoke generate-deep-check-report failed", err);
+          captureException(err, { fn: "stripe-webhook", step: "generate_deep_check_invoke" });
+        });
       } else if (typeof purchaseId === "string" && purchaseId.trim() && !invokeSecret) {
         console.error("stripe-webhook: DEEP_CHECK_INVOKE_SECRET not set, skipping report generation");
+        captureException(new Error("DEEP_CHECK_INVOKE_SECRET not set for report generation"), { fn: "stripe-webhook", step: "deep_check_secret" });
       }
     }
   }
 
+  await sentryFlush();
   return new Response(JSON.stringify({ received: true }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+  } catch (err) {
+    console.error("stripe-webhook unhandled error:", err);
+    captureException(err, { fn: "stripe-webhook", step: "unhandled" });
+    await sentryFlush();
+    return new Response(JSON.stringify({ error: "Internal error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 });

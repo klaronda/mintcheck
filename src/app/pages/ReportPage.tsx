@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router';
 import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import * as Sentry from '@sentry/react';
 import { sharedReportsApi } from '@/lib/supabase';
 import type { SharedReport, ReportData, NHTSAData } from '@/lib/supabase';
 import {
@@ -567,7 +568,8 @@ export default function ReportPage() {
           setReport(data);
           setNotFound(false);
         }
-      } catch {
+      } catch (err) {
+        Sentry.captureException(err);
         if (!cancelled) setNotFound(true);
       } finally {
         if (!cancelled) setLoading(false);

@@ -1,4 +1,5 @@
 import { createBrowserRouter } from 'react-router';
+import { Sentry } from '@/lib/sentry';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Support from './pages/Support';
@@ -22,8 +23,11 @@ import DeepCheckReportPage from './pages/DeepCheckReportPage';
 import StarterKit from './pages/StarterKit';
 import StarterKitSuccess from './pages/StarterKitSuccess';
 import NotFound from './pages/NotFound';
+import SentryRouteError from './components/SentryRouteError';
 
-export const router = createBrowserRouter([
+const sentryCreateBrowserRouter = Sentry.wrapCreateBrowserRouterV7(createBrowserRouter);
+
+export const router = sentryCreateBrowserRouter([
   // Minimal auth deep-link fallbacks (no Layout)
   { path: '/auth/confirm', element: <AuthConfirm /> },
   { path: '/auth/reset', element: <AuthReset /> },
@@ -33,7 +37,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <Layout />,
-    errorElement: <NotFound />,
+    errorElement: <SentryRouteError />,
     children: [
       { index: true, element: <Home /> },
       { path: 'download', element: <Download /> },

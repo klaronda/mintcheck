@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet-async';
 import { LogOut, RefreshCw, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import * as Sentry from '@sentry/react';
 import { AUTH_KEY } from '@/app/contexts/AdminContext';
 import { supabase } from '@/lib/supabase';
 
@@ -114,6 +115,7 @@ export default function AdminStarterKitOrders() {
         return next;
       });
     } catch (e) {
+      Sentry.captureException(e);
       setError(e instanceof Error ? e.message : 'Request failed');
       setOrders([]);
     } finally {
@@ -160,6 +162,7 @@ export default function AdminStarterKitOrders() {
       }
       await loadOrders();
     } catch (e) {
+      Sentry.captureException(e);
       setActionMessage(e instanceof Error ? e.message : 'Save failed');
     } finally {
       setSavingId(null);
@@ -195,6 +198,7 @@ export default function AdminStarterKitOrders() {
       setActionMessage('User linked. You can activate the Buyer Pass when ready.');
       await loadOrders();
     } catch (e) {
+      Sentry.captureException(e);
       setActionMessage(e instanceof Error ? e.message : 'Link failed');
     } finally {
       setLinkingUserId(null);
@@ -231,6 +235,7 @@ export default function AdminStarterKitOrders() {
       setActionMessage(data?.ok ? 'Buyer Pass activated.' : 'Request completed.');
       await loadOrders();
     } catch (e) {
+      Sentry.captureException(e);
       setActionMessage(e instanceof Error ? e.message : 'Fulfill failed');
     } finally {
       setFulfillingId(null);
