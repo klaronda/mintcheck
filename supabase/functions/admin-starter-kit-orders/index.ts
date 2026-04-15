@@ -386,7 +386,7 @@ serve(async (req) => {
 
       const { data: existing, error: fetchErr } = await supabase
         .from("starter_kit_orders")
-        .select("id, shipped_at, user_id, status, tracking_carrier, tracking_number")
+        .select("id, shipped_at, user_id, status, tracking_carrier, tracking_number, shipping_status")
         .eq("id", id).single();
       if (fetchErr || !existing) return json({ error: "Order not found" }, 404);
 
@@ -405,7 +405,10 @@ serve(async (req) => {
       const mergedTracking = (hasTracking
         ? (typeof body.tracking_number === "string" ? body.tracking_number.trim() : "")
         : String(existing.tracking_number ?? "")) || "";
-      if (mergedTracking && !existing.shipped_at) updates.shipped_at = nowIso;
+      if (mergedTracking && !existing.shipped_at) {
+        updates.shipped_at = nowIso;
+        updates.shipping_status = "in_transit";
+      }
 
       if (hasUser) {
         const raw = body.user_id;

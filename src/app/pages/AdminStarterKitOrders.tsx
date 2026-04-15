@@ -20,6 +20,8 @@ export interface StarterKitOrderRow {
   tracking_number: string | null;
   shipped_at: string | null;
   shipping_confirmation_sent_at: string | null;
+  shipping_status: string | null;
+  delivery_email_sent_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -389,6 +391,21 @@ export default function AdminStarterKitOrders() {
                           >
                             {row.status}
                           </span>
+                          {row.shipping_status && (
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded font-medium ${
+                                row.shipping_status === 'delivered'
+                                  ? 'bg-[#3EB489]/15 text-[#2a8f66]'
+                                  : row.shipping_status === 'failed'
+                                    ? 'bg-red-100 text-red-800'
+                                    : row.shipping_status === 'out_for_delivery'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : 'bg-amber-100 text-amber-900'
+                              }`}
+                            >
+                              {row.shipping_status.replace(/_/g, ' ')}
+                            </span>
+                          )}
                           <span className="text-sm text-muted-foreground">
                             {formatDate(row.created_at)}
                           </span>
@@ -488,6 +505,32 @@ export default function AdminStarterKitOrders() {
                           <div>
                             <span className="text-muted-foreground">Shipping email sent</span>
                             <p>{formatDate(row.shipping_confirmation_sent_at)}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Shipping status</span>
+                            <p>
+                              {row.shipping_status ? (
+                                <span
+                                  className={`inline-block text-xs px-2 py-0.5 rounded font-medium ${
+                                    row.shipping_status === 'delivered'
+                                      ? 'bg-[#3EB489]/15 text-[#2a8f66]'
+                                      : row.shipping_status === 'failed'
+                                        ? 'bg-red-100 text-red-800'
+                                        : row.shipping_status === 'out_for_delivery'
+                                          ? 'bg-blue-100 text-blue-800'
+                                          : 'bg-amber-100 text-amber-900'
+                                  }`}
+                                >
+                                  {row.shipping_status.replace(/_/g, ' ')}
+                                </span>
+                              ) : (
+                                '—'
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Delivery email sent</span>
+                            <p>{formatDate(row.delivery_email_sent_at)}</p>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Buyer Pass subscription</span>
