@@ -12,7 +12,7 @@ type Supabase = ReturnType<typeof createClient>;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-admin-secret",
 };
@@ -364,8 +364,10 @@ serve(async (req) => {
     if (req.method === "GET") {
       const url = new URL(req.url);
       const st = url.searchParams.get("status");
+      const showArchived = url.searchParams.get("archived") === "true";
       let q = supabase.from("starter_kit_orders").select("*").order("created_at", { ascending: false }).limit(200);
       if (st?.trim()) q = q.eq("status", st.trim());
+      if (!showArchived) q = q.is("archived_at", null);
       const { data, error } = await q;
       if (error) { console.error("list error:", error); return json({ error: error.message }, 500); }
       return json({ orders: data ?? [] }, 200);
@@ -405,10 +407,8 @@ serve(async (req) => {
       const mergedTracking = (hasTracking
         ? (typeof body.tracking_number === "string" ? body.tracking_number.trim() : "")
         : String(existing.tracking_number ?? "")) || "";
-      if (mergedTracking && !existing.shipped_at) {
-        updates.shipped_at = nowIso;
-        updates.shipping_status = "in_transit";
-      }
+      if (mergedTracking && !existing.shipped_at) updates.shipped_at = nowIso;
+      if (mergedTracking && !existing.shipping_status) updates.shipping_status = "in_transit";
 
       if (hasUser) {
         const raw = body.user_id;
@@ -446,20 +446,41 @@ serve(async (req) => {
       return json({ order: orderPayload }, 200);
     }
 
-    // ── POST: fulfill ──
+    // ── POST: fulfill / archive / unarchive ──
     if (req.method === "POST") {
       let body: { action?: string; order_id?: string };
       try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
-      if (body.action !== "fulfill") return json({ error: "Unknown action" }, 400);
+
+      const action = body.action;
       const orderId = typeof body.order_id === "string" ? body.order_id.trim() : "";
       if (!orderId) return json({ error: "order_id required" }, 400);
 
-      try {
-        return await fulfillOrder(supabase, orderId);
-      } catch (e) {
-        console.error("fulfill error:", e);
-        return json({ error: "Fulfill failed", detail: e instanceof Error ? e.message : String(e) }, 500);
+      if (action === "fulfill") {
+        try {
+          return await fulfillOrder(supabase, orderId);
+        } catch (e) {
+          console.error("fulfill error:", e);
+          return json({ error: "Fulfill failed", detail: e instanceof Error ? e.message : String(e) }, 500);
+        }
       }
+
+      if (action === "archive" || action === "unarchive") {
+        const nowIso = new Date().toISOString();
+        const archivedAt = action === "archive" ? nowIso : null;
+        const { data: updated, error: updErr } = await supabase
+          .from("starter_kit_orders")
+          .update({ archived_at: archivedAt, updated_at: nowIso })
+          .eq("id", orderId)
+          .select("*")
+          .single();
+        if (updErr) {
+          console.error(`${action} error:`, updErr);
+          return json({ error: updErr.message }, 500);
+        }
+        return json({ ok: true, order: updated }, 200);
+      }
+
+      return json({ error: "Unknown action" }, 400);
     }
 
     return json({ error: "Method not allowed" }, 405);

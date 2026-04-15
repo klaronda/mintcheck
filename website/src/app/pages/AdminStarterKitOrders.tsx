@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet-async';
-import { LogOut, RefreshCw, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { LogOut, RefreshCw, ChevronDown, ChevronUp, Package, Archive, ArchiveRestore } from 'lucide-react';
 import { AUTH_KEY } from '@/app/contexts/AdminContext';
 import { supabase } from '@/lib/supabase';
 
@@ -21,6 +21,7 @@ export interface StarterKitOrderRow {
   shipping_confirmation_sent_at: string | null;
   shipping_status: string | null;
   delivery_email_sent_at: string | null;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,6 +51,8 @@ export default function AdminStarterKitOrders() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [linkingUserId, setLinkingUserId] = useState<string | null>(null);
   const [fulfillingId, setFulfillingId] = useState<string | null>(null);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [userLinkDrafts, setUserLinkDrafts] = useState<Record<string, string>>({});
 
@@ -80,8 +83,10 @@ export default function AdminStarterKitOrders() {
     setLoading(true);
     setError(null);
     try {
-      const q =
-        statusFilter === 'all' ? '' : `?status=${encodeURIComponent(statusFilter)}`;
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (showArchived) params.set('archived', 'true');
+      const q = params.toString() ? `?${params.toString()}` : '';
       const res = await fetch(`${cfg.baseUrl}${q}`, {
         method: 'GET',
         headers: cfg.headers,
@@ -121,7 +126,7 @@ export default function AdminStarterKitOrders() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, showArchived]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -240,6 +245,38 @@ export default function AdminStarterKitOrders() {
     }
   };
 
+  const toggleArchive = async (orderId: string, currentlyArchived: boolean) => {
+    const action = currentlyArchived ? 'unarchive' : 'archive';
+    if (
+      !currentlyArchived &&
+      !confirm('Archive this order? It will be hidden from the default view.')
+    )
+      return;
+    const cfg = getApiConfig();
+    if (!cfg || !import.meta.env.VITE_ADMIN_FEEDBACK_SECRET) return;
+    setArchivingId(orderId);
+    setActionMessage(null);
+    try {
+      const res = await fetch(cfg.baseUrl, {
+        method: 'POST',
+        headers: cfg.headers,
+        body: JSON.stringify({ action, order_id: orderId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionMessage(data?.error ?? `${action} failed (${res.status})`);
+        return;
+      }
+      setActionMessage(currentlyArchived ? 'Order restored.' : 'Order archived.');
+      await loadOrders();
+    } catch (e) {
+      setActionMessage(e instanceof Error ? e.message : `${action} failed`);
+    } finally {
+      setArchivingId(null);
+      setTimeout(() => setActionMessage(null), 4000);
+    }
+  };
+
   const formatDate = (iso: string | null) => {
     if (!iso) return '—';
     try {
@@ -339,6 +376,18 @@ export default function AdminStarterKitOrders() {
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+              showArchived
+                ? 'bg-gray-700 text-white'
+                : 'border border-border bg-white hover:bg-muted/50'
+            }`}
+          >
+            <Archive className="w-3.5 h-3.5" />
+            Archived
+          </button>
         </div>
 
         {actionMessage && (
@@ -399,6 +448,11 @@ export default function AdminStarterKitOrders() {
                               }`}
                             >
                               {row.shipping_status.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                          {row.archived_at && (
+                            <span className="text-xs px-2 py-0.5 rounded font-medium bg-gray-100 text-gray-600">
+                              archived
                             </span>
                           )}
                           <span className="text-sm text-muted-foreground">
@@ -590,6 +644,24 @@ export default function AdminStarterKitOrders() {
                             {fulfillingId === row.id
                               ? 'Activating…'
                               : 'Activate 60-day Buyer Pass'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleArchive(row.id, Boolean(row.archived_at))}
+                            disabled={archivingId === row.id}
+                            className="px-4 py-2 rounded-lg border border-border bg-white text-sm font-medium hover:bg-muted/50 disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {row.archived_at ? (
+                              <>
+                                <ArchiveRestore className="w-3.5 h-3.5" />
+                                {archivingId === row.id ? 'Restoring…' : 'Restore'}
+                              </>
+                            ) : (
+                              <>
+                                <Archive className="w-3.5 h-3.5" />
+                                {archivingId === row.id ? 'Archiving…' : 'Archive'}
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>

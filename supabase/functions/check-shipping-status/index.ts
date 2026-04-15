@@ -2,10 +2,11 @@
  * check-shipping-status
  *
  * Called every 2 hours by pg_cron via pg_net. For each starter_kit_order that
- * has a tracking number but hasn't reached "delivered" yet, polls Ship24 for
- * the current status. When a package is delivered, sends a delivery
- * confirmation email via Resend.
+ * has a tracking number but hasn't reached "delivered" yet, polls the USPS v3
+ * tracking API for the current status. When a package is delivered, sends a
+ * delivery confirmation email via Resend.
  *
+ * Env: USPS_CLIENT_ID, USPS_CLIENT_SECRET (from developer.usps.com)
  * Auth: X-Internal-Secret header (DEEP_CHECK_INVOKE_SECRET).
  * Deploy with verify_jwt: false.
  */
@@ -22,25 +23,55 @@ const APP_STORE_LINK =
 const PRODUCT_IMG =
   "https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png";
 
-const SHIP24_API = "https://api.ship24.com/public/v1";
+const USPS_TOKEN_URL = "https://apis.usps.com/oauth2/v3/token";
+const USPS_TRACKING_URL = "https://apis.usps.com/tracking/v3/tracking";
 
 type OurStatus = "in_transit" | "out_for_delivery" | "delivered" | "failed";
 
-function mapMilestone(milestone: string | undefined | null): OurStatus | null {
-  switch (milestone) {
-    case "in_transit":
-      return "in_transit";
-    case "out_for_delivery":
-      return "out_for_delivery";
-    case "delivered":
-      return "delivered";
-    case "exception":
-    case "failed_attempt":
-      return "failed";
-    default:
-      return null;
-  }
+function mapUspsCategory(cat: string | undefined | null): OurStatus | null {
+  if (!cat) return null;
+  const lc = cat.toLowerCase();
+  if (lc === "delivered") return "delivered";
+  if (lc === "out for delivery") return "out_for_delivery";
+  if (lc === "in transit" || lc === "accepted" || lc === "pre-shipment" || lc === "origin post is preparing shipment")
+    return "in_transit";
+  if (lc === "alert" || lc === "return to sender" || lc === "undeliverable")
+    return "failed";
+  return null;
 }
+
+// ─── USPS OAuth ──────────────────────────────────────────────────────────────
+
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+async function getUspsToken(clientId: string, clientSecret: string): Promise<string> {
+  if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
+    return cachedToken.token;
+  }
+
+  const res = await fetch(USPS_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`USPS OAuth failed: ${res.status} ${txt}`);
+  }
+
+  const data = await res.json();
+  const token = data.access_token as string;
+  const expiresIn = (data.expires_in as number) ?? 28800;
+  cachedToken = { token, expiresAt: Date.now() + expiresIn * 1000 };
+  return token;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function esc(s: string | null | undefined): string {
   if (!s) return "";
@@ -112,6 +143,8 @@ function deliveryEmailHtml(p: {
 </table></td></tr></table></body></html>`;
 }
 
+// ─── Main ────────────────────────────────────────────────────────────────────
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -126,11 +159,12 @@ serve(async (req) => {
     });
   }
 
-  const ship24Key = Deno.env.get("SHIP24_API_KEY");
-  if (!ship24Key) {
-    console.error("check-shipping-status: SHIP24_API_KEY not set");
+  const uspsClientId = Deno.env.get("USPS_CLIENT_ID");
+  const uspsClientSecret = Deno.env.get("USPS_CLIENT_SECRET");
+  if (!uspsClientId || !uspsClientSecret) {
+    console.error("check-shipping-status: USPS_CLIENT_ID / USPS_CLIENT_SECRET not set");
     return new Response(
-      JSON.stringify({ error: "SHIP24_API_KEY not configured" }),
+      JSON.stringify({ error: "USPS credentials not configured" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -165,6 +199,17 @@ serve(async (req) => {
     );
   }
 
+  let uspsToken: string;
+  try {
+    uspsToken = await getUspsToken(uspsClientId, uspsClientSecret);
+  } catch (e) {
+    console.error("check-shipping-status: USPS auth failed", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "USPS auth failed" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   let updated = 0;
   let delivered = 0;
   const errors: string[] = [];
@@ -174,34 +219,26 @@ serve(async (req) => {
     if (!trackingNumber) continue;
 
     try {
-      const res = await fetch(`${SHIP24_API}/trackers/track`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${ship24Key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ trackingNumber }),
-      });
+      const res = await fetch(
+        `${USPS_TRACKING_URL}/${encodeURIComponent(trackingNumber)}?expand=DETAIL`,
+        {
+          headers: { Authorization: `Bearer ${uspsToken}` },
+        }
+      );
 
       if (!res.ok) {
         const txt = await res.text();
         console.error(
-          `Ship24 error for ${trackingNumber}: ${res.status} ${txt}`
+          `USPS tracking error for ${trackingNumber}: ${res.status} ${txt}`
         );
-        errors.push(`${trackingNumber}: Ship24 ${res.status}`);
+        errors.push(`${trackingNumber}: USPS ${res.status}`);
         continue;
       }
 
       const data = await res.json();
-      const trackings = data?.data?.trackings;
-      if (!Array.isArray(trackings) || trackings.length === 0) {
-        continue;
-      }
-
-      const shipment = trackings[0]?.shipment;
-      const milestone: string | undefined =
-        shipment?.statusMilestone ?? undefined;
-      const mapped = mapMilestone(milestone);
+      const statusCategory: string | undefined =
+        data?.statusCategory ?? data?.trackingEvents?.[0]?.eventType ?? undefined;
+      const mapped = mapUspsCategory(statusCategory);
       if (!mapped) continue;
 
       if (mapped === order.shipping_status) continue;
