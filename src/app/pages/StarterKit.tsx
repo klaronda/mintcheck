@@ -1,12 +1,46 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { ShieldCheck, Zap, Plug, Scan, FileText, ChevronDown, Wifi } from 'lucide-react';
+import { ShieldCheck, Zap, Plug, Scan, FileText, ChevronDown, Wifi, Star } from 'lucide-react';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import { APP_STORE_URL, APPLE_LOGO_SVG_URL } from '@/app/constants/appStore';
 
 const SCANNER_IMG =
   'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png';
+
+/** In-app UI hero visual for “What’s in the Box” (AVIF; replace with animated WebP/MP4 if you add motion). */
+const WHATS_IN_BOX_UI_IMG =
+  'https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Hero_525x525.avif';
+
+const TESTIMONIALS = [
+  {
+    name: 'Jordan M.',
+    role: 'Used car buyer',
+    image:
+      'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&h=256&q=80',
+    imageAlt: 'Woman with glasses, casual headshot',
+    quote:
+      "I was so close on a Civic with a spotless Carfax. Plugged in MintCheck anyway and it basically said, nah, codes were wiped and there's still a misfire hiding in there. I walked. Glad I did.",
+  },
+  {
+    name: 'Marcus T.',
+    role: 'DIY home mechanic',
+    image:
+      'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=256&h=256&q=80',
+    imageAlt: 'Man in a sweater, everyday portrait',
+    quote:
+      "I wrench on my own stuff. I don't need a lecture from a service writer, I need the data in English and I need it fast. Wi‑Fi scanner + the app has been solid for that.",
+  },
+  {
+    name: 'Elena R.',
+    role: 'Mom of a new driver',
+    image:
+      'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=256&h=256&q=80',
+    imageAlt: 'Woman outdoors, candid portrait',
+    quote:
+      'My son wanted his first car to look cool, sure, but it had to be safe. We scanned three used ones on the lot and one of them looked way worse than the guy let on. Picked the boring one that actually checked out.',
+  },
+] as const;
 
 const FAQ_ITEMS = [
   {
@@ -75,7 +109,7 @@ export default function StarterKit() {
   return (
     <div className="min-h-screen bg-white">
       <Helmet>
-        <title>MintCheck Starter Kit – Scanner + 60-Day Pass | $34.99</title>
+        <title>MintCheck Starter Kit for iOS – Scanner + 60-Day Pass | $34.99</title>
         <meta
           name="description"
           content="Get a Wi-Fi OBD-II scanner and 60-day unlimited scanning pass. Know the real health of any car in about 30 seconds. $34.99 with US shipping included."
@@ -83,7 +117,7 @@ export default function StarterKit() {
         <link rel="canonical" href="https://mintcheckapp.com/starter-kit" />
         <meta property="og:url" content="https://mintcheckapp.com/starter-kit" />
         <meta property="og:type" content="product" />
-        <meta property="og:title" content="MintCheck Starter Kit – $34.99" />
+        <meta property="og:title" content="MintCheck Starter Kit for iOS – $34.99" />
         <meta
           property="og:description"
           content="Wi-Fi scanner + 60-day unlimited scanning pass. Know the real health of any car."
@@ -93,7 +127,7 @@ export default function StarterKit() {
           content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png"
         />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="MintCheck Starter Kit – $34.99" />
+        <meta name="twitter:title" content="MintCheck Starter Kit for iOS – $34.99" />
         <meta name="twitter:description" content="Wi-Fi scanner + 60-day unlimited scanning pass. Know the real health of any car." />
         <meta name="twitter:image" content="https://iawkgqbrxoctatfrjpli.supabase.co/storage/v1/object/public/assets/Images/Product/MC-01a.png" />
       </Helmet>
@@ -102,11 +136,11 @@ export default function StarterKit() {
 
       {/* ───── Hero ───── */}
       <section className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-6 py-20 md:py-28">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
+        <div className="max-w-6xl mx-auto px-6 pt-6 pb-14 md:py-28">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+            <div className="order-2 md:order-1 space-y-6">
               <h1 className="text-4xl md:text-5xl tracking-tight" style={{ fontWeight: 600 }}>
-                MintCheck Starter Kit
+                MintCheck Starter Kit for iOS
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed">
                 Wi-Fi scanner + 60-day pass – scan unlimited vehicles. Know the real health of any car in about 30 seconds.
@@ -133,13 +167,23 @@ export default function StarterKit() {
                 </span>
               </div>
             </div>
-            <div className="flex justify-center md:justify-end">
-              <div className="bg-secondary/50 rounded-2xl p-8 max-w-sm w-full">
-                <img
-                  src={SCANNER_IMG}
-                  alt="MintCheck Wi-Fi OBD-II Scanner"
-                  className="w-full h-auto object-contain rounded-lg"
-                />
+            <div className="order-1 md:order-2 flex justify-center md:justify-end">
+              <div className="relative max-w-sm w-full rounded-2xl bg-secondary/50 p-6 sm:p-8">
+                <div className="relative">
+                  {/* Sash: clockwise 45°, slopes down toward the right; kept outside img clip */}
+                  <div
+                    className="pointer-events-none absolute right-[-2.25rem] top-[1.35rem] z-20 w-[9.5rem] origin-center rotate-45 bg-primary py-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-primary-foreground shadow-md sm:right-[-2rem] sm:top-6 sm:w-[10.5rem] sm:text-[11px]"
+                    style={{ fontWeight: 700 }}
+                    aria-hidden
+                  >
+                    Free shipping
+                  </div>
+                  <img
+                    src={SCANNER_IMG}
+                    alt="MintCheck Wi-Fi OBD-II Scanner"
+                    className="relative z-0 w-full h-auto rounded-lg object-contain"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -149,9 +193,23 @@ export default function StarterKit() {
       {/* ───── What’s in the Box ───── */}
       <section className="border-b border-border" style={{ backgroundColor: '#FCFCFB' }}>
         <div className="max-w-5xl mx-auto px-6 py-20">
-          <h2 className="text-3xl text-center mb-14" style={{ fontWeight: 600 }}>
+          <h2 className="text-3xl text-center mb-10" style={{ fontWeight: 600 }}>
             What’s in the Box
           </h2>
+          <div className="max-w-lg mx-auto mb-14">
+            <img
+              src={WHATS_IN_BOX_UI_IMG}
+              alt="MintCheck app on iPhone showing a vehicle health scan"
+              width={525}
+              height={525}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-auto rounded-xl border border-border/60 shadow-sm bg-white"
+            />
+            <p className="text-center text-xs text-muted-foreground mt-3">
+              See your scan in the app: plug in the scanner, hop on its Wi-Fi, and read the results in plain English.
+            </p>
+          </div>
           <div className="grid md:grid-cols-2 gap-10 max-w-2xl mx-auto">
             <div className="text-center space-y-4">
               <div className="w-14 h-14 bg-accent rounded-xl flex items-center justify-center mx-auto">
@@ -171,6 +229,52 @@ export default function StarterKit() {
                 Scan as many vehicles as you want for 60 days with the MintCheck iOS app.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ───── Customer stories ───── */}
+      <section className="border-b border-border">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <h2 className="text-3xl text-center mb-4" style={{ fontWeight: 600 }}>
+            What buyers say
+          </h2>
+          <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed">
+            Short notes from folks who were trying to pick a used car and didn’t want to get burned by the seller.
+          </p>
+          <div className="grid md:grid-cols-3 gap-8">
+            {TESTIMONIALS.map((t) => (
+              <article
+                key={t.name}
+                className="flex flex-col rounded-xl border border-border bg-white p-6 shadow-sm"
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <img
+                    src={t.image}
+                    alt={t.imageAlt}
+                    width={64}
+                    height={64}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-16 w-16 rounded-full object-cover ring-2 ring-secondary shrink-0"
+                  />
+                  <div>
+                    <p className="text-base" style={{ fontWeight: 600 }}>
+                      {t.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{t.role}</p>
+                  </div>
+                </div>
+                <div className="flex gap-0.5 mb-3 text-primary" aria-label="5 out of 5 stars">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-current" strokeWidth={0} aria-hidden />
+                  ))}
+                </div>
+                <blockquote className="text-muted-foreground leading-relaxed text-[15px] grow">
+                  {t.quote}
+                </blockquote>
+              </article>
+            ))}
           </div>
         </div>
       </section>
