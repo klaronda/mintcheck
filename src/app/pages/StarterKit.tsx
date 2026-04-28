@@ -190,49 +190,6 @@ export default function StarterKit() {
         </div>
       </section>
 
-      {/* ───── What’s in the Box ───── */}
-      <section className="border-b border-border" style={{ backgroundColor: '#FCFCFB' }}>
-        <div className="max-w-5xl mx-auto px-6 py-20">
-          <h2 className="text-3xl text-center mb-10" style={{ fontWeight: 600 }}>
-            What’s in the Box
-          </h2>
-          <div className="max-w-lg mx-auto mb-14">
-            <img
-              src={WHATS_IN_BOX_UI_IMG}
-              alt="MintCheck app on iPhone showing a vehicle health scan"
-              width={525}
-              height={525}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-auto rounded-xl border border-border/60 shadow-sm bg-white"
-            />
-            <p className="text-center text-xs text-muted-foreground mt-3">
-              See your scan in the app: plug in the scanner, hop on its Wi-Fi, and read the results in plain English.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-10 max-w-2xl mx-auto">
-            <div className="text-center space-y-4">
-              <div className="w-14 h-14 bg-accent rounded-xl flex items-center justify-center mx-auto">
-                <Wifi className="w-7 h-7 text-primary" />
-              </div>
-              <h3 className="text-lg" style={{ fontWeight: 600 }}>Wi-Fi OBD-II Scanner</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                A compact plug-and-play adapter that reads your car’s engine data over Wi-Fi.
-              </p>
-            </div>
-            <div className="text-center space-y-4">
-              <div className="w-14 h-14 bg-accent rounded-xl flex items-center justify-center mx-auto">
-                <ShieldCheck className="w-7 h-7 text-primary" />
-              </div>
-              <h3 className="text-lg" style={{ fontWeight: 600 }}>60-Day Unlimited Pass</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Scan as many vehicles as you want for 60 days with the MintCheck iOS app.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ───── Customer stories ───── */}
       <section className="border-b border-border">
         <div className="max-w-6xl mx-auto px-6 py-20">
@@ -275,6 +232,49 @@ export default function StarterKit() {
                 </blockquote>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ───── What’s in the Box ───── */}
+      <section className="border-b border-border" style={{ backgroundColor: '#FCFCFB' }}>
+        <div className="max-w-5xl mx-auto px-6 py-20">
+          <h2 className="text-3xl text-center mb-10" style={{ fontWeight: 600 }}>
+            What’s in the Box
+          </h2>
+          <div className="max-w-lg mx-auto mb-14">
+            <img
+              src={WHATS_IN_BOX_UI_IMG}
+              alt="MintCheck app on iPhone showing a vehicle health scan"
+              width={525}
+              height={525}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-auto rounded-xl border border-border/60 shadow-sm bg-white"
+            />
+            <p className="text-center text-xs text-muted-foreground mt-3">
+              See your scan in the app: plug in the scanner, hop on its Wi-Fi, and read the results in plain English.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-10 max-w-2xl mx-auto">
+            <div className="text-center space-y-4">
+              <div className="w-14 h-14 bg-accent rounded-xl flex items-center justify-center mx-auto">
+                <Wifi className="w-7 h-7 text-primary" />
+              </div>
+              <h3 className="text-lg" style={{ fontWeight: 600 }}>Wi-Fi OBD-II Scanner</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                A compact plug-and-play adapter that reads your car’s engine data over Wi-Fi.
+              </p>
+            </div>
+            <div className="text-center space-y-4">
+              <div className="w-14 h-14 bg-accent rounded-xl flex items-center justify-center mx-auto">
+                <ShieldCheck className="w-7 h-7 text-primary" />
+              </div>
+              <h3 className="text-lg" style={{ fontWeight: 600 }}>60-Day Unlimited Pass</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Scan as many vehicles as you want for 60 days with the MintCheck iOS app.
+              </p>
+            </div>
           </div>
         </div>
       </section>
