@@ -18,6 +18,10 @@ export default function AuthReset() {
   const deepLink = useMemo(() => buildDeepLink('reset', window.location.search), []);
 
   useEffect(() => {
+    // Best-effort auto-open. Mobile Safari frequently blocks a custom-scheme
+    // redirect that isn't tied to a direct user tap/click, so this alone
+    // isn't reliable — the "Open MintCheck" button below is the real
+    // fallback and must always be shown, not just on a timeout.
     window.location.href = deepLink;
     setDidAttemptOpen(true);
   }, [deepLink]);
@@ -44,7 +48,7 @@ export default function AuthReset() {
 
       <div className="w-full max-w-md text-center space-y-4">
         <h1 className="text-2xl tracking-tight" style={{ fontWeight: 600 }}>
-          Opening MintCheck…
+          {isMissingToken ? 'Link Expired' : 'Reset in the App'}
         </h1>
 
         {isMissingToken ? (
@@ -53,32 +57,49 @@ export default function AuthReset() {
           </p>
         ) : (
           <p className="text-muted-foreground">
-            If the app didn’t open, you can download it or copy this link and open it on your phone.
+            Tap the button below to finish resetting your password in the MintCheck app.
           </p>
         )}
+
+        {!isMissingToken ? (
+          <div className="pt-2 space-y-3">
+            {/* A real anchor tap (as opposed to a JS-triggered redirect on
+                page load) is the reliable way to open a custom URL scheme on
+                mobile Safari, which otherwise silently blocks it. */}
+            <a
+              href={deepLink}
+              className="inline-flex w-full justify-center items-center bg-primary text-primary-foreground px-6 py-3 rounded-lg transition-opacity hover:opacity-90"
+              style={{ fontWeight: 600 }}
+            >
+              Open MintCheck
+            </a>
+          </div>
+        ) : null}
 
         <div className="pt-2 space-y-3">
           <Link
             to="/download"
-            className="inline-flex w-full justify-center items-center bg-primary text-primary-foreground px-6 py-3 rounded-lg transition-opacity hover:opacity-90"
-            style={{ fontWeight: 600 }}
-          >
-            Download the app
-          </Link>
-
-          <button
-            type="button"
-            onClick={copyLink}
             className="inline-flex w-full justify-center items-center border border-border px-6 py-3 rounded-lg hover:bg-muted/40"
             style={{ fontWeight: 600 }}
           >
-            {copied ? 'Copied' : 'Copy link'}
-          </button>
+            Don't have the app? Download it
+          </Link>
+
+          {!isMissingToken ? (
+            <button
+              type="button"
+              onClick={copyLink}
+              className="inline-flex w-full justify-center items-center border border-border px-6 py-3 rounded-lg hover:bg-muted/40"
+              style={{ fontWeight: 600 }}
+            >
+              {copied ? 'Copied' : 'Copy link'}
+            </button>
+          ) : null}
         </div>
 
-        {didAttemptOpen ? (
+        {didAttemptOpen && !isMissingToken ? (
           <p className="text-xs text-muted-foreground">
-            Tip: Universal Links require the app to be installed and the domain to be configured.
+            If tapping "Open MintCheck" does nothing, make sure the app is installed, then try again.
           </p>
         ) : null}
       </div>
